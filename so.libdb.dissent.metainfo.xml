@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.fiatjaf.shiitake</id>
+  <name>Shiitake</name>
+  <summary>Nostr group chat client</summary>
+  <developer_name translatable="no">diamondburned</developer_name>
+  <launchable type="desktop-id">com.fiatjaf.shiitake.desktop</launchable>
+  <translation type="gettext">Shiitake</translation>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0+</project_license>
+
+  <description>
+    <p>Nostr group chat client</p>
+  </description>
+
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/fiatjaf/shiitake/main/.github/screenshots/03.png</image>
+    </screenshot>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/fiatjaf/shiitake/main/.github/screenshots/01.png</image>
+    </screenshot>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/fiatjaf/shiitake/main/.github/screenshots/02.png</image>
+    </screenshot>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/fiatjaf/shiitake/main/.github/screenshots/04.png</image>
+    </screenshot>
+  </screenshots>
+
+  <url type="homepage">https://github.com/fiatjaf/shiitake</url>
+  <url type="bugtracker">https://github.com/fiatjaf/shiitake/issues</url>
+
+  <kudos>
+    <kudo>HiDpiIcon</kudo>
+    <kudo>ModernToolkit</kudo>
+  </kudos>
+
+  <recommends>
+    <control>keyboard</control>
+    <control>pointing</control>
+    <control>touch</control>
+  </recommends>
+
+  <custom>
+    <value key="Purism::form_factor">mobile</value>
+  </custom>
+
+  <content_rating type="oars-1.1">
+    <content_attribute id="social-chat">intense</content_attribute>
+    <content_attribute id="social-info">intense</content_attribute>
+    <content_attribute id="social-audio">intense</content_attribute>
+    <content_attribute id="social-contacts">intense</content_attribute>
+    <content_attribute id="money-purchasing">intense</content_attribute>
+  </content_rating>
+
+  <releases>
+    <release version="v0.0.1" date="2024-06-01">
+      <url>https://github.com/fiatjaf/shiitake/releases/tag/v0.0.7</url>
+    </release>
+  </releases>
+</component>
