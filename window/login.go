@@ -2,11 +2,9 @@ package window
 
 import (
 	"context"
-	"log"
 
 	"github.com/diamondburned/chatkit/kits/secret"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 )
 
@@ -44,6 +42,7 @@ func NewLoginPage(ctx context.Context, w *Window) *LoginPage {
 	p.Login = NewLoginComponent(ctx, &p)
 	p.Login.SetVExpand(true)
 	p.Login.SetHExpand(true)
+	p.Login.TryLoginFromDriver()
 
 	p.Box = gtk.NewBox(gtk.OrientationVertical, 0)
 	p.Box.Append(p.Header)
@@ -51,28 +50,4 @@ func NewLoginPage(ctx context.Context, w *Window) *LoginPage {
 	pageCSS(p)
 
 	return &p
-}
-
-func (p *LoginPage) LoadSecret() {
-	p.Login.Loading.Show()
-	p.Login.SetSensitive(false)
-
-	done := func() {
-		p.Login.Loading.Hide()
-		p.Login.SetSensitive(true)
-	}
-
-	gtkutil.Async(p.ctx, func() func() {
-		b, err := p.driver.Get("key-or-bunker")
-		if err != nil {
-			log.Println("key-or-bunker not found from driver:", err)
-			return done
-		}
-		log.Println("loaded", string(b))
-
-		return func() {
-			done()
-			p.w.OnLogin()
-		}
-	})
 }

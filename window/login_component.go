@@ -9,8 +9,8 @@ import (
 	"fiatjaf.com/shiitake/window/loading"
 	"github.com/diamondburned/adaptive"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
-	sdk "github.com/nbd-wtf/nostr-sdk"
 )
 
 // LoginLoginComponent is the main component in the login page.
@@ -22,7 +22,7 @@ type LoginComponent struct {
 	KeyOrBunker *FormEntry
 	Bottom      *gtk.Box
 	ErrorRev    *gtk.Revealer
-	LogIn       *gtk.Button
+	Submit      *gtk.Button
 
 	ctx  context.Context
 	page *LoginPage
@@ -86,20 +86,20 @@ func NewLoginComponent(ctx context.Context, p *LoginPage) *LoginComponent {
 	c.KeyOrBunker = NewFormEntry("nsec, ncryptsec or bunker")
 	c.KeyOrBunker.FocusNextOnActivate()
 	c.KeyOrBunker.Entry.SetInputPurpose(gtk.InputPurposeEmail)
-	c.KeyOrBunker.ConnectActivate(c.Login)
+	c.KeyOrBunker.ConnectActivate(c.ForceSubmit)
 
 	c.ErrorRev = gtk.NewRevealer()
 	c.ErrorRev.SetTransitionType(gtk.RevealerTransitionTypeSlideDown)
 	c.ErrorRev.SetRevealChild(false)
 
-	c.LogIn = gtk.NewButtonWithLabel("Log In")
-	c.LogIn.AddCSSClass("suggested-action")
-	c.LogIn.AddCSSClass("login-button")
-	c.LogIn.SetHExpand(true)
-	c.LogIn.ConnectClicked(c.login)
+	c.Submit = gtk.NewButtonWithLabel("Log In")
+	c.Submit.AddCSSClass("suggested-action")
+	c.Submit.AddCSSClass("login-button")
+	c.Submit.SetHExpand(true)
+	c.Submit.ConnectClicked(c.handleSubmit)
 
 	buttonBox := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	buttonBox.Append(c.LogIn)
+	buttonBox.Append(c.Submit)
 
 	c.Inner = gtk.NewBox(gtk.OrientationVertical, 0)
 	c.Inner.Append(loginWith)
@@ -130,39 +130,65 @@ func (c *LoginComponent) HideError() {
 	c.ErrorRev.SetRevealChild(false)
 }
 
-// Login presses the Login button.
-func (c *LoginComponent) Login() {
-	c.LogIn.Activate()
+func (c *LoginComponent) ForceSubmit() {
+	c.Submit.Activate()
 }
 
-func (c *LoginComponent) login() {
-	value := c.KeyOrBunker.Entry.Text()
+// TryLoginFromDriver loads a secret from the keyring or filesystem and tries to login with it
+func (c *LoginComponent) TryLoginFromDriver() {
+	c.Loading.Show()
+	c.SetSensitive(false)
 
-	if strings.HasPrefix(value, "ncryptsec1") {
+	done := func() {
+		c.Loading.Hide()
+		c.SetSensitive(true)
+	}
+
+	gtkutil.Async(c.ctx, func() func() {
+		b, err := c.page.driver.Get("key-or-bunker")
+		if err != nil {
+			log.Println("key-or-bunker not found from driver:", err)
+			return done
+		}
+
+		value := string(b)
+		log.Println("loaded", value)
+		c.loginWithInput(value)
+
+		return func() {
+			done()
+		}
+	})
+}
+
+func (c *LoginComponent) handleSubmit() {
+	c.loginWithInput(c.KeyOrBunker.Entry.Text())
+}
+
+func (c *LoginComponent) loginWithInput(input string) {
+	log.Printf("using '%s'\n", input)
+	if strings.HasPrefix(input, "ncryptsec1") {
 		promptPassword(c.ctx, func(ok bool, password string) {
-			c.loginWithPassword(password)
+			c.loginWithPassword(input, password)
 		})
 	} else {
-		c.loginWithPassword("")
+		c.loginWithPassword(input, "")
 	}
 }
 
-func (c *LoginComponent) loginWithPassword(password string) {
+func (c *LoginComponent) loginWithPassword(input string, password string) {
 	// set busy
 	c.SetSensitive(false)
 	c.Loading.Show()
 
-	value := c.KeyOrBunker.Entry.Text()
-	opts := &sdk.SignerOptions{Password: password}
-
-	if err := global.Sys.InitSigner(c.ctx, value, opts); err != nil {
-		log.Println(err)
-		// TODO: display error
+	err := global.Init(c.ctx, input, password)
+	if err != nil {
+		log.Println("error initializing signer", err)
 		return
 	}
 
 	// here we have a signer, so we can store our input value
-	c.page.driver.Set("key-or-bunker", []byte(value))
+	c.page.driver.Set("key-or-bunker", []byte(input))
 
 	// set done
 	c.SetSensitive(true)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"fiatjaf.com/shiitake/global"
 	"fiatjaf.com/shiitake/window/quickswitcher"
 	"github.com/diamondburned/arikawa/v3/discord"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -82,8 +83,6 @@ func NewWindow(ctx context.Context) *Window {
 	w.ctx = ctxt.With(w.ctx, &w)
 
 	w.Login = NewLoginPage(ctx, &w)
-	w.Login.LoadSecret()
-
 	w.Loading = NewLoadingPage(ctx)
 
 	w.Stack = gtk.NewStack()
@@ -103,6 +102,7 @@ func (w *Window) Context() context.Context {
 
 func (w *Window) OnLogin() {
 	w.readyOnce.Do(func() {
+		go global.Start(w.ctx)
 		w.initChatPage()
 		w.initActions()
 	})

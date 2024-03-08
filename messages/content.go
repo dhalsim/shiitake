@@ -19,7 +19,6 @@ import (
 	"github.com/diamondburned/gotkit/gtkutil/textutil"
 	"github.com/diamondburned/ningen/v3/discordmd"
 	"github.com/nbd-wtf/go-nostr"
-	sdk "github.com/nbd-wtf/nostr-sdk"
 	"github.com/yuin/goldmark/ast"
 )
 
@@ -260,7 +259,7 @@ func (c *Content) newReplyBox(m *nostr.Event) gtk.Widgetter {
 	// }
 
 	// member, _ := state.Cabinet.Member(m.Reference.GuildID, referencedMsg.Author.ID)
-	chip := newAuthorChip(c.ctx, "", global.Sys.FetchOrStoreProfileMetadata(c.ctx, m.PubKey))
+	chip := newAuthorChip(c.ctx, "", global.GetUser(c.ctx, m.PubKey))
 	chip.SetHAlign(gtk.AlignStart)
 	chip.Unpad()
 	box.Append(chip)
@@ -327,7 +326,7 @@ func (c *Content) newInteractionBox(m *nostr.Event) gtk.Widgetter {
 	// 	return box
 	// }
 
-	chip := newAuthorChip(c.ctx, "", global.Sys.FetchProfileMetadata(c.ctx, m.PubKey))
+	chip := newAuthorChip(c.ctx, "", global.GetUser(c.ctx, m.PubKey))
 	chip.SetHAlign(gtk.AlignStart)
 	chip.Unpad()
 	box.Append(chip)
@@ -502,7 +501,7 @@ func renderMention(r *mdrender.Renderer, n ast.Node) ast.WalkStatus {
 	return ast.WalkContinue
 }
 
-func newAuthorChip(ctx context.Context, guildID string, user sdk.ProfileMetadata) *author.Chip {
+func newAuthorChip(ctx context.Context, guildID string, user global.User) *author.Chip {
 	name := user.ShortName()
 	color := defaultMentionColor
 

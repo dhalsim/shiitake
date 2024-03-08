@@ -7,8 +7,8 @@ import (
 	"slices"
 	"time"
 
-	"fiatjaf.com/shiitake/messages/composer"
 	"fiatjaf.com/shiitake/global"
+	"fiatjaf.com/shiitake/messages/composer"
 	"github.com/diamondburned/adaptive"
 	"github.com/diamondburned/arikawa/v3/discord"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"

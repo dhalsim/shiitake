@@ -7,16 +7,16 @@ import (
 	"github.com/nbd-wtf/go-nostr"
 )
 
-func GetChannel(ctx context.Context, id string) Channel {
-	return Channel{id, ""}
+func GetGroup(ctx context.Context, id string) Group {
+	return Group{id, ""}
 }
 
-type Channel struct {
+type Group struct {
 	ID       string
 	RelayURL string
 }
 
-func (channel Channel) SendChatMessage(ctx context.Context, text string) {
+func (channel Group) SendChatMessage(ctx context.Context, text string) {
 	evt := nostr.Event{
 		Kind: 9,
 		Tags: nostr.Tags{
@@ -25,11 +25,11 @@ func (channel Channel) SendChatMessage(ctx context.Context, text string) {
 		CreatedAt: nostr.Now(),
 		Content:   text,
 	}
-	if err := Sys.Signer.SignEvent(&evt); err != nil {
+	if err := sys.Signer.SignEvent(&evt); err != nil {
 		panic(err)
 	}
 
-	relay, err := Sys.Pool.EnsureRelay(channel.RelayURL)
+	relay, err := sys.Pool.EnsureRelay(channel.RelayURL)
 	if err != nil {
 		log.Printf("failed to connect to relay '%s': %s\n", channel.RelayURL, err)
 		return
@@ -41,8 +41,8 @@ func (channel Channel) SendChatMessage(ctx context.Context, text string) {
 	}
 }
 
-func (channel Channel) SubscribeToMessages(ctx context.Context) {
-	relay, err := Sys.Pool.EnsureRelay(channel.RelayURL)
+func (channel Group) SubscribeToMessages(ctx context.Context) {
+	relay, err := sys.Pool.EnsureRelay(channel.RelayURL)
 	if err != nil {
 		log.Printf("failed to connect to relay '%s': %s\n", channel.RelayURL, err)
 		return
