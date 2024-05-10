@@ -5,22 +5,43 @@ import (
 	"log"
 
 	"github.com/nbd-wtf/go-nostr"
+	"github.com/nbd-wtf/go-nostr/nip29"
+	"github.com/puzpuzpuz/xsync/v3"
 )
 
-func GetGroup(ctx context.Context, id string) Group {
-	return Group{id, ""}
+var groups = xsync.NewMapOf[string, *Group]()
+
+func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
+	group := &Group{
+		Group: nip29.Group{
+			Address: gad,
+			Name:    gad.ID,
+			Members: make(map[string]*nip29.Role, 5),
+		},
+		Messages: make([]*nostr.Event, 0, 500),
+	}
+
+	if err := subscribeGroup(ctx, group); err != nil {
+		return nil
+	}
+
+	groups.Store(group.Address.ID, group)
+	return group
+}
+
+func JoinGroup(ctx context.Context, gad nip29.GroupAddress) {
 }
 
 type Group struct {
-	ID       string
-	RelayURL string
+	nip29.Group
+	Messages []*nostr.Event
 }
 
-func (channel Group) SendChatMessage(ctx context.Context, text string) {
+func (g Group) SendChatMessage(ctx context.Context, text string) {
 	evt := nostr.Event{
 		Kind: 9,
 		Tags: nostr.Tags{
-			nostr.Tag{"h", channel.ID},
+			nostr.Tag{"h", g.Address.ID},
 		},
 		CreatedAt: nostr.Now(),
 		Content:   text,
@@ -29,9 +50,9 @@ func (channel Group) SendChatMessage(ctx context.Context, text string) {
 		panic(err)
 	}
 
-	relay, err := sys.Pool.EnsureRelay(channel.RelayURL)
+	relay, err := sys.Pool.EnsureRelay(g.Address.Relay)
 	if err != nil {
-		log.Printf("failed to connect to relay '%s': %s\n", channel.RelayURL, err)
+		log.Printf("failed to connect to relay '%s': %s\n", g.Address.Relay, err)
 		return
 	}
 
@@ -41,10 +62,10 @@ func (channel Group) SendChatMessage(ctx context.Context, text string) {
 	}
 }
 
-func (channel Group) SubscribeToMessages(ctx context.Context) {
-	relay, err := sys.Pool.EnsureRelay(channel.RelayURL)
+func (g Group) SubscribeToMessages(ctx context.Context) {
+	relay, err := sys.Pool.EnsureRelay(g.Address.Relay)
 	if err != nil {
-		log.Printf("failed to connect to relay '%s': %s\n", channel.RelayURL, err)
+		log.Printf("failed to connect to relay '%s': %s\n", g.Address.Relay, err)
 		return
 	}
 
@@ -52,13 +73,13 @@ func (channel Group) SubscribeToMessages(ctx context.Context) {
 		{
 			Kinds: []int{9},
 			Tags: nostr.TagMap{
-				"h": []string{channel.ID},
+				"h": []string{g.Address.ID},
 			},
 			Limit: 500,
 		},
 	})
 	if err != nil {
-		log.Printf("failed to subscribe to group %s at '%s': %s\n", channel.ID, channel.RelayURL, err)
+		log.Printf("failed to subscribe to group %s: %s\n", g.Address, err)
 		return
 	}
 

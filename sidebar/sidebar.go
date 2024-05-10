@@ -211,9 +211,9 @@ func (s *Sidebar) Unselect() {
 }
 
 // SetSelectedGuild marks the guild with the given ID as selected.
-func (s *Sidebar) SetSelectedGuild(guildID string) {
-	s.Guilds.SetSelectedGuild(guildID)
-	s.openGuild(guildID)
+func (s *Sidebar) SetSelectedRelay(relayURL string) {
+	s.Guilds.SetSelectedGuild(relayURL)
+	s.openGuild(relayURL)
 }
 
 // // SelectGuild selects and activates the guild with the given ID.

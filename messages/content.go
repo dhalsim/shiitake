@@ -19,6 +19,7 @@ import (
 	"github.com/diamondburned/gotkit/gtkutil/textutil"
 	"github.com/diamondburned/ningen/v3/discordmd"
 	"github.com/nbd-wtf/go-nostr"
+	"github.com/nbd-wtf/go-nostr/nip29"
 	"github.com/yuin/goldmark/ast"
 )
 
@@ -32,7 +33,7 @@ type Content struct {
 	react  *contentReactions
 	child  []gtk.Widgetter
 
-	chID  string
+	Group nip29.GroupAddress
 	msgID string
 }
 
@@ -70,7 +71,7 @@ func NewContent(ctx context.Context, v *View) *Content {
 		ctx:   ctx,
 		view:  v,
 		child: make([]gtk.Widgetter, 0, 2),
-		chID:  v.ChannelID(),
+		Group: v.Group.Address,
 	}
 	c.Box = gtk.NewBox(gtk.OrientationVertical, 0)
 	contentCSS(c.Box)
@@ -81,11 +82,6 @@ func NewContent(ctx context.Context, v *View) *Content {
 // MessageID returns the message ID.
 func (c *Content) MessageID() string {
 	return c.msgID
-}
-
-// ChannelID returns the channel ID.
-func (c *Content) ChannelID() string {
-	return c.chID
 }
 
 // SetExtraMenu implements ExtraMenuSetter.
@@ -387,7 +383,7 @@ func (c *Content) Redact() {
 }
 
 // SetReactions sets the reactions inside the message.
-func (c *Content) SetReactions(reactions []discord.Reaction) {
+func (c *Content) SetReactions(reactions []string) {
 	if c.react == nil {
 		if len(reactions) == 0 {
 			return

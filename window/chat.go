@@ -3,6 +3,7 @@ package window
 import (
 	"context"
 
+	"fiatjaf.com/shiitake/global"
 	"fiatjaf.com/shiitake/messages"
 	"fiatjaf.com/shiitake/sidebar"
 	"fiatjaf.com/shiitake/window/backbutton"
@@ -10,19 +11,17 @@ import (
 	"github.com/diamondburned/adaptive"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/core/glib"
-	"github.com/diamondburned/gotk4/pkg/gdk/v4"
-	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
 	"github.com/diamondburned/gotkit/app"
 	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
-	"libdb.so/ctxt"
+	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
 var (
-	lastGuildKey   = app.NewSingleStateKey[string]("last-guild-state")
-	lastChannelKey = app.NewStateKey[string]("guild-last-open")
+	lastRelay = app.NewSingleStateKey[string]("last-relay")
+	lastGroup = app.NewStateKey[string]("last-group")
 )
 
 // TODO: refactor this to support TabOverview. We do this by refactoring Sidebar
@@ -36,20 +35,17 @@ type ChatPage struct {
 	RightHeader *adw.HeaderBar
 	RightTitle  *gtk.Label
 
-	tabView       *adw.TabView
+	chatView      *ChatView
 	quickswitcher *quickswitcher.Dialog
 
-	lastGuildState   *app.TypedSingleState[string]
-	lastChannelState *app.TypedState[string]
-
-	lastGuild string
+	lastRelay         *app.TypedSingleState[string]
+	lastGroupForRelay *app.TypedState[string]
 
 	// lastButtons keeps tracks of the header buttons of the previous view.
 	// On view change, these buttons will be removed.
 	lastButtons []gtk.Widgetter
 
-	tabs map[uintptr]*chatTab // K: *adw.TabPage
-	ctx  context.Context
+	ctx context.Context
 }
 
 type chatPageView struct {
@@ -76,29 +72,15 @@ var chatPageCSS = cssutil.Applier("window-chatpage", `
 
 func NewChatPage(ctx context.Context, w *Window) *ChatPage {
 	p := ChatPage{
-		ctx:              ctx,
-		tabs:             make(map[uintptr]*chatTab),
-		lastGuildState:   lastGuildKey.Acquire(ctx),
-		lastChannelState: lastChannelKey.Acquire(ctx),
+		ctx:               ctx,
+		lastRelay:         lastRelay.Acquire(ctx),
+		lastGroupForRelay: lastGroup.Acquire(ctx),
 	}
 
 	p.quickswitcher = quickswitcher.NewDialog(ctx)
 	p.quickswitcher.SetHideOnClose(true) // so we can reopen it later
 
-	p.tabView = adw.NewTabView()
-	p.tabView.AddCSSClass("window-chatpage-tabview")
-	p.tabView.SetDefaultIcon(gio.NewThemedIcon("channel-symbolic"))
-	p.tabView.NotifyProperty("selected-page", func() {
-		p.onActiveTabChange(p.tabView.SelectedPage())
-	})
-	p.tabView.ConnectClosePage(func(page *adw.TabPage) bool {
-		_, ok := p.tabs[page.Native()]
-		if ok {
-			delete(p.tabs, page.Native())
-			p.tabView.ClosePageFinish(page, true)
-		}
-		return gdk.EVENT_STOP
-	})
+	p.chatView = NewChatView(ctx)
 
 	p.Sidebar = sidebar.NewSidebar(ctx)
 	p.Sidebar.SetHAlign(gtk.AlignStart)
@@ -112,9 +94,9 @@ func NewChatPage(ctx context.Context, w *Window) *ChatPage {
 	back := backbutton.New()
 	back.SetTransitionType(gtk.RevealerTransitionTypeSlideRight)
 
-	newTabButton := gtk.NewButtonFromIconName("list-add-symbolic")
-	newTabButton.SetTooltipText("Open a New Tab")
-	newTabButton.ConnectClicked(func() { p.newTab() })
+	joinGroupButton := gtk.NewButtonFromIconName("list-add-symbolic")
+	joinGroupButton.SetTooltipText("Join Group")
+	joinGroupButton.ConnectClicked(p.AskJoinGroup)
 
 	p.RightHeader = adw.NewHeaderBar()
 	p.RightHeader.AddCSSClass("right-header")
@@ -123,24 +105,12 @@ func NewChatPage(ctx context.Context, w *Window) *ChatPage {
 	p.RightHeader.SetShowTitle(false)
 	p.RightHeader.PackStart(back)
 	p.RightHeader.PackStart(p.RightTitle)
-	p.RightHeader.PackEnd(newTabButton)
-
-	tabBar := adw.NewTabBar()
-	tabBar.AddCSSClass("window-chatpage-tabbar")
-	tabBar.SetView(p.tabView)
-	tabBar.SetAutohide(true)
-
-	rightBox := adw.NewToolbarView()
-	rightBox.SetTopBarStyle(adw.ToolbarFlat)
-	rightBox.SetHExpand(true)
-	rightBox.AddTopBar(p.RightHeader)
-	rightBox.AddTopBar(tabBar)
-	rightBox.SetContent(p.tabView)
+	p.RightHeader.PackEnd(joinGroupButton)
 
 	p.OverlaySplitView = adw.NewOverlaySplitView()
 	p.OverlaySplitView.SetSidebar(p.Sidebar)
 	p.OverlaySplitView.SetSidebarPosition(gtk.PackStart)
-	p.OverlaySplitView.SetContent(rightBox)
+	p.OverlaySplitView.SetContent(p.chatView)
 	p.OverlaySplitView.SetEnableHideGesture(true)
 	p.OverlaySplitView.SetEnableShowGesture(true)
 	p.OverlaySplitView.SetMinSidebarWidth(200)
@@ -165,6 +135,57 @@ func NewChatPage(ctx context.Context, w *Window) *ChatPage {
 	return &p
 }
 
+func (p *ChatPage) AskJoinGroup() {
+	entry := gtk.NewEntry()
+	entry.SetInputPurpose(gtk.InputPurposeFreeForm)
+	entry.SetVisibility(false)
+
+	label := gtk.NewLabel("Enter group address:")
+	label.SetAttributes(inputLabelAttrs)
+	label.SetXAlign(0)
+
+	box := gtk.NewBox(gtk.OrientationVertical, 0)
+	box.Append(label)
+	box.Append(entry)
+
+	prompt := gtk.NewDialog()
+	prompt.SetTitle("File")
+	prompt.SetDefaultSize(250, 80)
+	prompt.SetTransientFor(app.GTKWindowFromContext(p.ctx))
+	prompt.SetModal(true)
+	prompt.AddButton("Cancel", int(gtk.ResponseCancel))
+	prompt.AddButton("OK", int(gtk.ResponseAccept))
+	prompt.SetDefaultResponse(int(gtk.ResponseAccept))
+
+	inner := prompt.ContentArea()
+	inner.Append(box)
+	inner.SetVExpand(true)
+	inner.SetHExpand(true)
+	inner.SetVAlign(gtk.AlignCenter)
+	inner.SetHAlign(gtk.AlignCenter)
+	// wordCSS(inner)
+
+	entry.ConnectActivate(func() {
+		// Enter key activates.
+		prompt.Response(int(gtk.ResponseAccept))
+	})
+
+	prompt.ConnectResponse(func(id int) {
+		defer prompt.Close()
+		gad, err := nip29.ParseGroupAddress(entry.Text())
+		if err != nil {
+			return
+		}
+
+		switch id {
+		case int(gtk.ResponseAccept):
+			global.JoinGroup(p.ctx, gad)
+		}
+	})
+
+	prompt.Show()
+}
+
 // OpenQuickSwitcher opens the Quick Switcher dialog.
 func (p *ChatPage) OpenQuickSwitcher() { p.quickswitcher.Show() }
 
@@ -174,62 +195,53 @@ func (p *ChatPage) ResetView() { p.SwitchToPlaceholder() }
 
 // SwitchToPlaceholder switches to the empty placeholder view.
 func (p *ChatPage) SwitchToPlaceholder() {
-	tab := p.currentTab()
-	tab.switchToPlaceholder()
-
-	p.onActiveTabChange(p.tabView.Page(tab))
+	p.chatView.switchToPlaceholder()
 }
 
 // SwitchToMessages reopens a new message page of the same channel ID if the
 // user is opening one. Otherwise, the placeholder is seen.
 func (p *ChatPage) SwitchToMessages() {
-	tab := p.currentTab()
-	tab.switchToPlaceholder()
+	p.chatView.switchToPlaceholder()
 
-	p.lastGuildState.Exists(func(exists bool) {
+	p.lastRelay.Exists(func(exists bool) {
 		if !exists {
 			// Open DMs if there is no last opened channel.
 			p.OpenDMs()
 			return
 		}
 		// Restore the last opened channel if there is one.
-		p.lastGuildState.Get(func(id string) {
-			// if id.IsValid() {
-			// 	p.OpenGuild(id)
-			// } else {
-			// 	p.OpenDMs()
-			// }
+		p.lastRelay.Get(func(rl string) {
+			p.lastGroupForRelay.Get(rl, func(id string) {
+				p.OpenGroup(nip29.GroupAddress{Relay: rl, ID: id})
+			})
 		})
 	})
 }
 
 // OpenDMs opens the DMs page.
 func (p *ChatPage) OpenDMs() {
-	p.lastGuild = ""
-	p.lastGuildState.Set("")
+	p.lastRelay.Set("")
 	p.Sidebar.OpenDMs()
-	p.restoreLastChannel("")
+	p.restoreLastGroup()
 }
 
-// OpenGuild opens the guild with the given ID.
-func (p *ChatPage) OpenGuild(guildID string) {
-	p.lastGuild = guildID
-	p.lastGuildState.Set(guildID)
-	p.Sidebar.SetSelectedGuild(guildID)
-	p.restoreLastChannel(guildID)
+// OpenRelay opens the relay with the given ID.
+func (p *ChatPage) OpenRelay(guildID string) {
+	p.lastRelay.Set("")
+	p.Sidebar.SetSelectedRelay(guildID)
+	p.restoreLastGroup()
 }
 
-func (p *ChatPage) restoreLastChannel(guildID string) {
-	var k string
-	// if guildID.IsValid() {
-	// 	k = guildID.String()
-	// }
-
+func (p *ChatPage) restoreLastGroup() {
 	// Allow a bit of delay for the page to finish loading.
 	glib.IdleAdd(func() {
-		p.lastChannelState.Exists(k, func(exists bool) {
+		p.lastRelay.Exists(func(exists bool) {
 			if exists {
-				p.lastChannelState.Get(k, p.OpenChannel)
+				p.lastRelay.Get(func(rl string) {
+					p.lastGroupForRelay.Get(rl, func(id string) {
+						p.OpenGroup(nip29.GroupAddress{Relay: rl, ID: id})
+					})
+				})
 			} else {
 				p.SwitchToPlaceholder()
 			}
@@ -237,151 +249,19 @@ func (p *ChatPage) restoreLastChannel(guildID string) {
 	})
 }
 
-// OpenChannel opens the channel with the given ID. Use this method to direct
+// OpenGroup opens the group with the given ID. Use this method to direct
 // the user to a new channel when they request to, e.g. through a notification.
-func (p *ChatPage) OpenChannel(chID string) {
-	var tab *chatTab
-	var reselect bool
-	for _, t := range p.tabs {
-		if t.alreadyOpens(chID) {
-			tab = t
-			reselect = true
-			break
-		}
+func (p *ChatPage) OpenGroup(gad nip29.GroupAddress) {
+	p.chatView.switchToGroup(gad)
+
+	group := global.GetGroup(p.ctx, gad)
+	if group != nil {
+		// Save the last opened channel for the guild.
+		p.lastGroupForRelay.Set(gad.Relay, gad.ID)
 	}
-	if tab == nil {
-		tab = p.currentTab()
-	}
-
-	tab.switchToChannel(chID)
-
-	page := p.tabView.Page(tab)
-	updateTabInfo(p.ctx, page, chID)
-	if reselect {
-		p.tabView.SetSelectedPage(page)
-	}
-
-	p.onActiveTabChange(page)
-
-	// state := gtkcord.FromContext(p.ctx).Offline()
-	// ch, _ := state.Channel(chID)
-	// if ch != nil {
-	// 	var k string
-	// 	if ch.GuildID.IsValid() {
-	// 		k = ch.GuildID.String()
-	// 	}
-	// 	// Save the last opened channel for the guild.
-	// 	p.lastChannelState.Set(k, chID)
-	// }
-}
-
-func updateTabInfo(ctx context.Context, page *adw.TabPage, chID string) {
-	// if chID.IsValid() {
-	// 	page.SetIcon(gio.NewThemedIcon("channel-symbolic"))
-
-	// 	title := gtkcord.WindowTitleFromID(ctx, chID)
-	// 	// We don't actually want the prefixing # because we already have the
-	// 	// tab icon.
-	// 	title = strings.TrimPrefix(title, "#")
-	// 	page.SetTitle(title)
-	// } else {
-	// 	page.SetIcon(nil)
-	// 	page.SetTitle("New Tab")
-	// }
-}
-
-// currentTab returns the current tab. If there is no tab, then it creates one.
-func (p *ChatPage) currentTab() *chatTab {
-	var tab *chatTab
-
-	page := p.tabView.SelectedPage()
-	if page != nil {
-		// We already have a tab.
-		// Ensure our window gets updated by the end.
-		tab = p.tabs[page.Native()]
-	} else {
-		// We don't have an active tab right now. Create one.
-		tab = p.newTab()
-	}
-
-	return tab
-}
-
-func (p *ChatPage) newTab() *chatTab {
-	tab := newChatTab(p.ctx)
-
-	page := p.tabView.Append(tab)
-	updateTabInfo(p.ctx, page, "")
-
-	p.tabs[page.Native()] = tab
-	p.tabView.SetSelectedPage(page)
-
-	return tab
-}
-
-func (p *ChatPage) onActiveTabChange(page *adw.TabPage) {
-	// Remove the previous header buttons.
-	for _, button := range p.lastButtons {
-		p.RightHeader.Remove(button)
-	}
-	p.lastButtons = nil
-
-	p.updateWindowTitle()
-
-	var tab *chatTab
-	// var chID string
-
-	if page != nil {
-		tab = p.tabs[page.Native()]
-		if tab == nil {
-			// Ignore this. It's possible that we're still initializing.
-			return
-		}
-
-		// chID = tab.channelID()
-
-		// Add the new header buttons.
-		if tab.messageView != nil {
-			p.lastButtons = tab.messageView.HeaderButtons()
-			for i := len(p.lastButtons) - 1; i >= 0; i-- {
-				button := p.lastButtons[i]
-				p.RightHeader.PackEnd(button)
-			}
-		}
-	}
-
-	// Update the left guild list and channel list.
-	// if chID.IsValid() {
-	// 	// TODO: it really has to get rid of this SelectChannel call...
-	// 	// It's really hard for it to try and have a SetSelectedChannel function
-	// 	// because of how the SelectionChanged signal works.
-	// 	p.Sidebar.SelectChannel(chID)
-	// } else {
-	// 	// Hack to ensure that the guild item is selected when we have no
-	// 	// channel on display.
-	// 	if p.lastGuild.IsValid() {
-	// 		p.Sidebar.SetSelectedGuild(p.lastGuild)
-	// 	} else {
-	// 		p.Sidebar.Unselect()
-	// 	}
-	// }
-
-	// // Update the displaying window title.
-	// var chName string
-	// if chID.IsValid() {
-	// 	chName = gtkcord.ChannelNameFromID(p.ctx, chID)
-	// }
-
-	// // Update the window titles.
-	// p.RightTitle.SetText(chName)
 }
 
 func (p *ChatPage) updateWindowTitle() {
-	var title string
-	if page := p.tabView.SelectedPage(); page != nil {
-		title = page.Title()
-	}
-
 	// state := gtkcord.FromContext(p.ctx)
 
 	// // Add a ping indicator if the user has pings.
@@ -390,19 +270,19 @@ func (p *ChatPage) updateWindowTitle() {
 	// 	title = fmt.Sprintf("(%d) %s", mentions, title)
 	// }
 
-	win, _ := ctxt.From[*Window](p.ctx)
-	win.SetTitle(title)
+	// win, _ := ctxt.From[*Window](p.ctx)
+	// win.SetTitle(title)
 }
 
-type chatTab struct {
+type ChatView struct {
 	*gtk.Stack
 	placeholder gtk.Widgetter
 	messageView *messages.View // nilable
 	ctx         context.Context
 }
 
-func newChatTab(ctx context.Context) *chatTab {
-	var t chatTab
+func NewChatView(ctx context.Context) *ChatView {
+	var t ChatView
 	t.ctx = ctx
 	t.placeholder = newEmptyMessagePlaceholder()
 
@@ -415,23 +295,19 @@ func newChatTab(ctx context.Context) *chatTab {
 	return &t
 }
 
-func (t *chatTab) alreadyOpens(id string) bool {
-	return t.channelID() == id
-}
-
-func (t *chatTab) channelID() string {
+func (t *ChatView) Current() nip29.GroupAddress {
 	if t.messageView == nil {
-		return ""
+		return nip29.GroupAddress{}
 	}
-	return t.messageView.ChannelID()
+	return t.messageView.Group.Address
 }
 
-func (t *chatTab) switchToPlaceholder() bool {
-	return t.switchToChannel("")
+func (t *ChatView) switchToPlaceholder() bool {
+	return t.switchToGroup(nip29.GroupAddress{})
 }
 
-func (t *chatTab) switchToChannel(id string) bool {
-	if t.alreadyOpens(id) {
+func (t *ChatView) switchToGroup(gad nip29.GroupAddress) bool {
+	if t.Current().Equals(gad) {
 		return false
 	}
 

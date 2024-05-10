@@ -54,13 +54,11 @@ type View struct {
 	Composer        *composer.View
 	TypingIndicator *TypingIndicator
 
-	msgs    map[messageKey]messageRow
-	chName  string
-	guildID string
+	msgs  map[messageKey]messageRow
+	Group global.Group
 
 	state struct {
 		row      *gtk.ListBoxRow
-		editing  bool
 		replying bool
 	}
 
@@ -483,23 +481,6 @@ func (v *View) HeaderButtons() []gtk.Widgetter {
 	// }
 
 	return buttons
-}
-
-// GuildID returns the guild ID of the channel that the message view is
-// displaying for.
-func (v *View) GuildID() string {
-	return v.guildID
-}
-
-// ChannelID returns the channel ID of the message view.
-func (v *View) ChannelID() string {
-	return v.chID
-}
-
-// ChannelName returns the name of the channel that the message view is
-// displaying for.
-func (v *View) ChannelName() string {
-	return v.chName
 }
 
 func (v *View) load() {

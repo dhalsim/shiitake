@@ -5,23 +5,13 @@ import (
 	"time"
 
 	"github.com/nbd-wtf/go-nostr"
+	"github.com/nbd-wtf/go-nostr/nip29"
 	sdk "github.com/nbd-wtf/nostr-sdk"
-	cache_memory "github.com/nbd-wtf/nostr-sdk/cache/memory"
 )
 
-var sys = &sdk.System{
-	Pool:             nostr.NewSimplePool(context.Background()),
-	RelaysCache:      cache_memory.New32[[]sdk.Relay](1000),
-	MetadataCache:    cache_memory.New32[sdk.ProfileMetadata](1000),
-	FollowsCache:     cache_memory.New32[[]sdk.Follow](1),
-	RelayListRelays:  []string{"wss://purplepag.es", "wss://relay.nostr.band"},
-	FollowListRelays: []string{"wss://public.relaying.io", "wss://relay.nostr.band"},
-	MetadataRelays:   []string{"wss://nostr-pub.wellorder.net", "wss://purplepag.es", "wss://relay.nostr.band"},
-}
+var sys = sdk.System()
 
 func Init(ctx context.Context, keyOrBunker string, password string) error {
-	sys.Init()
-
 	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
 	defer cancel()
 
@@ -34,7 +24,7 @@ func Init(ctx context.Context, keyOrBunker string, password string) error {
 
 type User struct {
 	sdk.ProfileMetadata
-	Groups []Group
+	Groups []*Group
 }
 
 func GetMe(ctx context.Context) User {
@@ -42,7 +32,7 @@ func GetMe(ctx context.Context) User {
 
 	me := User{
 		ProfileMetadata: sys.FetchOrStoreProfileMetadata(ctx, pk),
-		Groups:          make([]Group, 0, 100),
+		Groups:          make([]*Group, 0, 100),
 	}
 
 	ie := sys.Pool.QuerySingle(ctx, sys.MetadataRelays, nostr.Filter{
@@ -52,7 +42,8 @@ func GetMe(ctx context.Context) User {
 	if ie != nil {
 		for _, tag := range ie.Tags {
 			if len(tag) >= 2 && tag[0] == "group" {
-				me.Groups = append(me.Groups, Group{tag[1], tag[2]})
+				group := GetGroup(ctx, nip29.GroupAddress{ID: tag[1], Relay: tag[2]})
+				me.Groups = append(me.Groups, group)
 			}
 		}
 	}

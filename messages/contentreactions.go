@@ -5,8 +5,8 @@ import (
 	"html"
 	"log/slog"
 	"strconv"
+	"strings"
 
-	"github.com/diamondburned/arikawa/v3/discord"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/core/gioutil"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -16,22 +16,15 @@ import (
 	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/diamondburned/gotkit/gtkutil/imgutil"
+	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
 type messageReaction struct {
-	discord.Reaction
-	GuildID   string
-	ChannelID string
-	MessageID string
-}
-
-func (r messageReaction) Equal(other messageReaction) bool {
-	return true &&
-		r.MessageID == other.MessageID &&
-		r.ChannelID == other.ChannelID &&
-		r.Me == other.Me &&
-		r.Count == other.Count &&
-		r.Emoji.APIString() == other.Emoji.APIString()
+	Count        int
+	Emoji        string
+	GroupAddress nip29.GroupAddress
+	MessageID    string
+	Me           bool
 }
 
 type contentReactions struct {
@@ -129,13 +122,13 @@ func newContentReactions(ctx context.Context, parent *Content) *contentReactions
 	return &rs
 }
 
-func (rs *contentReactions) findReactionIx(emoji discord.APIEmoji) int {
+func (rs *contentReactions) findReactionIx(emoji string) int {
 	var i int
 	foundIx := -1
 
 	iter := rs.reactions.AllItems()
 	iter(func(reaction messageReaction) bool {
-		if reaction.Emoji.APIString() == emoji {
+		if reaction.Emoji == emoji {
 			foundIx = i
 			return false
 		}
@@ -146,7 +139,7 @@ func (rs *contentReactions) findReactionIx(emoji discord.APIEmoji) int {
 	return foundIx
 }
 
-func (rs *contentReactions) isReacted(emoji discord.APIEmoji) bool {
+func (rs *contentReactions) isReacted(emoji string) bool {
 	ix := rs.findReactionIx(emoji)
 	if ix == -1 {
 		return false
@@ -158,14 +151,13 @@ func (rs *contentReactions) isReacted(emoji discord.APIEmoji) bool {
 //
 // TODO: implement Add and Remove event handlers directly in this container to
 // avoid having to clear the whole list.
-func (rs *contentReactions) SetReactions(reactions []discord.Reaction) {
+func (rs *contentReactions) SetReactions(reactions []string) {
 	messageReactions := make([]messageReaction, len(reactions))
 	for i, r := range reactions {
 		messageReactions[i] = messageReaction{
-			Reaction:  r,
-			GuildID:   rs.parent.view.GuildID(),
-			ChannelID: rs.parent.view.ChannelID(),
-			MessageID: rs.parent.MessageID(),
+			Emoji:        r,
+			GroupAddress: rs.parent.view.Group.Address,
+			MessageID:    rs.parent.MessageID(),
 		}
 	}
 	rs.reactions.Splice(0, rs.reactions.NItems(), messageReactions...)
@@ -247,11 +239,11 @@ func newContentReaction() *contentReaction {
 	r.ToggleButton.ConnectClicked(func() {
 		r.SetSensitive(false)
 
-		ok := r.ActivateAction("reactions.toggle", glib.NewVariantString(string(r.reaction.Emoji.APIString())))
+		ok := r.ActivateAction("reactions.toggle", glib.NewVariantString(string(r.reaction.Emoji)))
 		if !ok {
 			slog.Error(
 				"failed to activate reactions.toggle",
-				"emoji", r.reaction.Emoji.APIString())
+				"emoji", r.reaction.Emoji)
 		}
 	})
 
@@ -285,13 +277,13 @@ func (r *contentReaction) SetReaction(ctx context.Context, flowBox *gtk.FlowBox,
 	r.reaction = reaction
 	// r.client = gtkcord.FromContext(ctx).Online()
 
-	if reaction.Emoji.IsCustom() {
+	if strings.HasPrefix(reaction.Emoji, ":") {
 		emoji := onlineimage.NewPicture(ctx, imgutil.HTTPProvider)
 		emoji.AddCSSClass("message-reaction-emoji")
 		emoji.AddCSSClass("message-reaction-emoji-custom")
 		emoji.SetSizeRequest(13, 13)
 		emoji.SetKeepAspectRatio(true)
-		emoji.SetURL(reaction.Emoji.EmojiURL())
+		emoji.SetURL(reaction.Emoji)
 
 		// TODO: get this working:
 		// Currently, it just jitters in size. The button itself can still be
@@ -303,7 +295,7 @@ func (r *contentReaction) SetReaction(ctx context.Context, flowBox *gtk.FlowBox,
 
 		r.iconBin.SetChild(emoji)
 	} else {
-		label := gtk.NewLabel(reaction.Emoji.Name)
+		label := gtk.NewLabel(reaction.Emoji)
 		label.AddCSSClass("message-reaction-emoji")
 		label.AddCSSClass("message-reaction-emoji-unicode")
 
@@ -340,27 +332,21 @@ func (r *contentReaction) invalidateUsers(callback func(string)) {
 	reaction := r.reaction
 
 	var tooltip string
-	if reaction.Emoji.IsCustom() {
-		tooltip = ":" + html.EscapeString(reaction.Emoji.Name) + ":\n"
+	if strings.HasPrefix(reaction.Emoji, ":") {
+		tooltip = html.EscapeString(reaction.Emoji) + "\n"
 	}
 
 	done := func(tooltip string, err error) {
 		glib.IdleAdd(func() {
-			if !r.reaction.Equal(reaction) {
-				// The reaction has changed,
-				// so we don't care about the result.
-				return
-			}
-
 			if err != nil {
 				r.tooltipState = reactionsNotLoaded
 				r.tooltip = tooltip + "<b>" + locale.Get("Error: ") + "</b>" + err.Error()
 
 				slog.Error(
 					"cannot load reaction tooltip",
-					"channel", reaction.ChannelID,
+					"channel", reaction.GroupAddress.ID,
 					"message", reaction.MessageID,
-					"emoji", reaction.Emoji.APIString(),
+					"emoji", reaction.Emoji,
 					"err", err)
 			} else {
 				r.tooltipState = reactionsLoaded

@@ -38,7 +38,6 @@ func promptPassword(ctx context.Context, done func(ok bool, password string)) {
 	passBox.Append(passLabel)
 	passBox.Append(passEntry)
 
-	// Ask for encryption.
 	passPrompt := gtk.NewDialog()
 	passPrompt.SetTitle("File")
 	passPrompt.SetDefaultSize(250, 80)
