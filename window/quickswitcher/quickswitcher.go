@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	"fiatjaf.com/shiitake/utils"
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
@@ -165,14 +166,14 @@ func (qs *QuickSwitcher) do() {
 
 func (qs *QuickSwitcher) choose(n int) {
 	entry := qs.entries[n]
-	// parent := gtk.BaseWidget(qs.Parent())
+	parent := gtk.BaseWidget(qs.Parent())
 
 	var ok bool
-	switch /*item :=*/ entry.indexItem.(type) {
-	case channelItem:
-		// ok = parent.ActivateAction("app.open-channel", gtkcord.NewChannelIDVariant(item.ID))
-	case guildItem:
-		// ok = parent.ActivateAction("app.open-guild", gtkcord.NewGuildIDVariant(item.ID))
+	switch item := entry.indexItem.(type) {
+	case relayItem:
+		ok = parent.ActivateAction("app.open-relay", utils.NewRelayURLVariant(item.url))
+	case groupItem:
+		ok = parent.ActivateAction("app.open-group", utils.NewGroupAddressVariant(item.group.Address))
 	}
 	if !ok {
 		log.Println("quickswitcher: failed to activate action")

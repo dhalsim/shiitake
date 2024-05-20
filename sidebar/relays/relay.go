@@ -1,42 +1,43 @@
-package guilds
+package relays
 
 import (
 	"context"
+	"strings"
 
 	"fiatjaf.com/shiitake/components/hoverpopover"
 	"fiatjaf.com/shiitake/sidebar/sidebutton"
-	"github.com/diamondburned/arikawa/v3/discord"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
+	"fiatjaf.com/shiitake/utils"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
+	"github.com/nbd-wtf/go-nostr"
 )
 
 // Guild is a widget showing a single guild icon.
-type Guild struct {
+type Relay struct {
 	*sidebutton.Button
 	ctx     context.Context
 	popover *hoverpopover.MarkupHoverPopover
-	id      string
+	url     string
 	name    string
 }
 
 var guildCSS = cssutil.Applier("guild-guild", `
-	.guild-name {
+	.relay-name {
 		font-weight: bold;
 	}
 `)
 
-func NewGuild(ctx context.Context, id string) *Guild {
-	g := &Guild{ctx: ctx, id: id}
+func NewRelay(ctx context.Context, url string) *Relay {
+	g := &Relay{ctx: ctx, url: nostr.NormalizeURL(url)}
 	g.Button = sidebutton.NewButton(ctx, func() {
 		parent := gtk.BaseWidget(g.Button.Parent())
-		parent.ActivateAction("win.open-guild", glib.NewVariantString(id))
+		parent.ActivateAction("win.open-relay", utils.NewRelayURLVariant(url))
 	})
 
 	g.popover = hoverpopover.NewMarkupHoverPopover(g.Button, func(w *hoverpopover.MarkupHoverPopoverWidget) bool {
-		w.AddCSSClass("guild-name-popover")
+		w.AddCSSClass("relay-name-popover")
 		w.SetPosition(gtk.PosRight)
-		w.Label.AddCSSClass("guild-name")
+		w.Label.AddCSSClass("relay-name")
 		w.Label.SetText(g.name)
 		return true
 	})
@@ -47,13 +48,13 @@ func NewGuild(ctx context.Context, id string) *Guild {
 }
 
 // ID returns the guild ID.
-func (g *Guild) ID() string { return g.id }
+func (g *Relay) ID() string { return g.url }
 
 // Name returns the guild's name.
-func (g *Guild) Name() string { return g.name }
+func (g *Relay) Name() string { return g.name }
 
 // Invalidate invalidates and updates the state of the guild.
-func (g *Guild) Invalidate() {
+func (g *Relay) Invalidate() {
 	// guild, err := state.Cabinet.Guild(g.id)
 	// if err != nil {
 	// 	g.SetUnavailable()
@@ -65,7 +66,7 @@ func (g *Guild) Invalidate() {
 
 // SetUnavailable sets the guild as unavailable. It stays unavailable until
 // either Invalidate sees it or Update is called on it.
-func (g *Guild) SetUnavailable() {
+func (g *Relay) SetUnavailable() {
 	g.name = "(guild unavailable)"
 	g.SetSensitive(false)
 
@@ -75,12 +76,14 @@ func (g *Guild) SetUnavailable() {
 }
 
 // Update updates the guild with the given Discord object.
-func (g *Guild) Update(guild *discord.Guild) {
-	// g.name = guild.Name
+func (g *Relay) Update(url string) {
+	g.name = url
 
-	// g.SetSensitive(true)
-	// g.Icon.SetInitials(guild.Name)
-	// g.Icon.SetFromURL(gtkcord.InjectAvatarSize(guild.IconURL()))
+	g.SetSensitive(true)
+
+	initials := strings.Split(url, "://")[1]
+	g.Icon.SetInitials(initials)
+	// g.Icon.SetFromURL() // TODO: get relay icon
 }
 
-func (g *Guild) viewChild() {}
+func (g *Relay) viewChild() {}

@@ -4,14 +4,17 @@ package sidebar
 import (
 	"context"
 
-	"fiatjaf.com/shiitake/sidebar/channels"
 	"fiatjaf.com/shiitake/sidebar/direct"
 	"fiatjaf.com/shiitake/sidebar/directbutton"
-	"fiatjaf.com/shiitake/sidebar/guilds"
+	"fiatjaf.com/shiitake/sidebar/groups"
+	channels "fiatjaf.com/shiitake/sidebar/groups"
+	"fiatjaf.com/shiitake/sidebar/relays"
+	"fiatjaf.com/shiitake/utils"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
+	"github.com/nbd-wtf/go-nostr"
 )
 
 // Sidebar is the bar on the left side of the application once it's logged in.
@@ -20,7 +23,7 @@ type Sidebar struct {
 
 	Left   *gtk.Box
 	DMView *directbutton.View
-	Guilds *guilds.View
+	Relays *relays.View
 	Right  *gtk.Stack
 
 	// Keep track of the last child to remove.
@@ -54,8 +57,8 @@ func NewSidebar(ctx context.Context) *Sidebar {
 		ctx: ctx,
 	}
 
-	s.Guilds = guilds.NewView(ctx)
-	s.Guilds.Invalidate()
+	s.Relays = relays.NewView(ctx)
+	s.Relays.Invalidate()
 
 	s.DMView = directbutton.NewView(ctx)
 	s.DMView.Invalidate()
@@ -68,7 +71,7 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	leftBox := gtk.NewBox(gtk.OrientationVertical, 0)
 	leftBox.Append(s.DMView)
 	leftBox.Append(dmSeparator)
-	leftBox.Append(s.Guilds)
+	leftBox.Append(s.Relays)
 
 	leftScroll := gtk.NewScrolledWindow()
 	leftScroll.SetVExpand(true)
@@ -86,7 +89,7 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	s.placeholder = gtk.NewWindowHandle()
 
 	s.Right = gtk.NewStack()
-	s.Right.SetSizeRequest(channels.ChannelsWidth, -1)
+	s.Right.SetSizeRequest(groups.ChannelsWidth, -1)
 	s.Right.SetVExpand(true)
 	s.Right.SetHExpand(true)
 	s.Right.AddChild(s.placeholder)
@@ -184,7 +187,7 @@ func (s *Sidebar) openGuild(guildID string) *channels.View {
 	}
 
 	s.unselect()
-	s.Guilds.SetSelectedGuild(guildID)
+	s.Relays.SetSelectedRelay(guildID)
 
 	chs = channels.NewView(s.ctx, guildID)
 	chs.SetVExpand(true)
@@ -199,7 +202,7 @@ func (s *Sidebar) openGuild(guildID string) *channels.View {
 }
 
 func (s *Sidebar) unselect() {
-	s.Guilds.Unselect()
+	s.Relays.Unselect()
 	s.DMView.Unselect()
 	s.removeCurrent()
 }
@@ -212,19 +215,20 @@ func (s *Sidebar) Unselect() {
 
 // SetSelectedGuild marks the guild with the given ID as selected.
 func (s *Sidebar) SetSelectedRelay(relayURL string) {
-	s.Guilds.SetSelectedGuild(relayURL)
+	s.Relays.SetSelectedRelay(relayURL)
 	s.openGuild(relayURL)
 }
 
-// // SelectGuild selects and activates the guild with the given ID.
-// func (s *Sidebar) SelectGuild(guildID string) {
-// 	if s.Guilds.SelectedGuildID() != guildID {
-// 		s.Guilds.SetSelectedGuild(guildID)
-//
-// 		parent := gtk.BaseWidget(s.Parent())
-// 		parent.ActivateAction("win.open-guild", gtkcord.NewGuildIDVariant(guildID))
-// 	}
-// }
+// SelectRelay selects and activates the guild with the given ID.
+func (s *Sidebar) SelectRelay(url string) {
+	url = nostr.NormalizeURL(url)
+	if s.Relays.SelectedRelayURL() != url {
+		s.Relays.SetSelectedRelay(url)
+
+		parent := gtk.BaseWidget(s.Parent())
+		parent.ActivateAction("win.open-relay", utils.NewRelayURLVariant(url))
+	}
+}
 
 // SelectChannel selects and activates the channel with the given ID. It ensures
 // that the sidebar is at the right place then activates the controller.

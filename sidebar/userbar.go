@@ -3,8 +3,8 @@ package sidebar
 import (
 	"context"
 	"regexp"
-	"strconv"
 
+	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/arikawa/v3/discord"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
@@ -49,7 +49,7 @@ func newUserBar(ctx context.Context, menuActions []gtkutil.PopoverMenuItem) *use
 
 	b.status = gtk.NewImage()
 	b.status.AddCSSClass("user-bar-status")
-	b.updatePresence(nil)
+	// b.updatePresence(nil)
 
 	b.menu = gtk.NewToggleButton()
 	b.menu.AddCSSClass("user-bar-menu")
@@ -74,7 +74,6 @@ func newUserBar(ctx context.Context, menuActions []gtkutil.PopoverMenuItem) *use
 	anim.ConnectMotion(b)
 
 	// vis := gtkutil.WithVisibility(ctx, b)
-
 	// state := gtkcord.FromContext(ctx)
 	// state.BindHandler(vis,
 	// 	func(ev gateway.Event) {
@@ -98,54 +97,39 @@ func newUserBar(ctx context.Context, menuActions []gtkutil.PopoverMenuItem) *use
 	// 	(*gateway.ReadyEvent)(nil),
 	// )
 
-	// me, _ := client.Me()
-	// if me != nil {
-	// 	b.updateUser(me)
-	// }
+	me := global.GetMe(ctx)
+	b.updateUser(me)
 
 	return &b
 }
 
 var discriminatorRe = regexp.MustCompile(`#\d{1,4}$`)
 
-func (b *userBar) updateUser(me *discord.User) {
-	tag := me.Username
-	if v, _ := strconv.Atoi(me.Discriminator); v != 0 {
-		tag += `<span size="smaller">` + "#" + me.Discriminator + "</span>"
-	}
+func (b *userBar) updateUser(me *global.User) {
+	// if v, _ := strconv.Atoi(me.Discriminator); v != 0 {
+	// 	tag += `<span size="smaller">` + "#" + me.Discriminator + "</span>"
+	// }
 
-	var name string
-	if me.DisplayName != "" {
-		name = me.DisplayName + "\n" + `<span size="smaller">` + tag + "</span>"
-	} else {
-		name = tag
-	}
-
-	displayName := me.DisplayName
-	if displayName == "" {
-		displayName = me.Username
-	}
-
-	b.avatar.SetInitials(displayName)
-	b.avatar.SetFromURL(me.AvatarURL())
-	b.name.SetMarkup(name)
-	b.name.SetTooltipMarkup(name)
+	b.avatar.SetInitials(me.ShortName())
+	b.avatar.SetFromURL(me.Picture)
+	b.name.SetMarkup(me.Npub())
+	b.name.SetTooltipMarkup(me.Npub())
 }
 
-func (b *userBar) updatePresence(presence *discord.Presence) {
-	if presence == nil {
-		b.status.SetTooltipText(statusText(discord.UnknownStatus))
-		b.status.SetFromIconName(statusIcon(discord.UnknownStatus))
-		return
-	}
-
-	if presence.User.Username != "" {
-		b.updateUser(&presence.User)
-	}
-
-	b.status.SetTooltipText(statusText(presence.Status))
-	b.status.SetFromIconName(statusIcon(presence.Status))
-}
+// func (b *userBar) updatePresence(presence *discord.Presence) {
+// 	if presence == nil {
+// 		b.status.SetTooltipText(statusText(discord.UnknownStatus))
+// 		b.status.SetFromIconName(statusIcon(discord.UnknownStatus))
+// 		return
+// 	}
+//
+// 	if presence.User.Username != "" {
+// 		b.updateUser(&presence.User)
+// 	}
+//
+// 	b.status.SetTooltipText(statusText(presence.Status))
+// 	b.status.SetFromIconName(statusIcon(presence.Status))
+// }
 
 func (b *userBar) invalidatePresence() {
 	// state := gtkcord.FromContext(b.ctx)

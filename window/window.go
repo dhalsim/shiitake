@@ -2,17 +2,20 @@ package window
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"fiatjaf.com/shiitake/global"
+	"fiatjaf.com/shiitake/utils"
 	"fiatjaf.com/shiitake/window/quickswitcher"
-	"github.com/diamondburned/arikawa/v3/discord"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/app"
 	"github.com/diamondburned/gotkit/app/prefs"
 	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
+	"github.com/nbd-wtf/go-nostr/nip29"
 	"libdb.so/ctxt"
 )
 
@@ -120,31 +123,34 @@ func (w *Window) initChatPage() {
 // brain.
 func (w *Window) initActions() {
 	gtkutil.AddActions(w, map[string]func(){
-		"set-online":     func() { w.setStatus(discord.OnlineStatus) },
-		"set-idle":       func() { w.setStatus(discord.IdleStatus) },
-		"set-dnd":        func() { w.setStatus(discord.DoNotDisturbStatus) },
-		"set-invisible":  func() { w.setStatus(discord.InvisibleStatus) },
+		// "set-online":     func() { w.setStatus(discord.OnlineStatus) },
+		// "set-idle":       func() { w.setStatus(discord.IdleStatus) },
+		// "set-dnd":        func() { w.setStatus(discord.DoNotDisturbStatus) },
+		// "set-invisible":  func() { w.setStatus(discord.InvisibleStatus) },
 		"open-dms":       func() { w.useChatPage((*ChatPage).OpenDMs) },
 		"reset-view":     func() { w.useChatPage((*ChatPage).ResetView) },
 		"quick-switcher": func() { w.useChatPage((*ChatPage).OpenQuickSwitcher) },
 	})
 
 	gtkutil.AddActionCallbacks(w, map[string]gtkutil.ActionCallback{
-		// "open-channel": {
-		// 	ArgType: gtkcord.SnowflakeVariant,
-		// 	Func: func(variant *glib.Variant) {
-		// 		id := string(variant.Int64())
-		// 		w.useChatPage(func(p *ChatPage) { p.OpenChannel(id) })
-		// 	},
-		// },
-		// "open-guild": {
-		// 	ArgType: gtkcord.SnowflakeVariant,
-		// 	Func: func(variant *glib.Variant) {
-		// 		log.Println("opening guild")
-		// 		id := string(variant.Int64())
-		// 		w.useChatPage(func(p *ChatPage) { p.OpenGuild(id) })
-		// 	},
-		// },
+		"open-group": {
+			ArgType: utils.GroupAddressVariant,
+			Func: func(variant *glib.Variant) {
+				gadstr := string(variant.String())
+				gad, err := nip29.ParseGroupAddress(gadstr)
+				if err != nil {
+					panic(fmt.Errorf("unexpectedly failed to parse gad '%s' %w", gadstr, err))
+				}
+				w.useChatPage(func(p *ChatPage) { p.OpenGroup(gad) })
+			},
+		},
+		"open-relay": {
+			ArgType: utils.RelayURLVariant,
+			Func: func(variant *glib.Variant) {
+				url := string(variant.String())
+				w.useChatPage(func(p *ChatPage) { p.OpenRelay(url) })
+			},
+		},
 	})
 
 	gtkutil.AddActionShortcuts(w, map[string]string{
@@ -184,16 +190,16 @@ func (w *Window) useChatPage(f func(*ChatPage)) {
 	}
 }
 
-func (w *Window) setStatus(status discord.Status) {
-	w.useChatPage(func(*ChatPage) {
-		// state := gtkcord.FromContext(w.ctx).Online()
-		// go func() {
-		// 	if err := state.SetStatus(status, nil); err != nil {
-		// 		app.Error(w.ctx, errors.Wrap(err, "invalid status"))
-		// 	}
-		// }()
-	})
-}
+// func (w *Window) setStatus(status discord.Status) {
+// 	w.useChatPage(func(*ChatPage) {
+// 		state := gtkcord.FromContext(w.ctx).Online()
+// 		go func() {
+// 			if err := state.SetStatus(status, nil); err != nil {
+// 				app.Error(w.ctx, errors.Wrap(err, "invalid status"))
+// 			}
+// 		}()
+// 	})
+// }
 
 var emptyHeaderCSS = cssutil.Applier("empty-header", `
 	.empty-header {

@@ -27,10 +27,16 @@ type User struct {
 	Groups []*Group
 }
 
-func GetMe(ctx context.Context) User {
+var me *User
+
+func GetMe(ctx context.Context) *User {
+	if me != nil {
+		return me
+	}
+
 	pk := sys.Signer.GetPublicKey()
 
-	me := User{
+	me = &User{
 		ProfileMetadata: sys.FetchOrStoreProfileMetadata(ctx, pk),
 		Groups:          make([]*Group, 0, 100),
 	}

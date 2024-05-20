@@ -226,9 +226,9 @@ func (p *ChatPage) OpenDMs() {
 }
 
 // OpenRelay opens the relay with the given ID.
-func (p *ChatPage) OpenRelay(guildID string) {
+func (p *ChatPage) OpenRelay(relayURL string) {
 	p.lastRelay.Set("")
-	p.Sidebar.SetSelectedRelay(guildID)
+	p.Sidebar.SetSelectedRelay(relayURL)
 	p.restoreLastGroup()
 }
 

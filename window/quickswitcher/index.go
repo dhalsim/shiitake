@@ -7,6 +7,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
+	"github.com/nbd-wtf/go-nostr/nip29"
 	"github.com/sahilm/fuzzy"
 )
 
@@ -20,9 +21,8 @@ type indexItems []indexItem
 func (its indexItems) String(i int) string { return its[i].String() }
 func (its indexItems) Len() int            { return len(its) }
 
-type channelItem struct {
-	*discord.Channel
-	guild  *discord.Guild
+type groupItem struct {
+	group  nip29.Group
 	name   string
 	search string
 }
@@ -32,18 +32,17 @@ var voiceTypes = map[discord.ChannelType]bool{
 	discord.GuildStageVoice: true,
 }
 
-func newChannelItem(guild *discord.Guild, ch *discord.Channel) channelItem {
-	item := channelItem{
-		Channel: ch,
-		guild:   guild,
+func newGroupItem(group nip29.Group) groupItem {
+	item := groupItem{
+		group: group,
 	}
 
-	if ch.Name != "" {
-		item.name = ch.Name
-	} else if len(ch.DMRecipients) == 1 {
-		item.name = ch.DMRecipients[0].Tag()
-	} else {
-		// item.name = gtkcord.RecipientNames(ch)
+	if group.Name != "" {
+		item.name = group.Name
+		// } else if len(ch.DMRecipients) == 1 {
+		// 	item.name = ch.DMRecipients[0].Tag()
+		// } else {
+		// 	item.name = gtkcord.RecipientNames(ch)
 	}
 
 	// if threadTypes[ch.Type] {
@@ -53,16 +52,10 @@ func newChannelItem(guild *discord.Guild, ch *discord.Channel) channelItem {
 	// 	}
 	// }
 
-	if item.guild != nil {
-		item.search = item.guild.Name + " " + item.name
-	} else {
-		item.search = item.name
-	}
-
 	return item
 }
 
-func (it channelItem) String() string { return it.search }
+func (it groupItem) String() string { return it.search }
 
 const (
 	chHash       = `<span face="monospace"><b><span size="x-large" rise="-800">#</span><span size="x-small" rise="-2000">  </span></b></span>`
@@ -95,11 +88,9 @@ var channelCSS = cssutil.Applier("quickswitcher-channel", `
 	}
 `)
 
-func (it channelItem) Row(ctx context.Context) *gtk.ListBoxRow {
+func (it groupItem) Row(ctx context.Context) *gtk.ListBoxRow {
 	tooltip := it.name
-	if it.guild != nil {
-		tooltip += " (" + it.guild.Name + ")"
-	}
+	tooltip += " (" + it.group.Name + ")"
 
 	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
 
@@ -108,39 +99,12 @@ func (it channelItem) Row(ctx context.Context) *gtk.ListBoxRow {
 	row.SetChild(box)
 	channelCSS(row)
 
-	switch it.Type {
-	case discord.DirectMessage, discord.GroupDM:
-		// icon := onlineimage.NewAvatar(ctx, imgutil.HTTPProvider, gtkcord.InlineEmojiSize)
-		// icon.AddCSSClass("quickswitcher-channel-icon")
-		// icon.AddCSSClass("quickswitcher-channel-image")
-		// icon.SetHAlign(gtk.AlignCenter)
-		// icon.SetInitials(it.name)
-		// if len(it.DMRecipients) == 1 {
-		// 	icon.SetFromURL(gtkcord.InjectAvatarSize(it.DMRecipients[0].AvatarURL()))
-		// }
-
-		// anim := icon.EnableAnimation()
-		// anim.ConnectMotion(row) // TODO: I wonder if this causes memory leaks.
-
-		// box.Append(icon)
-	default:
-		icon := gtk.NewLabel("")
-		icon.AddCSSClass("quickswitcher-channel-icon")
-		icon.AddCSSClass("quickswitcher-channel-hash")
-		icon.SetHAlign(gtk.AlignCenter)
-		switch {
-		case it.NSFW:
-			icon.SetMarkup(chNSFWHash)
-		case voiceTypes[it.Type]:
-			icon.SetMarkup(chVoiceHash)
-		// case threadTypes[it.Type]:
-		// 	icon.SetMarkup(chThreadHash)
-		default:
-			icon.SetMarkup(chHash)
-		}
-
-		box.Append(icon)
-	}
+	icon := gtk.NewLabel("")
+	icon.AddCSSClass("quickswitcher-group-icon")
+	icon.AddCSSClass("quickswitcher-group-hash")
+	icon.SetHAlign(gtk.AlignCenter)
+	icon.SetMarkup(chHash)
+	box.Append(icon)
 
 	name := gtk.NewLabel(it.name)
 	name.AddCSSClass("quickswitcher-channel-name")
@@ -150,43 +114,41 @@ func (it channelItem) Row(ctx context.Context) *gtk.ListBoxRow {
 
 	box.Append(name)
 
-	if it.guild != nil {
-		guildName := gtk.NewLabel(it.guild.Name)
-		guildName.AddCSSClass("quickswitcher-channel-guildname")
-		guildName.SetEllipsize(pango.EllipsizeEnd)
+	guildName := gtk.NewLabel(it.group.Address.Relay)
+	guildName.AddCSSClass("quickswitcher-channel-guildname")
+	guildName.SetEllipsize(pango.EllipsizeEnd)
 
-		box.Append(guildName)
-	}
+	box.Append(guildName)
 
 	return row
 }
 
-type guildItem struct {
-	*discord.Guild
+type relayItem struct {
+	url string
 }
 
-func newGuildItem(guild *discord.Guild) guildItem {
-	return guildItem{
-		Guild: guild,
+func newGuildItem(url string) relayItem {
+	return relayItem{
+		url: url,
 	}
 }
 
-func (it guildItem) String() string { return it.Name }
+func (it relayItem) String() string { return it.url }
 
 var guildCSS = cssutil.Applier("quickswitcher-guild", `
-	.quickswitcher-guild-icon {
+	.quickswitcher-relay-icon {
 		margin: 2px 8px;
 		min-width:  {$inline_emoji_size};
 		min-height: {$inline_emoji_size};
 	}
 `)
 
-func (it guildItem) Row(ctx context.Context) *gtk.ListBoxRow {
+func (it relayItem) Row(ctx context.Context) *gtk.ListBoxRow {
 	row := gtk.NewListBoxRow()
 	guildCSS(row)
 
 	// icon := onlineimage.NewAvatar(ctx, imgutil.HTTPProvider, gtkcord.InlineEmojiSize)
-	// icon.AddCSSClass("quickswitcher-guild-icon")
+	// icon.AddCSSClass("quickswitcher-relay-icon")
 	// icon.SetInitials(it.Name)
 	// icon.SetFromURL(it.IconURL())
 	// icon.SetHAlign(gtk.AlignCenter)
@@ -195,7 +157,7 @@ func (it guildItem) Row(ctx context.Context) *gtk.ListBoxRow {
 	// anim.ConnectMotion(row)
 
 	// name := gtk.NewLabel(it.Name)
-	// name.AddCSSClass("quickswitcher-guild-name")
+	// name.AddCSSClass("quickswitcher-relay-name")
 	// name.SetHExpand(true)
 	// name.SetXAlign(0)
 

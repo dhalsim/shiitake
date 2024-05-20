@@ -17,6 +17,7 @@ import (
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 
 	_ "fiatjaf.com/shiitake/icons"
+	"fiatjaf.com/shiitake/utils"
 	"fiatjaf.com/shiitake/window"
 	"fiatjaf.com/shiitake/window/about"
 	_ "github.com/diamondburned/gotkit/gtkutil/aggressivegc"
@@ -62,8 +63,8 @@ func main() {
 		"app.quit":        func() { m.app.Quit() },
 	})
 	m.app.AddActionCallbacks(map[string]gtkutil.ActionCallback{
-		// "app.open-channel": m.forwardSignalToWindow("open-channel", gtkcord.SnowflakeVariant),
-		// "app.open-guild":   m.forwardSignalToWindow("open-guild", gtkcord.SnowflakeVariant),
+		"app.open-group": m.forwardSignalToWindow("open-group", utils.GroupAddressVariant),
+		"app.open-relay": m.forwardSignalToWindow("open-relay", utils.RelayURLVariant),
 	})
 	m.app.AddActionShortcuts(map[string]string{
 		"<Ctrl>Q": "app.quit",

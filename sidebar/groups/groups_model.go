@@ -1,4 +1,4 @@
-package channels
+package groups
 
 import (
 	"fiatjaf.com/shiitake/signaling"

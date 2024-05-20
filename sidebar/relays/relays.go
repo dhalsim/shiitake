@@ -1,17 +1,17 @@
-package guilds
+package relays
 
 import (
 	"context"
 	"log"
 
-	"github.com/diamondburned/arikawa/v3/discord"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
+	"fiatjaf.com/shiitake/utils"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
+	"github.com/nbd-wtf/go-nostr"
 )
 
-// ViewChild is a child inside the guilds view. It is either a *Guild or a
-// *Folder containing more *Guilds.
+// ViewChild is a child inside the guilds view. It is either a *Relay or a
+// *Folder containing more *Relays.
 type ViewChild interface {
 	gtk.Widgetter
 	viewChild()
@@ -22,7 +22,7 @@ type View struct {
 	*gtk.Box
 	Children []ViewChild
 
-	current currentGuild
+	current currentRelay
 
 	ctx context.Context
 }
@@ -55,28 +55,28 @@ func NewView(ctx context.Context) *View {
 	// 		v.Invalidate()
 
 	// 	case *read.UpdateEvent:
-	// 		if guild := v.Guild(ev.GuildID); guild != nil {
+	// 		if guild := v.Relay(ev.RelayID); guild != nil {
 	// 			guild.InvalidateUnread()
 	// 		}
 	// 	case *gateway.ChannelCreateEvent:
-	// 		if ev.GuildID.IsValid() {
-	// 			if guild := v.Guild(ev.GuildID); guild != nil {
+	// 		if ev.RelayID.IsValid() {
+	// 			if guild := v.Relay(ev.RelayID); guild != nil {
 	// 				guild.InvalidateUnread()
 	// 			}
 	// 		}
-	// 	case *gateway.GuildCreateEvent:
-	// 		if guild := v.Guild(ev.ID); guild != nil {
-	// 			guild.Update(&ev.Guild)
+	// 	case *gateway.RelayCreateEvent:
+	// 		if guild := v.Relay(ev.ID); guild != nil {
+	// 			guild.Update(&ev.Relay)
 	// 		} else {
-	// 			v.AddGuild(&ev.Guild)
+	// 			v.AddRelay(&ev.Relay)
 	// 		}
-	// 	case *gateway.GuildUpdateEvent:
-	// 		if guild := v.Guild(ev.ID); guild != nil {
+	// 	case *gateway.RelayUpdateEvent:
+	// 		if guild := v.Relay(ev.ID); guild != nil {
 	// 			guild.Invalidate()
 	// 		}
-	// 	case *gateway.GuildDeleteEvent:
+	// 	case *gateway.RelayDeleteEvent:
 	// 		if ev.Unavailable {
-	// 			if guild := v.Guild(ev.ID); guild != nil {
+	// 			if guild := v.Relay(ev.ID); guild != nil {
 	// 				guild.SetUnavailable()
 
 	// 				parent := gtk.BaseWidget(guild.Parent())
@@ -85,7 +85,7 @@ func NewView(ctx context.Context) *View {
 	// 			}
 	// 		}
 
-	// 		guild := v.RemoveGuild(ev.ID)
+	// 		guild := v.RemoveRelay(ev.ID)
 	// 		if guild != nil && guild.IsSelected() {
 	// 			parent := gtk.BaseWidget(guild.Parent())
 	// 			parent.ActivateAction("win.reset-view", nil)
@@ -105,12 +105,12 @@ func (v *View) Invalidate() {
 
 	// if ready.UserSettings != nil {
 	// 	switch {
-	// 	case ready.UserSettings.GuildPositions != nil:
-	// 		v.SetGuildsFromIDs(ready.UserSettings.GuildPositions)
+	// 	case ready.UserSettings.RelayPositions != nil:
+	// 		v.SetRelaysFromIDs(ready.UserSettings.RelayPositions)
 	// 	}
 	// }
 
-	// guilds, err := state.Cabinet.Guilds()
+	// guilds, err := state.Cabinet.Relays()
 	// if err != nil {
 	// 	app.Error(v.ctx, errors.Wrap(err, "cannot get guilds"))
 	// 	return
@@ -120,32 +120,32 @@ func (v *View) Invalidate() {
 	// // This means we can prepend guilds as we go, and the latest one will be
 	// // prepended to the top.
 	// sort.Slice(guilds, func(i, j int) bool {
-	// 	ti, ok := state.GuildState.JoinedAt(guilds[i].ID)
+	// 	ti, ok := state.RelayState.JoinedAt(guilds[i].ID)
 	// 	if !ok {
 	// 		return false // put last
 	// 	}
-	// 	tj, ok := state.GuildState.JoinedAt(guilds[j].ID)
+	// 	tj, ok := state.RelayState.JoinedAt(guilds[j].ID)
 	// 	if !ok {
 	// 		return true
 	// 	}
 	// 	return ti.Before(tj)
 	// })
 
-	// // Construct a map of shownGuilds guilds, so we know to not create a
+	// // Construct a map of shownRelays guilds, so we know to not create a
 	// // guild if it's already shown.
-	// shownGuilds := make(map[string]struct{}, 200)
-	// v.eachGuild(func(g *Guild) bool {
-	// 	shownGuilds[g.ID()] = struct{}{}
+	// shownRelays := make(map[string]struct{}, 200)
+	// v.eachRelay(func(g *Relay) bool {
+	// 	shownRelays[g.ID()] = struct{}{}
 	// 	return false
 	// })
 
 	// for i, guild := range guilds {
-	// 	_, shown := shownGuilds[guild.ID]
+	// 	_, shown := shownRelays[guild.ID]
 	// 	if shown {
 	// 		continue
 	// 	}
 
-	// 	g := NewGuild(v.ctx, guild.ID)
+	// 	g := NewRelay(v.ctx, guild.ID)
 	// 	g.Update(&guilds[i])
 
 	// 	// Prepend the guild.
@@ -153,18 +153,18 @@ func (v *View) Invalidate() {
 	// }
 }
 
-// AddGuild prepends a single guild into the view.
-// func (v *View) AddGuild(guild *discord.Guild) {
-// 	g := NewGuild(v.ctx, guild.ID)
+// AddRelay prepends a single guild into the view.
+// func (v *View) AddRelay(guild *discord.Relay) {
+// 	g := NewRelay(v.ctx, guild.ID)
 // 	g.Update(guild)
 //
 // 	v.Box.Prepend(g)
 // 	v.Children = append([]ViewChild{g}, v.Children...)
 // }
 
-// RemoveGuild removes the given guild.
-func (v *View) RemoveGuild(id string) *Guild {
-	guild := v.Guild(id)
+// RemoveRelay removes the given relay.
+func (v *View) RemoveRelay(url string) *Relay {
+	guild := v.Relay(url)
 	if guild == nil {
 		return nil
 	}
@@ -173,35 +173,35 @@ func (v *View) RemoveGuild(id string) *Guild {
 	return guild
 }
 
-// SetGuildsFromIDs calls SetGuilds with guilds fetched from the state by the
+// SetRelaysFromIDs calls SetRelays with guilds fetched from the state by the
 // given ID list.
-func (v *View) SetGuildsFromIDs(guildIDs []string) {
+func (v *View) SetRelaysFromIDs(guildIDs []string) {
 	restore := v.saveSelection()
 	defer restore()
 
 	v.clear()
 
 	for _, id := range guildIDs {
-		g := NewGuild(v.ctx, id)
+		g := NewRelay(v.ctx, id)
 		g.Invalidate()
 
 		v.append(g)
 	}
 }
 
-// SetGuilds sets the guilds shown.
-func (v *View) SetGuilds(guilds []discord.Guild) {
+// SetRelays sets the guilds shown.
+func (v *View) SetRelays(urls []string) {
 	restore := v.saveSelection()
 	defer restore()
 
 	v.clear()
 
-	// for i, guild := range guilds {
-	// 	g := NewGuild(v.ctx, guild.ID)
-	// 	g.Update(&guilds[i])
+	for i, url := range urls {
+		g := NewRelay(v.ctx, url)
+		g.Update(urls[i])
 
-	// 	v.append(g)
-	// }
+		v.append(g)
+	}
 }
 
 func (v *View) append(this ViewChild) {
@@ -234,19 +234,19 @@ func (v *View) clear() {
 	v.Children = nil
 }
 
-// SelectedGuildID returns the selected guild ID, if any.
-func (v *View) SelectedGuildID() string {
-	if v.current.guild == nil {
+// SelectedRelayID returns the selected guild ID, if any.
+func (v *View) SelectedRelayURL() string {
+	if v.current.relay == nil {
 		return ""
 	}
-	return v.current.guild.id
+	return v.current.relay.url
 }
 
-// Guild finds a guild inside View by its ID.
-func (v *View) Guild(id string) *Guild {
-	var guild *Guild
-	v.eachGuild(func(g *Guild) bool {
-		if g.ID() == id {
+// Relay finds a guild inside View by its ID.
+func (v *View) Relay(url string) *Relay {
+	var guild *Relay
+	v.eachRelay(func(g *Relay) bool {
+		if g.ID() == nostr.NormalizeURL(url) {
 			guild = g
 			return true
 		}
@@ -255,10 +255,10 @@ func (v *View) Guild(id string) *Guild {
 	return guild
 }
 
-func (v *View) eachGuild(f func(*Guild) (stop bool)) {
+func (v *View) eachRelay(f func(*Relay) (stop bool)) {
 	for _, child := range v.Children {
 		switch child := child.(type) {
-		case *Guild:
+		case *Relay:
 			if f(child) {
 				return
 			}
@@ -266,18 +266,18 @@ func (v *View) eachGuild(f func(*Guild) (stop bool)) {
 	}
 }
 
-// SetSelectedGuild sets the selected guild. It does not propagate the selection
+// SetSelectedRelay sets the selected guild. It does not propagate the selection
 // to the sidebar.
-func (v *View) SetSelectedGuild(id string) {
-	guild := v.Guild(id)
+func (v *View) SetSelectedRelay(id string) {
+	guild := v.Relay(id)
 	if guild == nil {
 		log.Printf("guilds.View: cannot select guild %d: not found", id)
 		v.Unselect()
 		return
 	}
 
-	current := currentGuild{
-		guild: guild,
+	current := currentRelay{
+		relay: guild,
 	}
 
 	if current != v.current {
@@ -291,34 +291,33 @@ func (v *View) SetSelectedGuild(id string) {
 // window is showing a channel that's not from any guild.
 func (v *View) Unselect() {
 	v.current.Unselect()
-	v.current = currentGuild{}
+	v.current = currentRelay{}
 }
 
 // saveSelection saves the current guild selection to be restored later using
 // the returned callback.
 func (v *View) saveSelection() (restore func()) {
-	if v.current.guild == nil {
+	if v.current.relay == nil {
 		// Nothing to restore.
 		return func() {}
 	}
 
-	guildID := v.current.guild.id
 	return func() {
 		parent := gtk.BaseWidget(v.Parent())
-		parent.ActivateAction("win.open-guild", glib.NewVariantString(guildID))
+		parent.ActivateAction("win.open-relay", utils.NewRelayURLVariant(v.current.relay.url))
 	}
 }
 
-type currentGuild struct {
-	guild *Guild
+type currentRelay struct {
+	relay *Relay
 }
 
-func (c currentGuild) Unselect() {
+func (c currentRelay) Unselect() {
 	c.SetSelected(false)
 }
 
-func (c currentGuild) SetSelected(selected bool) {
-	if c.guild != nil {
-		c.guild.SetSelected(selected)
+func (c currentRelay) SetSelected(selected bool) {
+	if c.relay != nil {
+		c.relay.SetSelected(selected)
 	}
 }
