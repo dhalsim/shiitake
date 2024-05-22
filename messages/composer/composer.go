@@ -23,6 +23,7 @@ import (
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/diamondburned/gotkit/gtkutil/mediautil"
 	"github.com/nbd-wtf/go-nostr"
+	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
 var showAllEmojis = prefs.NewBool(true, prefs.PropMeta{
@@ -91,7 +92,7 @@ type View struct {
 
 	ctx  context.Context
 	ctrl Controller
-	chID string
+	gad  nip29.GroupAddress
 
 	rightBox    *gtk.Box
 	emojiButton *gtk.MenuButton
@@ -139,14 +140,14 @@ const (
 	uploadIcon = "list-add-symbolic"
 )
 
-func NewView(ctx context.Context, ctrl Controller, chID string) *View {
+func NewView(ctx context.Context, ctrl Controller, gad nip29.GroupAddress) *View {
 	v := &View{
 		ctx:  ctx,
 		ctrl: ctrl,
-		chID: chID,
+		gad:  gad,
 	}
 
-	v.Input = NewInput(ctx, inputControllerView{v}, chID)
+	v.Input = NewInput(ctx, inputControllerView{v}, gad)
 
 	scroll := gtk.NewScrolledWindow()
 	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
@@ -245,7 +246,7 @@ func (v *View) SetPlaceholderMarkup(markup string) {
 }
 
 func (v *View) ResetPlaceholder() {
-	v.Placeholder.SetText("Message " + v.chID) // + gtkcord.ChannelNameFromID(v.ctx, v.chID))
+	v.Placeholder.SetText("Message " + v.gad.String()) // + gtkcord.ChannelNameFromID(v.ctx, v.chID))
 }
 
 // actionButton is a button that is used in the composer bar.
@@ -416,8 +417,7 @@ func (v *View) send() {
 
 		// state := gtkcord.FromContext(v.ctx).Online()
 		emoji := discord.APIEmoji(text)
-		chID := v.chID
-		log.Println("reacting", targetMessageID, emoji, chID)
+		log.Println("reacting", targetMessageID, emoji, v.gad)
 		go func() {
 			// if err := state.React(chID, targetMessageID, emoji); err != nil {
 			// 	slog.Error(

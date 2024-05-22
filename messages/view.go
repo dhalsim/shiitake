@@ -2,6 +2,7 @@ package messages
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"log/slog"
 	"slices"
@@ -20,6 +21,7 @@ import (
 	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/nbd-wtf/go-nostr"
+	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
 type messageRow struct {
@@ -62,8 +64,8 @@ type View struct {
 		replying bool
 	}
 
-	ctx  context.Context
-	chID string
+	ctx context.Context
+	gad nip29.GroupAddress
 }
 
 var viewCSS = cssutil.Applier("message-view", `
@@ -135,10 +137,12 @@ func applyViewClamp(clamp *adw.Clamp) {
 
 // NewView creates a new View widget associated with the given channel ID. All
 // methods call on it will act on that channel.
-func NewView(ctx context.Context, chID string) *View {
+func NewView(ctx context.Context, gad nip29.GroupAddress) *View {
+	fmt.Println("new view")
+
 	v := &View{
 		msgs: make(map[messageKey]messageRow),
-		chID: chID,
+		gad:  gad,
 		ctx:  ctx,
 	}
 
@@ -198,10 +202,10 @@ func NewView(ctx context.Context, chID string) *View {
 	vp.SetScrollToFocus(true)
 	v.List.SetAdjustment(v.Scroll.VAdjustment())
 
-	v.Composer = composer.NewView(ctx, v, chID)
+	v.Composer = composer.NewView(ctx, v, gad)
 	gtkutil.ForwardTyping(v.List, v.Composer.Input)
 
-	v.TypingIndicator = NewTypingIndicator(ctx, chID)
+	v.TypingIndicator = NewTypingIndicator(ctx, gad)
 	v.TypingIndicator.SetHExpand(true)
 	v.TypingIndicator.SetVAlign(gtk.AlignStart)
 
@@ -484,7 +488,7 @@ func (v *View) HeaderButtons() []gtk.Widgetter {
 }
 
 func (v *View) load() {
-	log.Println("loading message view for", v.chID)
+	log.Println("loading message view for", v.gad)
 
 	v.LoadablePage.SetLoading()
 	v.unload()
@@ -517,7 +521,7 @@ func (v *View) loadMore() {
 
 	firstID := firstRow.info.id
 
-	log.Println("loading more messages for", v.chID, firstID)
+	log.Println("loading more messages for", v.gad, firstID)
 
 	ctx := v.ctx
 	// state := gtkcord.FromContext(ctx).Online()

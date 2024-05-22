@@ -5,6 +5,7 @@ import (
 	"log"
 	"strings"
 
+	"fiatjaf.com/shiitake/components/form_entry"
 	"fiatjaf.com/shiitake/global"
 	"fiatjaf.com/shiitake/window/loading"
 	"github.com/diamondburned/adaptive"
@@ -19,7 +20,7 @@ type LoginComponent struct {
 	Inner *gtk.Box
 
 	Loading     *loading.PulsatingBar
-	KeyOrBunker *FormEntry
+	KeyOrBunker *form_entry.FormEntry
 	Bottom      *gtk.Box
 	ErrorRev    *gtk.Revealer
 	Submit      *gtk.Button
@@ -83,7 +84,7 @@ func NewLoginComponent(ctx context.Context, p *LoginPage) *LoginComponent {
 	loginWith.AddCSSClass("login-with")
 	loginWith.SetXAlign(0)
 
-	c.KeyOrBunker = NewFormEntry("nsec, ncryptsec or bunker")
+	c.KeyOrBunker = form_entry.New("nsec, ncryptsec or bunker")
 	c.KeyOrBunker.FocusNextOnActivate()
 	c.KeyOrBunker.Entry.SetInputPurpose(gtk.InputPurposeEmail)
 	c.KeyOrBunker.ConnectActivate(c.ForceSubmit)
@@ -196,50 +197,4 @@ func (c *LoginComponent) loginWithPassword(input string, password string) {
 
 	// trigger app start
 	c.page.w.OnLogin()
-}
-
-// FormEntry is a widget containing a label and an entry.
-type FormEntry struct {
-	*gtk.Box
-	Label *gtk.Label
-	Entry *gtk.Entry
-}
-
-var formEntryCSS = cssutil.Applier("login-formentry", ``)
-
-// NewFormEntry creates a new FormEntry.
-func NewFormEntry(label string) *FormEntry {
-	e := FormEntry{}
-	e.Label = gtk.NewLabel(label)
-	e.Label.SetXAlign(0)
-
-	e.Entry = gtk.NewEntry()
-	e.Entry.SetVExpand(true)
-	e.Entry.SetHasFrame(true)
-
-	e.Box = gtk.NewBox(gtk.OrientationVertical, 0)
-	e.Box.Append(e.Label)
-	e.Box.Append(e.Entry)
-	formEntryCSS(e)
-
-	return &e
-}
-
-// Text gets the value entry.
-func (e *FormEntry) Text() string { return e.Entry.Text() }
-
-// FocusNext navigates to the next widget.
-func (e *FormEntry) FocusNext() {
-	e.Entry.Emit("move-focus", gtk.DirTabForward)
-}
-
-// FocusNextOnActivate binds Enter to navigate to the next widget when it's
-// pressed.
-func (e *FormEntry) FocusNextOnActivate() {
-	e.Entry.ConnectActivate(e.FocusNext)
-}
-
-// ConnectActivate connects the activate signal hanlder to the Entry.
-func (e *FormEntry) ConnectActivate(f func()) {
-	e.Entry.ConnectActivate(f)
 }

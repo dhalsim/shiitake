@@ -22,6 +22,7 @@ import (
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/diamondburned/gotkit/gtkutil/textutil"
 	"github.com/diamondburned/gotkit/utils/osutil"
+	"github.com/nbd-wtf/go-nostr/nip29"
 	"github.com/pkg/errors"
 )
 
@@ -50,10 +51,9 @@ type Input struct {
 	Buffer *gtk.TextBuffer
 	ac     *autocomplete.Autocompleter
 
-	ctx     context.Context
-	ctrl    InputController
-	chID    string
-	guildID string
+	ctx  context.Context
+	ctrl InputController
+	gad  nip29.GroupAddress
 }
 
 var inputCSS = cssutil.Applier("composer-input", `
@@ -82,11 +82,11 @@ var inputStateKey = app.NewStateKey[string]("input-state")
 var inputStateMemory sync.Map // map[string]string
 
 // NewInput creates a new Input widget.
-func NewInput(ctx context.Context, ctrl InputController, chID string) *Input {
+func NewInput(ctx context.Context, ctrl InputController, gad nip29.GroupAddress) *Input {
 	i := Input{
 		ctx:  ctx,
 		ctrl: ctrl,
-		chID: chID,
+		gad:  gad,
 	}
 
 	i.TextView = gtk.NewTextView()
@@ -133,16 +133,16 @@ func NewInput(ctx context.Context, ctrl InputController, chID string) *Input {
 		// Persist input.
 		if end.Offset() == 0 {
 			if persistInput.Value() {
-				inputState.Delete(chID)
+				inputState.Delete(gad.String())
 			} else {
-				inputStateMemory.Delete(chID)
+				inputStateMemory.Delete(gad.String())
 			}
 		} else {
 			text := i.Buffer.Text(start, end, false)
 			if persistInput.Value() {
-				inputState.Set(chID, text)
+				inputState.Set(gad.String(), text)
 			} else {
-				inputStateMemory.Store(chID, text)
+				inputStateMemory.Store(gad.String(), text)
 			}
 		}
 	})
@@ -151,7 +151,7 @@ func NewInput(ctx context.Context, ctrl InputController, chID string) *Input {
 	enterKeyer.ConnectKeyPressed(i.onKey)
 	i.AddController(enterKeyer)
 
-	inputState.Get(chID, func(text string) {
+	inputState.Get(gad.String(), func(text string) {
 		i.Buffer.SetText(text)
 	})
 

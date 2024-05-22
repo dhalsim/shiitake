@@ -205,8 +205,6 @@ func (p *ChatPage) SwitchToMessages() {
 
 	p.lastRelay.Exists(func(exists bool) {
 		if !exists {
-			// Open DMs if there is no last opened channel.
-			p.OpenDMs()
 			return
 		}
 		// Restore the last opened channel if there is one.
@@ -216,13 +214,6 @@ func (p *ChatPage) SwitchToMessages() {
 			})
 		})
 	})
-}
-
-// OpenDMs opens the DMs page.
-func (p *ChatPage) OpenDMs() {
-	p.lastRelay.Set("")
-	p.Sidebar.OpenDMs()
-	p.restoreLastGroup()
 }
 
 // OpenRelay opens the relay with the given ID.
@@ -313,18 +304,13 @@ func (t *ChatView) switchToGroup(gad nip29.GroupAddress) bool {
 
 	old := t.messageView
 
-	// if id.IsValid() {
-	// 	t.messageView = messages.NewView(t.ctx, id)
+	t.messageView = messages.NewView(t.ctx, gad)
 
-	// 	t.Stack.AddChild(t.messageView)
-	// 	t.Stack.SetVisibleChild(t.messageView)
+	t.Stack.AddChild(t.messageView)
+	t.Stack.SetVisibleChild(t.messageView)
 
-	// 	viewWidget := gtk.BaseWidget(t.messageView)
-	// 	viewWidget.GrabFocus()
-	// } else {
-	// 	t.messageView = nil
-	// 	t.Stack.SetVisibleChild(t.placeholder)
-	// }
+	viewWidget := gtk.BaseWidget(t.messageView)
+	viewWidget.GrabFocus()
 
 	if old != nil {
 		gtkutil.NotifyProperty(t.Stack, "transition-running", func() bool {

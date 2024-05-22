@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync"
 
-	"fiatjaf.com/shiitake/global"
 	"fiatjaf.com/shiitake/utils"
 	"fiatjaf.com/shiitake/window/quickswitcher"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -105,7 +104,6 @@ func (w *Window) Context() context.Context {
 
 func (w *Window) OnLogin() {
 	w.readyOnce.Do(func() {
-		go global.Start(w.ctx)
 		w.initChatPage()
 		w.initActions()
 	})
@@ -127,7 +125,6 @@ func (w *Window) initActions() {
 		// "set-idle":       func() { w.setStatus(discord.IdleStatus) },
 		// "set-dnd":        func() { w.setStatus(discord.DoNotDisturbStatus) },
 		// "set-invisible":  func() { w.setStatus(discord.InvisibleStatus) },
-		"open-dms":       func() { w.useChatPage((*ChatPage).OpenDMs) },
 		"reset-view":     func() { w.useChatPage((*ChatPage).ResetView) },
 		"quick-switcher": func() { w.useChatPage((*ChatPage).OpenQuickSwitcher) },
 	})

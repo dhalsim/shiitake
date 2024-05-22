@@ -14,26 +14,27 @@ import (
 	"github.com/diamondburned/gotkit/app"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/diamondburned/gotkit/gtkutil/imgutil"
-	"github.com/diamondburned/ningen/v3"
+	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
-var revealStateKey = app.NewStateKey[bool]("collapsed-channels-state")
+var revealStateKey = app.NewStateKey[bool]("collapsed-groups-state")
 
-type channelItemState struct {
+type groupItemState struct {
 	reveal *app.TypedState[bool]
 }
 
-func newChannelItemFactory(ctx context.Context, model *gtk.TreeListModel) *gtk.ListItemFactory {
+func newGroupItemFactory(ctx context.Context, model *gtk.TreeListModel) *gtk.ListItemFactory {
 	factory := gtk.NewSignalListItemFactory()
-	state := channelItemState{
+	state := groupItemState{
 		reveal: revealStateKey.Acquire(ctx),
 	}
 
 	unbindFns := make(map[uintptr]func())
 
 	factory.ConnectBind(func(item *gtk.ListItem) {
+		fmt.Println("item", item)
 		row := model.Row(item.Position())
-		unbind := bindChannelItem(state, item, row)
+		unbind := bindGroupItem(state, item, row)
 		unbindFns[item.Native()] = unbind
 	})
 
@@ -47,56 +48,56 @@ func newChannelItemFactory(ctx context.Context, model *gtk.TreeListModel) *gtk.L
 	return &factory.ListItemFactory
 }
 
-func channelIDFromListItem(item *gtk.ListItem) string {
-	return channelIDFromItem(item.Item())
+func gadFromListItem(item *gtk.ListItem) nip29.GroupAddress {
+	return gadFromItem(item.Item())
 }
 
-func channelIDFromItem(item *glib.Object) string {
+func gadFromItem(item *glib.Object) nip29.GroupAddress {
 	str := item.Cast().(*gtk.StringObject)
 
-	id, err := discord.ParseSnowflake(str.String())
+	gad, err := nip29.ParseGroupAddress(str.String())
 	if err != nil {
-		panic(fmt.Sprintf("channelIDFromListItem: failed to parse ID: %v", err))
+		panic(fmt.Sprintf("gadFromListItem: failed to parse gad: %v", err))
 	}
 
-	return string(id)
+	return gad
 }
 
 var _ = cssutil.WriteCSS(`
-	.channels-viewtree row:hover,
-	.channels-viewtree row:selected {
+	.groups-viewtree row:hover,
+	.groups-viewtree row:selected {
 		background: none;
 	}
-	.channels-viewtree row:hover .channel-item-outer {
+	.groups-viewtree row:hover .group-item-outer {
 		background: alpha(@theme_fg_color, 0.075);
 	}
-	.channels-viewtree row:selected .channel-item-outer {
+	.groups-viewtree row:selected .group-item-outer {
 		background: alpha(@theme_fg_color, 0.125);
 	}
-	.channels-viewtree row:selected:hover .channel-item-outer {
+	.groups-viewtree row:selected:hover .group-item-outer {
 		background: alpha(@theme_fg_color, 0.175);
 	}
-	.channel-item {
+	.group-item {
 		padding: 0.35em 0;
 	}
-	.channel-item :first-child {
+	.group-item :first-child {
 		min-width: 2.5em;
 		margin: 0;
 	}
-	.channel-item expander + * {
+	.group-item expander + * {
 		/* Weird workaround because GTK is adding extra padding here for some
 		 * reason. */
 		margin-left: -0.35em;
 	}
-	.channel-item-muted {
+	.group-item-muted {
 		opacity: 0.35;
 	}
-	.channel-unread-indicator {
+	.group-unread-indicator {
 		font-size: 0.75em;
 		font-weight: 700;
 	}
-	.channel-item-unread .channel-unread-indicator,
-	.channel-item-mentioned .channel-unread-indicator {
+	.group-item-unread .group-unread-indicator,
+	.group-item-mentioned .group-unread-indicator {
 		font-size: 0.7em;
 		font-weight: 900;
 		font-family: monospace;
@@ -111,7 +112,7 @@ var _ = cssutil.WriteCSS(`
 		outline: 1.5px solid @theme_fg_color;
 		border-radius: 99px;
 	}
-	.channel-item-mentioned .channel-unread-indicator {
+	.group-item-mentioned .group-unread-indicator {
 		font-size: 0.8em;
 		outline-color: @mentioned;
 		background: @mentioned;
@@ -119,7 +120,7 @@ var _ = cssutil.WriteCSS(`
 	}
 `)
 
-type channelItem struct {
+type groupItem struct {
 	item   *gtk.ListItem
 	row    *gtk.TreeListRow
 	reveal *app.TypedState[bool]
@@ -130,19 +131,19 @@ type channelItem struct {
 		indicator *gtk.Label
 	}
 
-	chID string
+	gad nip29.GroupAddress
 }
 
-func bindChannelItem(state channelItemState, item *gtk.ListItem, row *gtk.TreeListRow) func() {
-	i := &channelItem{
+func bindGroupItem(state groupItemState, item *gtk.ListItem, row *gtk.TreeListRow) func() {
+	i := &groupItem{
 		item:   item,
 		row:    row,
 		reveal: state.reveal,
-		chID:   channelIDFromListItem(item),
+		gad:    gadFromListItem(item),
 	}
 
 	i.child.indicator = gtk.NewLabel("")
-	i.child.indicator.AddCSSClass("channel-unread-indicator")
+	i.child.indicator.AddCSSClass("group-unread-indicator")
 	i.child.indicator.SetHExpand(true)
 	i.child.indicator.SetHAlign(gtk.AlignEnd)
 	i.child.indicator.SetVAlign(gtk.AlignCenter)
@@ -151,7 +152,7 @@ func bindChannelItem(state channelItemState, item *gtk.ListItem, row *gtk.TreeLi
 	i.child.Box.Append(i.child.indicator)
 
 	hoverpopover.NewMarkupHoverPopover(i.child.Box, func(w *hoverpopover.MarkupHoverPopoverWidget) bool {
-		// summary := i.state.SummaryState.LastSummary(i.chID)
+		// summary := i.state.SummaryState.LastSummary(i.gad)
 		// if summary == nil {
 		// 	return false
 		// }
@@ -180,35 +181,35 @@ func bindChannelItem(state channelItemState, item *gtk.ListItem, row *gtk.TreeLi
 	var unbind signaling.DisconnectStack
 	// unbind.Push(
 	// 	i.state.AddHandler(func(ev *read.UpdateEvent) {
-	// 		if ev.ChannelID == i.chID {
+	// 		if ev.GroupID == i.gad {
 	// 			i.Invalidate()
 	// 		}
 	// 	}),
-	// 	i.state.AddHandler(func(ev *gateway.ChannelUpdateEvent) {
-	// 		if ev.ID == i.chID {
+	// 	i.state.AddHandler(func(ev *gateway.GroupUpdateEvent) {
+	// 		if ev.ID == i.gad {
 	// 			i.Invalidate()
 	// 		}
 	// 	}),
 	// )
 
-	// ch, _ := i.state.Offline().Channel(i.chID)
+	// ch, _ := i.state.Offline().Group(i.gad)
 	// if ch != nil {
 	// 	switch ch.Type {
-	// 	case discord.GuildPublicThread, discord.GuildPrivateThread, discord.GuildAnnouncementThread:
+	// 	case discord.RelayPublicThread, discord.RelayPrivateThread, discord.RelayAnnouncementThread:
 	// 		unbind.Push(i.state.AddHandler(func(ev *gateway.ThreadUpdateEvent) {
-	// 			if ev.ID == i.chID {
+	// 			if ev.ID == i.gad {
 	// 				i.Invalidate()
 	// 			}
 	// 		}))
 	// 	}
 
-	// 	guildID := ch.GuildID
+	// 	relayID := ch.RelayID
 	// 	switch ch.Type {
-	// 	case discord.GuildVoice, discord.GuildStageVoice:
+	// 	case discord.RelayVoice, discord.RelayStageVoice:
 	// 		unbind.Push(i.state.AddHandler(func(ev *gateway.VoiceStateUpdateEvent) {
-	// 			// The channel ID becomes null when the user leaves the channel,
-	// 			// so we'll just update when any guild state changes.
-	// 			if ev.GuildID == guildID {
+	// 			// The group ID becomes null when the user leaves the group,
+	// 			// so we'll just update when any relay state changes.
+	// 			if ev.RelayID == relayID {
 	// 				i.Invalidate()
 	// 			}
 	// 		}))
@@ -219,44 +220,52 @@ func bindChannelItem(state channelItemState, item *gtk.ListItem, row *gtk.TreeLi
 	return unbind.Disconnect
 }
 
-var readCSSClasses = map[ningen.UnreadIndication]string{
-	ningen.ChannelUnread:    "channel-item-unread",
-	ningen.ChannelMentioned: "channel-item-mentioned",
+type readStatus = int
+
+const (
+	unread    readStatus = iota
+	read      readStatus = iota
+	mentioned readStatus = iota
+)
+
+var readCSSClasses = map[readStatus]string{
+	unread:    "group-item-unread",
+	mentioned: "group-item-mentioned",
 }
 
-const channelMutedClass = "channel-item-muted"
+const groupMutedClass = "group-item-muted"
 
-// Invalidate updates the channel item's contents.
-func (i *channelItem) Invalidate() {
+// Invalidate updates the group item's contents.
+func (i *groupItem) Invalidate() {
 	if i.child.content != nil {
 		i.child.Box.Remove(i.child.content)
 	}
 
 	i.item.SetSelectable(true)
 
-	// ch, _ := i.state.Offline().Channel(i.chID)
+	// ch, _ := i.state.Offline().Group(i.gad)
 	// if ch == nil {
-	// 	i.child.content = newUnknownChannelItem(i.chID.String())
+	// 	i.child.content = newUnknownGroupItem(i.gad.String())
 	// 	i.item.SetSelectable(false)
 	// } else {
 	// 	switch ch.Type {
 	// 	case
-	// 		discord.GuildText, discord.GuildAnnouncement,
-	// 		discord.GuildPublicThread, discord.GuildPrivateThread, discord.GuildAnnouncementThread:
+	// 		discord.RelayText, discord.RelayAnnouncement,
+	// 		discord.RelayPublicThread, discord.RelayPrivateThread, discord.RelayAnnouncementThread:
 
-	// 		i.child.content = newChannelItemText(ch)
+	// 		i.child.content = newGroupItemText(ch)
 
-	// 	case discord.GuildCategory, discord.GuildForum:
+	// 	case discord.RelayCategory, discord.RelayForum:
 	// 		switch ch.Type {
-	// 		case discord.GuildCategory:
-	// 			i.child.content = newChannelItemCategory(ch, i.row, i.reveal)
+	// 		case discord.RelayCategory:
+	// 			i.child.content = newGroupItemCategory(ch, i.row, i.reveal)
 	// 			i.item.SetSelectable(false)
-	// 		case discord.GuildForum:
-	// 			i.child.content = newChannelItemForum(ch, i.row)
+	// 		case discord.RelayForum:
+	// 			i.child.content = newGroupItemForum(ch, i.row)
 	// 		}
 
-	// 	case discord.GuildVoice, discord.GuildStageVoice:
-	// 		i.child.content = newChannelItemVoice(i.state, ch)
+	// 	case discord.RelayVoice, discord.RelayStageVoice:
+	// 		i.child.content = newGroupItemVoice(i.state, ch)
 
 	// 	default:
 	// 		panic("unreachable")
@@ -272,27 +281,27 @@ func (i *channelItem) Invalidate() {
 	// }
 
 	// unreadOpts := ningen.UnreadOpts{
-	// 	// We can do this within the channel list itself because it's easy to
-	// 	// expand categories and see the unread channels within them.
+	// 	// We can do this within the group list itself because it's easy to
+	// 	// expand categories and see the unread groups within them.
 	// 	IncludeMutedCategories: true,
 	// }
 
-	// unread := i.state.ChannelIsUnread(i.chID, unreadOpts)
-	// if unread != ningen.ChannelRead {
+	// unread := i.state.GroupIsUnread(i.gad, unreadOpts)
+	// if unread != ningen.GroupRead {
 	// 	i.child.Box.AddCSSClass(readCSSClasses[unread])
 	// }
 
 	// i.updateIndicator(unread)
 
-	// if i.state.ChannelIsMuted(i.chID, unreadOpts) {
-	// 	i.child.Box.AddCSSClass(channelMutedClass)
+	// if i.state.GroupIsMuted(i.gad, unreadOpts) {
+	// 	i.child.Box.AddCSSClass(groupMutedClass)
 	// } else {
-	// 	i.child.Box.RemoveCSSClass(channelMutedClass)
+	// 	i.child.Box.RemoveCSSClass(groupMutedClass)
 	// }
 }
 
-func (i *channelItem) updateIndicator(unread ningen.UnreadIndication) {
-	if unread == ningen.ChannelMentioned {
+func (i *groupItem) updateIndicator(s readStatus) {
+	if unread == mentioned {
 		i.child.indicator.SetText("!")
 	} else {
 		i.child.indicator.SetText("")
@@ -300,22 +309,22 @@ func (i *channelItem) updateIndicator(unread ningen.UnreadIndication) {
 }
 
 var _ = cssutil.WriteCSS(`
-	.channel-item-unknown {
+	.group-item-unknown {
 		opacity: 0.35;
 		font-style: italic;
 	}
 `)
 
-func newUnknownChannelItem(name string) gtk.Widgetter {
-	icon := gtk.NewImageFromIconName("channel-symbolic")
+func newUnknownGroupItem(name string) gtk.Widgetter {
+	icon := gtk.NewImageFromIconName("group-symbolic")
 
 	label := gtk.NewLabel(name)
 	label.SetEllipsize(pango.EllipsizeEnd)
 	label.SetXAlign(0)
 
 	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	box.AddCSSClass("channel-item")
-	box.AddCSSClass("channel-item-unknown")
+	box.AddCSSClass("group-item")
+	box.AddCSSClass("group-item-unknown")
 	box.Append(icon)
 	box.Append(label)
 
@@ -323,42 +332,44 @@ func newUnknownChannelItem(name string) gtk.Widgetter {
 }
 
 var _ = cssutil.WriteCSS(`
-	.channel-item-thread {
+	.group-item-thread {
 		padding: 0.25em 0;
 		opacity: 0.5;
 	}
-	.channel-item-unread .channel-item-thread,
-	.channel-item-mention .channel-item-thread {
+	.group-item-unread .group-item-thread,
+	.group-item-mention .group-item-thread {
 		opacity: 1;
 	}
-	.channel-item-nsfw-indicator {
+	.group-item-nsfw-indicator {
 		font-size: 0.75em;
 		font-weight: bold;
 		margin-right: 0.75em;
 	}
 `)
 
-func newChannelItemText(ch *discord.Channel) gtk.Widgetter {
+func newGroupItemText(ch *nip29.Group) gtk.Widgetter {
 	icon := gtk.NewImageFromIconName("")
-	switch ch.Type {
-	case discord.GuildText:
-		icon.SetFromIconName("channel-symbolic")
-	case discord.GuildAnnouncement:
-		icon.SetFromIconName("channel-broadcast-symbolic")
-	case discord.GuildPublicThread, discord.GuildPrivateThread, discord.GuildAnnouncementThread:
-		icon.SetFromIconName("thread-branch-symbolic")
-	}
+
+	icon.SetFromIconName("group-symbolic")
+	// switch ch.Type {
+	// case discord.RelayText:
+	// 	icon.SetFromIconName("group-symbolic")
+	// case discord.RelayAnnouncement:
+	// 	icon.SetFromIconName("group-broadcast-symbolic")
+	// case discord.RelayPublicThread, discord.RelayPrivateThread, discord.RelayAnnouncementThread:
+	// 	icon.SetFromIconName("thread-branch-symbolic")
+	// }
 
 	iconFrame := gtk.NewOverlay()
 	iconFrame.SetChild(icon)
 
-	if ch.NSFW {
-		nsfwIndicator := gtk.NewLabel("!")
-		nsfwIndicator.AddCSSClass("channel-item-nsfw-indicator")
-		nsfwIndicator.SetHAlign(gtk.AlignEnd)
-		nsfwIndicator.SetVAlign(gtk.AlignEnd)
-		iconFrame.AddOverlay(nsfwIndicator)
-	}
+	// if ch.NSFW {
+	// 	nsfwIndicator := gtk.NewLabel("!")
+	// 	nsfwIndicator.AddCSSClass("group-item-nsfw-indicator")
+	// 	nsfwIndicator.SetHAlign(gtk.AlignEnd)
+	// 	nsfwIndicator.SetVAlign(gtk.AlignEnd)
+	// 	iconFrame.AddOverlay(nsfwIndicator)
+	// }
 
 	label := gtk.NewLabel(ch.Name)
 	label.SetEllipsize(pango.EllipsizeEnd)
@@ -366,40 +377,42 @@ func newChannelItemText(ch *discord.Channel) gtk.Widgetter {
 	bindLabelTooltip(label, false)
 
 	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	box.AddCSSClass("channel-item")
+	box.AddCSSClass("group-item")
 	box.Append(iconFrame)
 	box.Append(label)
 
-	switch ch.Type {
-	case discord.GuildText:
-		box.AddCSSClass("channel-item-text")
-	case discord.GuildAnnouncement:
-		box.AddCSSClass("channel-item-announcement")
-	case discord.GuildPublicThread, discord.GuildPrivateThread, discord.GuildAnnouncementThread:
-		box.AddCSSClass("channel-item-thread")
-	}
+	box.AddCSSClass("group-item-text")
+
+	// switch ch.Type {
+	// case discord.RelayText:
+	// 	box.AddCSSClass("group-item-text")
+	// case discord.RelayAnnouncement:
+	// 	box.AddCSSClass("group-item-announcement")
+	// case discord.RelayPublicThread, discord.RelayPrivateThread, discord.RelayAnnouncementThread:
+	// 	box.AddCSSClass("group-item-thread")
+	// }
 
 	return box
 }
 
 var _ = cssutil.WriteCSS(`
-	.channel-item-forum {
+	.group-item-forum {
 		padding: 0.35em 0;
 	}
-	.channel-item-forum label {
+	.group-item-forum label {
 		padding: 0;
 	}
 `)
 
-func newChannelItemForum(ch *discord.Channel, row *gtk.TreeListRow) gtk.Widgetter {
+func newGroupItemForum(ch *nip29.Group, row *gtk.TreeListRow) gtk.Widgetter {
 	label := gtk.NewLabel(ch.Name)
 	label.SetEllipsize(pango.EllipsizeEnd)
 	label.SetXAlign(0)
 	bindLabelTooltip(label, false)
 
 	expander := gtk.NewTreeExpander()
-	expander.AddCSSClass("channel-item")
-	expander.AddCSSClass("channel-item-forum")
+	expander.AddCSSClass("group-item")
+	expander.AddCSSClass("group-item-forum")
 	expander.SetHExpand(true)
 	expander.SetListRow(row)
 	expander.SetChild(label)
@@ -411,16 +424,16 @@ func newChannelItemForum(ch *discord.Channel, row *gtk.TreeListRow) gtk.Widgette
 }
 
 var _ = cssutil.WriteCSS(`
-	.channels-viewtree row:not(:first-child) .channel-item-category-outer {
+	.groups-viewtree row:not(:first-child) .group-item-category-outer {
 		margin-top: 0.75em;
 	}
-	.channels-viewtree row:hover .channel-item-category-outer {
+	.groups-viewtree row:hover .group-item-category-outer {
 		background: none;
 	}
-	.channel-item-category {
+	.group-item-category {
 		padding: 0.4em 0;
 	}
-	.channel-item-category label {
+	.group-item-category label {
 		margin-bottom: -0.2em;
 		padding: 0;
 		font-size: 0.85em;
@@ -429,21 +442,21 @@ var _ = cssutil.WriteCSS(`
 	}
 `)
 
-func newChannelItemCategory(ch *discord.Channel, row *gtk.TreeListRow, reveal *app.TypedState[bool]) gtk.Widgetter {
+func newGroupItemCategory(ch *nip29.Group, row *gtk.TreeListRow, reveal *app.TypedState[bool]) gtk.Widgetter {
 	label := gtk.NewLabel(ch.Name)
 	label.SetEllipsize(pango.EllipsizeEnd)
 	label.SetXAlign(0)
 	bindLabelTooltip(label, false)
 
 	expander := gtk.NewTreeExpander()
-	expander.AddCSSClass("channel-item")
-	expander.AddCSSClass("channel-item-category")
+	expander.AddCSSClass("group-item")
+	expander.AddCSSClass("group-item-category")
 	expander.SetHExpand(true)
 	expander.SetListRow(row)
 	expander.SetChild(label)
 
 	ref := glib.NewWeakRef[*gtk.TreeListRow](row)
-	chID := ch.ID
+	gad := ch.Address
 
 	// Add this notifier after a small delay so GTK can initialize the row.
 	// Otherwise, it will falsely emit the signal.
@@ -462,14 +475,14 @@ func newChannelItemCategory(ch *discord.Channel, row *gtk.TreeListRow, reveal *a
 			// Only retain collapsed states. Expanded states are assumed to be
 			// the default.
 			if !row.Expanded() {
-				reveal.Set(chID.String(), true)
+				reveal.Set(gad.String(), true)
 			} else {
-				reveal.Delete(chID.String())
+				reveal.Delete(gad.String())
 			}
 		})
 	})
 
-	reveal.Get(ch.ID.String(), func(collapsed bool) {
+	reveal.Get(gad.String(), func(collapsed bool) {
 		if collapsed {
 			// GTK will actually explode if we set the expanded property without
 			// waiting for it to load for some reason?
@@ -481,18 +494,18 @@ func newChannelItemCategory(ch *discord.Channel, row *gtk.TreeListRow, reveal *a
 }
 
 var _ = cssutil.WriteCSS(`
-	.channel-item-voice .mauthor-chip {
+	.group-item-voice .mauthor-chip {
 		margin: 0.15em 0;
 		margin-left: 2.5em;
 		margin-right: 1em;
 	}
-	.channel-item-voice .mauthor-chip:nth-child(2) {
+	.group-item-voice .mauthor-chip:nth-child(2) {
 		margin-top: 0;
 	}
-	.channel-item-voice .mauthor-chip:last-child {
+	.group-item-voice .mauthor-chip:last-child {
 		margin-bottom: 0.3em;
 	}
-	.channel-item-voice-counter {
+	.group-item-voice-counter {
 		margin-left: 0.5em;
 		margin-right: 0.5em;
 		font-size: 0.8em;
@@ -500,8 +513,8 @@ var _ = cssutil.WriteCSS(`
 	}
 `)
 
-func newChannelItemVoice(ch *discord.Channel) gtk.Widgetter {
-	icon := gtk.NewImageFromIconName("channel-voice-symbolic")
+func newGroupItemVoice(ch *nip29.Group) gtk.Widgetter {
+	icon := gtk.NewImageFromIconName("group-voice-symbolic")
 
 	label := gtk.NewLabel(ch.Name)
 	label.SetEllipsize(pango.EllipsizeEnd)
@@ -509,21 +522,21 @@ func newChannelItemVoice(ch *discord.Channel) gtk.Widgetter {
 	label.SetTooltipText(ch.Name)
 
 	top := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	top.AddCSSClass("channel-item")
+	top.AddCSSClass("group-item")
 	top.Append(icon)
 	top.Append(label)
 
 	// var voiceParticipants int
-	// voiceStates, _ := state.VoiceStates(ch.GuildID)
+	// voiceStates, _ := state.VoiceStates(ch.RelayID)
 	// for _, voiceState := range voiceStates {
-	// 	if voiceState.ChannelID == ch.ID {
+	// 	if voiceState.GroupID == ch.ID {
 	// 		voiceParticipants++
 	// 	}
 	// }
 
 	// if voiceParticipants > 0 {
 	// 	counter := gtk.NewLabel(fmt.Sprintf("%d", voiceParticipants))
-	// 	counter.AddCSSClass("channel-item-voice-counter")
+	// 	counter.AddCSSClass("group-item-voice-counter")
 	// 	counter.SetVExpand(true)
 	// 	counter.SetXAlign(0)
 	// 	counter.SetYAlign(1)
@@ -536,12 +549,12 @@ func newChannelItemVoice(ch *discord.Channel) gtk.Widgetter {
 	// ListModel instead.
 
 	// box := gtk.NewBox(gtk.OrientationVertical, 0)
-	// box.AddCSSClass("channel-item-voice")
+	// box.AddCSSClass("group-item-voice")
 	// box.Append(top)
 
-	// voiceStates, _ := state.VoiceStates(ch.GuildID)
+	// voiceStates, _ := state.VoiceStates(ch.RelayID)
 	// for _, voiceState := range voiceStates {
-	// 	if voiceState.ChannelID == ch.ID {
+	// 	if voiceState.GroupID == ch.ID {
 	// 		box.Append(newVoiceParticipant(state, voiceState))
 	// 	}
 	// }
@@ -555,13 +568,13 @@ func newVoiceParticipant(voiceState discord.VoiceState) gtk.Widgetter {
 
 	member := voiceState.Member
 	// if member == nil {
-	// 	member, _ = state.Member(voiceState.GuildID, voiceState.UserID)
+	// 	member, _ = state.Member(voiceState.RelayID, voiceState.UserID)
 	// }
 
 	if member != nil {
 		chip.SetName(member.User.DisplayOrUsername())
-		// chip.SetAvatar(gtkcord.InjectAvatarSize(member.AvatarURL(voiceState.GuildID)))
-		// if color, ok := state.MemberColor(voiceState.GuildID, voiceState.UserID); ok {
+		// chip.SetAvatar(gtkcord.InjectAvatarSize(member.AvatarURL(voiceState.RelayID)))
+		// if color, ok := state.MemberColor(voiceState.RelayID, voiceState.UserID); ok {
 		// 	chip.SetColor(color.String())
 		// }
 	} else {

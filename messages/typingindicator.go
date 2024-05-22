@@ -11,6 +11,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/pango"
 	"github.com/diamondburned/gotkit/app/locale"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
+	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
 const typerTimeout = 10 * time.Second
@@ -24,9 +25,8 @@ type TypingIndicator struct {
 		Label *gtk.Label
 	}
 
-	typers  []typingTyper
-	chID    string
-	guildID string
+	typers []typingTyper
+	gad    nip29.GroupAddress
 }
 
 type typingTyper struct {
@@ -46,11 +46,11 @@ var typingIndicatorCSS = cssutil.Applier("messages-typing-indicator", `
 `)
 
 // NewTypingIndicator creates a new TypingIndicator.
-func NewTypingIndicator(ctx context.Context, chID string) *TypingIndicator {
+func NewTypingIndicator(ctx context.Context, gad nip29.GroupAddress) *TypingIndicator {
 	t := &TypingIndicator{
 		Revealer: gtk.NewRevealer(),
 		typers:   make([]typingTyper, 0, 3),
-		chID:     chID,
+		gad:      gad,
 	}
 
 	// ch, _ := state.Cabinet.Channel(chID)

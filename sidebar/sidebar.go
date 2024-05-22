@@ -1,20 +1,18 @@
-// Package sidebar contains the sidebar showing guilds and channels.
+// Package sidebar contains the sidebar showing relays and groups.
 package sidebar
 
 import (
 	"context"
 
-	"fiatjaf.com/shiitake/sidebar/direct"
-	"fiatjaf.com/shiitake/sidebar/directbutton"
+	"fiatjaf.com/shiitake/global"
 	"fiatjaf.com/shiitake/sidebar/groups"
-	channels "fiatjaf.com/shiitake/sidebar/groups"
 	"fiatjaf.com/shiitake/sidebar/relays"
 	"fiatjaf.com/shiitake/utils"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
-	"github.com/nbd-wtf/go-nostr"
+	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
 // Sidebar is the bar on the left side of the application once it's logged in.
@@ -22,7 +20,7 @@ type Sidebar struct {
 	*gtk.Box // horizontal
 
 	Left   *gtk.Box
-	DMView *directbutton.View
+	AddNew *relays.Button
 	Relays *relays.View
 	Right  *gtk.Stack
 
@@ -46,7 +44,7 @@ var sidebarCSS = cssutil.Applier("sidebar-sidebar", `
 		margin: 4px;
 		margin-right: 0;
 	}
-	.sidebar-guildside {
+	.sidebar-relayside {
 		background-color: @sidebar_bg;
 	}
 `)
@@ -58,20 +56,28 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	}
 
 	s.Relays = relays.NewView(ctx)
-	s.Relays.Invalidate()
+	// s.Relays.Invalidate()
 
-	s.DMView = directbutton.NewView(ctx)
-	s.DMView.Invalidate()
+	s.AddNew = relays.NewButton(ctx, func(v string) {
+		if v != "" {
+			gad, err := nip29.ParseGroupAddress(v)
+			if err != nil {
+				// we only accept full group identifiers for now (TODO)
+				return
+			}
+			global.JoinGroup(ctx, gad)
+		}
+	})
 
-	dmSeparator := gtk.NewSeparator(gtk.OrientationHorizontal)
-	dmSeparator.AddCSSClass("sidebar-dm-separator")
+	separator := gtk.NewSeparator(gtk.OrientationHorizontal)
+	separator.AddCSSClass("sidebar-separator")
 
-	// leftBox holds just the DM button and the guild view, as opposed to s.Left
+	// leftBox holds just the new button and the relay view, as opposed to s.Left
 	// which holds the scrolled window and the window controls.
 	leftBox := gtk.NewBox(gtk.OrientationVertical, 0)
-	leftBox.Append(s.DMView)
-	leftBox.Append(dmSeparator)
 	leftBox.Append(s.Relays)
+	leftBox.Append(separator)
+	leftBox.Append(s.AddNew)
 
 	leftScroll := gtk.NewScrolledWindow()
 	leftScroll.SetVExpand(true)
@@ -82,14 +88,14 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	leftCtrl.SetHAlign(gtk.AlignCenter)
 
 	s.Left = gtk.NewBox(gtk.OrientationVertical, 0)
-	s.Left.AddCSSClass("sidebar-guildside")
+	s.Left.AddCSSClass("sidebar-relayside")
 	s.Left.Append(leftCtrl)
 	s.Left.Append(leftScroll)
 
 	s.placeholder = gtk.NewWindowHandle()
 
 	s.Right = gtk.NewStack()
-	s.Right.SetSizeRequest(groups.ChannelsWidth, -1)
+	s.Right.SetSizeRequest(groups.GroupsWidth, -1)
 	s.Right.SetVExpand(true)
 	s.Right.SetHExpand(true)
 	s.Right.AddChild(s.placeholder)
@@ -112,7 +118,7 @@ func NewSidebar(ctx context.Context) *Sidebar {
 		gtkutil.MenuItem("_Quit", "app.quit"),
 	})
 
-	// TODO: consider if we can merge this ToolbarView with the one in channels
+	// TODO: consider if we can merge this ToolbarView with the one in groups
 	// and direct.
 	rightWrap := adw.NewToolbarView()
 	rightWrap.AddBottomBar(userBar)
@@ -127,14 +133,14 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	return &s
 }
 
-// GuildID returns the guild ID that the channel list is showing for, if any.
+// RelayID returns the relay ID that the group list is showing for, if any.
 // If not, 0 is returned.
-func (s *Sidebar) GuildID() string {
-	ch, ok := s.current.w.(*channels.View)
+func (s *Sidebar) RelayID() string {
+	ch, ok := s.current.w.(*groups.View)
 	if !ok {
 		return ""
 	}
-	return ch.GuildID()
+	return ch.RelayID()
 }
 
 func (s *Sidebar) removeCurrent() {
@@ -159,37 +165,17 @@ func (s *Sidebar) removeCurrent() {
 	})
 }
 
-func (s *Sidebar) OpenDMs() *direct.ChannelView {
-	if direct, ok := s.current.w.(*direct.ChannelView); ok {
-		// we're already there
-		return direct
-	}
-
-	s.unselect()
-	s.DMView.SetSelected(true)
-
-	direct := direct.NewChannelView(s.ctx)
-	direct.SetVExpand(true)
-	s.current.w = direct
-
-	s.Right.AddChild(direct)
-	s.Right.SetVisibleChild(direct)
-
-	direct.Invalidate()
-	return direct
-}
-
-func (s *Sidebar) openGuild(guildID string) *channels.View {
-	chs, ok := s.current.w.(*channels.View)
-	if ok && chs.GuildID() == guildID {
+func (s *Sidebar) openRelay(relayID string) *groups.View {
+	chs, ok := s.current.w.(*groups.View)
+	if ok && chs.RelayID() == relayID {
 		// We're already there.
 		return chs
 	}
 
 	s.unselect()
-	s.Relays.SetSelectedRelay(guildID)
+	s.Relays.SetSelectedRelay(relayID)
 
-	chs = channels.NewView(s.ctx, guildID)
+	chs = groups.NewView(s.ctx, relayID)
 	chs.SetVExpand(true)
 	s.current.w = chs
 
@@ -203,25 +189,23 @@ func (s *Sidebar) openGuild(guildID string) *channels.View {
 
 func (s *Sidebar) unselect() {
 	s.Relays.Unselect()
-	s.DMView.Unselect()
 	s.removeCurrent()
 }
 
-// Unselect unselects the current guild or channel.
+// Unselect unselects the current relay or group.
 func (s *Sidebar) Unselect() {
 	s.unselect()
 	s.Right.SetVisibleChild(s.placeholder)
 }
 
-// SetSelectedGuild marks the guild with the given ID as selected.
+// SetSelectedRelay marks the relay with the given ID as selected.
 func (s *Sidebar) SetSelectedRelay(relayURL string) {
 	s.Relays.SetSelectedRelay(relayURL)
-	s.openGuild(relayURL)
+	s.openRelay(relayURL)
 }
 
-// SelectRelay selects and activates the guild with the given ID.
+// SelectRelay selects and activates the relay with the given ID.
 func (s *Sidebar) SelectRelay(url string) {
-	url = nostr.NormalizeURL(url)
 	if s.Relays.SelectedRelayURL() != url {
 		s.Relays.SetSelectedRelay(url)
 
@@ -230,25 +214,25 @@ func (s *Sidebar) SelectRelay(url string) {
 	}
 }
 
-// SelectChannel selects and activates the channel with the given ID. It ensures
+// SelectGroup selects and activates the group with the given ID. It ensures
 // that the sidebar is at the right place then activates the controller.
-// This function acts the same as if the user clicked on the channel, meaning it
+// This function acts the same as if the user clicked on the group, meaning it
 // funnels down to a single widget that then floats up to the controller.
-func (s *Sidebar) SelectChannel(chID string) {
+func (s *Sidebar) SelectGroup(chID string) {
 	// state := gtkcord.FromContext(s.ctx)
-	// ch, _ := state.Cabinet.Channel(chID)
+	// ch, _ := state.Cabinet.Group(chID)
 	// if ch == nil {
-	// 	log.Println("sidebar: channel with ID", chID, "not found")
+	// 	log.Println("sidebar: group with ID", chID, "not found")
 	// 	return
 	// }
 
-	// s.Guilds.SetSelectedGuild(ch.GuildID)
+	// s.Relays.SetSelectedRelay(ch.RelayID)
 
-	// if ch.GuildID.IsValid() {
-	// 	guild := s.openGuild(ch.GuildID)
-	// 	guild.SelectChannel(chID)
+	// if ch.RelayID.IsValid() {
+	// 	relay := s.openRelay(ch.RelayID)
+	// 	relay.SelectGroup(chID)
 	// } else {
 	// 	direct := s.OpenDMs()
-	// 	direct.SelectChannel(chID)
+	// 	direct.SelectGroup(chID)
 	// }
 }

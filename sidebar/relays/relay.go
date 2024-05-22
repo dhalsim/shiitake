@@ -5,11 +5,11 @@ import (
 	"strings"
 
 	"fiatjaf.com/shiitake/components/hoverpopover"
+	"fiatjaf.com/shiitake/global"
 	"fiatjaf.com/shiitake/sidebar/sidebutton"
 	"fiatjaf.com/shiitake/utils"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
-	"github.com/nbd-wtf/go-nostr"
 )
 
 // Guild is a widget showing a single guild icon.
@@ -19,6 +19,7 @@ type Relay struct {
 	popover *hoverpopover.MarkupHoverPopover
 	url     string
 	name    string
+	image   string
 }
 
 var guildCSS = cssutil.Applier("guild-guild", `
@@ -27,11 +28,19 @@ var guildCSS = cssutil.Applier("guild-guild", `
 	}
 `)
 
-func NewRelay(ctx context.Context, url string) *Relay {
-	g := &Relay{ctx: ctx, url: nostr.NormalizeURL(url)}
+func NewRelay(ctx context.Context, relay *global.Relay) *Relay {
+	g := &Relay{
+		ctx:   ctx,
+		url:   relay.URL,
+		name:  relay.Name,
+		image: relay.Image,
+	}
+
+	g.name = relay.URL
+
 	g.Button = sidebutton.NewButton(ctx, func() {
 		parent := gtk.BaseWidget(g.Button.Parent())
-		parent.ActivateAction("win.open-relay", utils.NewRelayURLVariant(url))
+		parent.ActivateAction("win.open-relay", utils.NewRelayURLVariant(relay.URL))
 	})
 
 	g.popover = hoverpopover.NewMarkupHoverPopover(g.Button, func(w *hoverpopover.MarkupHoverPopoverWidget) bool {
@@ -42,8 +51,15 @@ func NewRelay(ctx context.Context, url string) *Relay {
 		return true
 	})
 
-	g.SetUnavailable()
 	guildCSS(g)
+
+	g.SetSensitive(true)
+	initials := strings.Join(strings.Split(strings.Split(relay.URL, "://")[1], "."), " ")
+	g.Icon.SetInitials(initials)
+	if relay.Image != "" {
+		g.Icon.SetFromURL(relay.Image)
+	}
+
 	return g
 }
 
@@ -62,28 +78,6 @@ func (g *Relay) Invalidate() {
 	// }
 
 	// g.Update(guild)
-}
-
-// SetUnavailable sets the guild as unavailable. It stays unavailable until
-// either Invalidate sees it or Update is called on it.
-func (g *Relay) SetUnavailable() {
-	g.name = "(guild unavailable)"
-	g.SetSensitive(false)
-
-	if g.Icon.Initials() == "" {
-		g.Icon.SetInitials("?")
-	}
-}
-
-// Update updates the guild with the given Discord object.
-func (g *Relay) Update(url string) {
-	g.name = url
-
-	g.SetSensitive(true)
-
-	initials := strings.Split(url, "://")[1]
-	g.Icon.SetInitials(initials)
-	// g.Icon.SetFromURL() // TODO: get relay icon
 }
 
 func (g *Relay) viewChild() {}

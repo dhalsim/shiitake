@@ -1,28 +1,35 @@
 package groups
 
 import (
+	"context"
+	"fmt"
+
+	"fiatjaf.com/shiitake/global"
 	"fiatjaf.com/shiitake/signaling"
-	"github.com/diamondburned/arikawa/v3/discord"
 	"github.com/diamondburned/gotk4/pkg/core/glib"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
 type modelManager struct {
 	*gtk.TreeListModel
-	guildID string
+	relayID string
 }
 
-func newModelManager(guildID string) *modelManager {
+func newModelManager(relayID string) *modelManager {
 	m := &modelManager{
-		guildID: guildID,
+		relayID: relayID,
 	}
 	m.TreeListModel = gtk.NewTreeListModel(
-		m.Model(""), true, true,
+		m.Model(nip29.GroupAddress{}), true, true,
 		func(item *glib.Object) *gio.ListModel {
-			chID := channelIDFromItem(item)
+			fmt.Println("blub")
+			gad := gadFromItem(item)
+			fmt.Println("  gad", gad)
 
-			model := m.Model(chID)
+			model := m.Model(gad)
+			fmt.Println("    model", model)
 			if model == nil {
 				return nil
 			}
@@ -32,142 +39,60 @@ func newModelManager(guildID string) *modelManager {
 	return m
 }
 
-// Model returns the list model containing all channels within the given channel
-// ID. If chID is 0, then the guild's root channels will be returned. This
-// function may return nil, indicating that the channel will never have any
+// Model returns the list model containing all groups within the given group
+// ID. If gad is 0, then the relay's root groups will be returned. This
+// function may return nil, indicating that the group will never have any
 // children.
-func (m *modelManager) Model(chID string) *gtk.StringList {
+func (m *modelManager) Model(gad nip29.GroupAddress) *gtk.StringList {
 	model := gtk.NewStringList(nil)
 
-	list := newChannelList(model)
+	list := newGroupList(model)
 
 	var unbind signaling.DisconnectStack
 	list.ConnectDestroy(func() { unbind.Disconnect() })
 
-	// unbind.Push(
-	// 	m.state.AddHandler(func(ev *gateway.ChannelCreateEvent) {
-	// 		if ev.GuildID != m.guildID {
-	// 			return
-	// 		}
-	// 		if ev.Channel.ParentID == chID {
-	// 			list.Append(ev.Channel)
-	// 		}
-	// 	}),
-	// 	m.state.AddHandler(func(ev *gateway.ChannelUpdateEvent) {
-	// 		if ev.GuildID != m.guildID {
-	// 			return
-	// 		}
-	// 		// Handle channel position moves.
-	// 		if ev.Channel.ParentID == chID {
-	// 			list.Append(ev.Channel)
-	// 		} else {
-	// 			list.Remove(ev.Channel.ID)
-	// 		}
-	// 	}),
-	// 	m.state.AddHandler(func(ev *gateway.ThreadCreateEvent) {
-	// 		if ev.GuildID != m.guildID {
-	// 			return
-	// 		}
-	// 		if ev.Channel.ParentID == chID {
-	// 			list.Append(ev.Channel)
-	// 		}
-	// 	}),
-	// 	m.state.AddHandler(func(ev *gateway.ThreadDeleteEvent) {
-	// 		if ev.GuildID != m.guildID {
-	// 			return
-	// 		}
-	// 		if ev.ParentID == chID {
-	// 			list.Remove(ev.ID)
-	// 		}
-	// 	}),
-	// 	m.state.AddHandler(func(ev *gateway.ThreadListSyncEvent) {
-	// 		if ev.GuildID != m.guildID {
-	// 			return
-	// 		}
+	ctx, cancel := context.WithCancel(context.Background())
 
-	// 		if ev.ChannelIDs == nil {
-	// 			// The entire guild was synced, so invalidate everything.
-	// 			m.invalidateAll(chID, list)
-	// 			return
-	// 		}
+	go func() {
+		me := global.GetMe(ctx)
+		for {
+			select {
+			case group := <-me.JoinedGroup:
+				list.Append(group.Address)
+			case gad := <-me.LeftGroup:
+				list.Remove(gad)
+			}
+		}
+	}()
 
-	// 		for _, parentID := range ev.ChannelIDs {
-	// 			if parentID == chID {
-	// 				// This sync event is also for us.
-	// 				m.invalidateAll(chID, list)
-	// 				break
-	// 			}
-	// 		}
-	// 	}),
-	// )
-
-	m.invalidateAll(chID, list)
+	unbind.Push(cancel)
 	return model
 }
 
-func (m *modelManager) invalidateAll(parentID string, list *channelList) {
-	channels := fetchSortedChannels(m.guildID, parentID)
-	list.ClearAndAppend(channels)
-}
-
-// channelList wraps a StringList to maintain a set of channel IDs.
-// Because this is a set, each channel ID can only appear once.
-type channelList struct {
+// groupList wraps a StringList to maintain a set of group IDs.
+// Because this is a set, each group ID can only appear once.
+type groupList struct {
 	list *gtk.StringList
-	ids  []string
+	ids  []nip29.GroupAddress
 }
 
-func newChannelList(list *gtk.StringList) *channelList {
-	return &channelList{
+func newGroupList(list *gtk.StringList) *groupList {
+	return &groupList{
 		list: list,
-		ids:  make([]string, 0, 4),
+		ids:  make([]nip29.GroupAddress, 0, 4),
 	}
 }
 
-// CalculatePosition converts the position of a channel given by Discord to the
-// position relative to the list. If the channel is not found, then this
-// function returns the end of the list.
-func (l *channelList) CalculatePosition(target discord.Channel) uint {
-	// for i, id := range l.ids {
-	// 	ch, _ := l.state.Offline().Channel(id)
-	// 	if ch == nil {
-	// 		continue
-	// 	}
-
-	// 	if ch.Position > target.Position {
-	// 		return uint(i)
-	// 	}
-	// }
-
-	return uint(len(l.ids))
-}
-
-// Append appends a channel to the list. If the channel already exists, then
+// Append appends a group to the list. If the group already exists, then
 // this function does nothing.
-func (l *channelList) Append(ch discord.Channel) {
-	pos := l.CalculatePosition(ch)
-	l.insertAt(ch, pos)
+func (l *groupList) Append(gad nip29.GroupAddress) {
+	l.ids = append(l.ids, gad)
 }
 
-func (l *channelList) insertAt(ch discord.Channel, pos uint) {
-	// i := l.Index(ch.ID)
-	// if i != -1 {
-	// 	return
-	// }
-
-	// list := l.list
-	// if list == nil {
-	// 	return
-	// }
-
-	// list.Splice(pos, 0, []string{ch.ID.String()})
-	// l.ids = append(l.ids[:pos], append([]string{ch.ID}, l.ids[pos:]...)...)
-}
-
-// Remove removes the channel ID from the list. If the channel ID is not in the
+// Remove removes the group ID from the list. If the group ID is not in the
 // list, then this function does nothing.
-func (l *channelList) Remove(chID string) {
-	i := l.Index(chID)
+func (l *groupList) Remove(gad nip29.GroupAddress) {
+	i := l.Index(gad)
 	if i != -1 {
 		l.ids = append(l.ids[:i], l.ids[i+1:]...)
 
@@ -178,16 +103,16 @@ func (l *channelList) Remove(chID string) {
 	}
 }
 
-// Contains returns whether the channel ID is in the list.
-func (l *channelList) Contains(chID string) bool {
-	return l.Index(chID) != -1
+// Contains returns whether the group ID is in the list.
+func (l *groupList) Contains(gad nip29.GroupAddress) bool {
+	return l.Index(gad) != -1
 }
 
-// Index returns the index of the channel ID in the list. If the channel ID is
+// Index returns the index of the group ID in the list. If the group ID is
 // not in the list, then this function returns -1.
-func (l *channelList) Index(chID string) int {
-	for i, id := range l.ids {
-		if id == chID {
+func (l *groupList) Index(gad nip29.GroupAddress) int {
+	for i, c := range l.ids {
+		if c.Equals(gad) {
 			return i
 		}
 	}
@@ -195,7 +120,7 @@ func (l *channelList) Index(chID string) int {
 }
 
 // Clear clears the list.
-func (l *channelList) Clear() {
+func (l *groupList) Clear() {
 	l.ids = l.ids[:0]
 
 	list := l.list
@@ -204,25 +129,7 @@ func (l *channelList) Clear() {
 	}
 }
 
-// ClearAndAppend clears the list and appends the given channels.
-func (l *channelList) ClearAndAppend(chs []discord.Channel) {
-	list := l.list
-	if list == nil {
-		return
-	}
-
-	ids := make([]string, len(chs))
-	l.ids = make([]string, len(chs))
-
-	for i, ch := range chs {
-		ids[i] = ch.ID.String()
-		l.ids = append(l.ids, ch.ID.String())
-	}
-
-	list.Splice(0, list.NItems(), ids)
-}
-
-func (l *channelList) ConnectDestroy(f func()) {
+func (l *groupList) ConnectDestroy(f func()) {
 	list := l.list
 	if list == nil {
 		return
@@ -231,33 +138,4 @@ func (l *channelList) ConnectDestroy(f func()) {
 	// being used? At least from reading the source code, which just calls
 	// g_clear_pointer.
 	glib.WeakRefObject(list, f)
-}
-
-func fetchSortedChannels(guildID string, parentID string) []discord.Channel {
-	// channels, err := state.Offline().Channels(guildID, gtkcord.AllowedChannelTypes)
-	// if err != nil {
-	// 	log.Printf("CalculatePosition: failed to get channels: %v", err)
-	// 	return nil
-	// }
-
-	// // Filter out all channels that are not in the same parent channel.
-	// filtered := channels[:0]
-	// for i, ch := range channels {
-	// 	if ch.ParentID == parentID || (parentID == 0 && !ch.ParentID.IsValid()) {
-	// 		filtered = append(filtered, channels[i])
-	// 	}
-	// }
-
-	// // Sort so that the channels are in increasing order.
-	// sort.Slice(filtered, func(i, j int) bool {
-	// 	a := filtered[i]
-	// 	b := filtered[j]
-	// 	if a.Position == b.Position {
-	// 		return a.ID < b.ID
-	// 	}
-	// 	return a.Position < b.Position
-	// })
-
-	// return filtered
-	return nil
 }

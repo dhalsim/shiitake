@@ -105,7 +105,7 @@ func newUserBar(ctx context.Context, menuActions []gtkutil.PopoverMenuItem) *use
 
 var discriminatorRe = regexp.MustCompile(`#\d{1,4}$`)
 
-func (b *userBar) updateUser(me *global.User) {
+func (b *userBar) updateUser(me *global.Me) {
 	// if v, _ := strconv.Atoi(me.Discriminator); v != 0 {
 	// 	tag += `<span size="smaller">` + "#" + me.Discriminator + "</span>"
 	// }

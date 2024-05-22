@@ -3,7 +3,6 @@ package quickswitcher
 import (
 	"context"
 
-	"github.com/diamondburned/arikawa/v3/discord"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
@@ -27,11 +26,6 @@ type groupItem struct {
 	search string
 }
 
-var voiceTypes = map[discord.ChannelType]bool{
-	discord.GuildVoice:      true,
-	discord.GuildStageVoice: true,
-}
-
 func newGroupItem(group nip29.Group) groupItem {
 	item := groupItem{
 		group: group,
@@ -46,7 +40,7 @@ func newGroupItem(group nip29.Group) groupItem {
 	}
 
 	// if threadTypes[ch.Type] {
-	// 	parent, _ := state.Cabinet.Channel(ch.ParentID)
+	// 	parent, _ := state.Cabinet.Group(ch.ParentID)
 	// 	if parent != nil {
 	// 		item.name = parent.Name + " › #" + item.name
 	// 	}
@@ -64,22 +58,22 @@ const (
 	chThreadHash = `<span face="monospace"><b><span size="x-large" rise="-800">#</span><span size="x-small" rise="-2000"># </span></b></span>`
 )
 
-var channelCSS = cssutil.Applier("quickswitcher-channel", `
-	.quickswitcher-channel-icon {
+var groupCSS = cssutil.Applier("quickswitcher-group", `
+	.quickswitcher-group-icon {
 		margin: 2px 12px;
 		margin-right: 1px;
 		min-width:  {$inline_emoji_size};
 		min-height: {$inline_emoji_size};
 	}
-	.quickswitcher-channel-hash {
+	.quickswitcher-group-hash {
 		padding-left: 1px; /* account for the NSFW mark */
 		margin-right: 7px;
 	}
-	.quickswitcher-channel-image {
+	.quickswitcher-group-image {
 		margin-left: 8px;
 		margin-right: 12px;
 	}
-	.quickswitcher-channel-guildname {
+	.quickswitcher-group-relayname {
 		font-size: 0.9em;
 		color: alpha(@theme_fg_color, 0.75);
 		margin: 4px;
@@ -97,7 +91,7 @@ func (it groupItem) Row(ctx context.Context) *gtk.ListBoxRow {
 	row := gtk.NewListBoxRow()
 	row.SetTooltipText(tooltip)
 	row.SetChild(box)
-	channelCSS(row)
+	groupCSS(row)
 
 	icon := gtk.NewLabel("")
 	icon.AddCSSClass("quickswitcher-group-icon")
@@ -107,18 +101,18 @@ func (it groupItem) Row(ctx context.Context) *gtk.ListBoxRow {
 	box.Append(icon)
 
 	name := gtk.NewLabel(it.name)
-	name.AddCSSClass("quickswitcher-channel-name")
+	name.AddCSSClass("quickswitcher-group-name")
 	name.SetHExpand(true)
 	name.SetXAlign(0)
 	name.SetEllipsize(pango.EllipsizeEnd)
 
 	box.Append(name)
 
-	guildName := gtk.NewLabel(it.group.Address.Relay)
-	guildName.AddCSSClass("quickswitcher-channel-guildname")
-	guildName.SetEllipsize(pango.EllipsizeEnd)
+	relayName := gtk.NewLabel(it.group.Address.Relay)
+	relayName.AddCSSClass("quickswitcher-group-relayname")
+	relayName.SetEllipsize(pango.EllipsizeEnd)
 
-	box.Append(guildName)
+	box.Append(relayName)
 
 	return row
 }
@@ -127,7 +121,7 @@ type relayItem struct {
 	url string
 }
 
-func newGuildItem(url string) relayItem {
+func newRelayItem(url string) relayItem {
 	return relayItem{
 		url: url,
 	}
@@ -135,7 +129,7 @@ func newGuildItem(url string) relayItem {
 
 func (it relayItem) String() string { return it.url }
 
-var guildCSS = cssutil.Applier("quickswitcher-guild", `
+var relayCSS = cssutil.Applier("quickswitcher-relay", `
 	.quickswitcher-relay-icon {
 		margin: 2px 8px;
 		min-width:  {$inline_emoji_size};
@@ -145,7 +139,7 @@ var guildCSS = cssutil.Applier("quickswitcher-guild", `
 
 func (it relayItem) Row(ctx context.Context) *gtk.ListBoxRow {
 	row := gtk.NewListBoxRow()
-	guildCSS(row)
+	relayCSS(row)
 
 	// icon := onlineimage.NewAvatar(ctx, imgutil.HTTPProvider, gtkcord.InlineEmojiSize)
 	// icon.AddCSSClass("quickswitcher-relay-icon")
@@ -180,31 +174,31 @@ func (idx *index) update(ctx context.Context) {
 	// state := gtkcord.FromContext(ctx).Offline()
 	items := make([]indexItem, 0, 250)
 
-	// dms, err := state.PrivateChannels()
+	// dms, err := state.PrivateGroups()
 	// if err != nil {
 	// 	app.Error(ctx, err)
 	// 	return
 	// }
 
 	// for i := range dms {
-	// 	items = append(items, newChannelItem(state, nil, &dms[i]))
+	// 	items = append(items, newGroupItem(state, nil, &dms[i]))
 	// }
 
-	// guilds, err := state.Guilds()
+	// relays, err := state.Relays()
 	// if err != nil {
 	// 	app.Error(ctx, err)
 	// 	return
 	// }
 
-	// for i, guild := range guilds {
-	// 	chs, err := state.Channels(guild.ID, gtkcord.AllowedChannelTypes)
+	// for i, relay := range relays {
+	// 	chs, err := state.Groups(relay.ID, gtkcord.AllowedGroupTypes)
 	// 	if err != nil {
-	// 		log.Print("quickswitcher: cannot populate channels for guild ", guild.Name, ": ", err)
+	// 		log.Print("quickswitcher: cannot populate groups for relay ", relay.Name, ": ", err)
 	// 		continue
 	// 	}
-	// 	items = append(items, newGuildItem(&guilds[i]))
+	// 	items = append(items, newRelayItem(&relays[i]))
 	// 	for j := range chs {
-	// 		items = append(items, newChannelItem(state, &guilds[i], &chs[j]))
+	// 		items = append(items, newGroupItem(state, &relays[i], &chs[j]))
 	// 	}
 	// }
 
