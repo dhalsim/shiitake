@@ -153,7 +153,6 @@ func (c *LoginComponent) TryLoginFromDriver() {
 		}
 
 		value := string(b)
-		log.Println("loaded", value)
 		c.loginWithInput(value)
 
 		return func() {
@@ -184,6 +183,8 @@ func (c *LoginComponent) loginWithPassword(input string, password string) {
 
 	err := global.Init(c.ctx, input, password)
 	if err != nil {
+		c.SetSensitive(true)
+		c.Loading.Hide()
 		log.Println("error initializing signer", err)
 		return
 	}

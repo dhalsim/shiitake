@@ -2,9 +2,12 @@ package groups
 
 import (
 	"context"
+	"fmt"
 	"log"
 
+	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
 	"github.com/diamondburned/gotkit/gtkutil"
@@ -40,18 +43,13 @@ type View struct {
 	}
 
 	Scroll *gtk.ScrolledWindow
-	Child  struct {
-		*gtk.Box
-		Banner *Banner
-		View   *gtk.ListView
-	}
+	Child  *GroupsView
 
 	ctx gtkutil.Cancellable
 
-	model     *groupsModelManager
 	selection *gtk.SingleSelection
 
-	relayURL  string
+	RelayURL  string
 	selectGAD nip29.GroupAddress // delegate to select later
 }
 
@@ -129,11 +127,8 @@ var viewCSS = cssutil.Applier("groups-view", `
 
 // NewView creates a new View.
 func NewView(ctx context.Context, relayURL string) *View {
-	// state.MemberState.Subscribe(relayID)
-
 	v := View{
-		model:    newGroupsModelManager(relayURL),
-		relayURL: relayURL,
+		RelayURL: relayURL,
 	}
 
 	v.ToolbarView = adw.NewToolbarView()
@@ -182,24 +177,23 @@ func NewView(ctx context.Context, relayURL string) *View {
 		}
 	})
 
-	v.Child.Banner = NewBanner(ctx, relayURL)
-	v.Child.Banner.Invalidate()
-
-	v.selection = gtk.NewSingleSelection(v.model)
+	v.selection = gtk.NewSingleSelection(nil)
 	v.selection.SetAutoselect(false)
 	v.selection.SetCanUnselect(true)
 
-	v.Child.View = gtk.NewListView(v.selection, newGroupItemFactory(ctx, v.model))
-	v.Child.View.SetSizeRequest(bannerWidth, -1)
-	v.Child.View.AddCSSClass("groups-viewtree")
-	v.Child.View.SetVExpand(true)
-	v.Child.View.SetHExpand(true)
+	v.Child = NewGroupsView(ctx)
 
-	v.Child.Box = gtk.NewBox(gtk.OrientationVertical, 0)
-	v.Child.Box.SetVExpand(true)
-	v.Child.Box.Append(v.Child.Banner)
-	v.Child.Box.Append(v.Child.View)
-	v.Child.Box.SetFocusChild(v.Child.View)
+	go func() {
+		me := global.GetMe(ctx)
+		for {
+			select {
+			case group := <-me.JoinedGroup:
+				v.Child.append(NewGroup(ctx, group))
+			case gad := <-me.LeftGroup:
+				v.Child.remove(gad)
+			}
+		}
+	}()
 
 	viewport.SetChild(v.Child)
 	viewport.SetFocusChild(v.Child)
@@ -302,11 +296,6 @@ func (v *View) findGroupItem(gad nip29.GroupAddress) (uint, bool) {
 	return n, false
 }
 
-// RelayID returns the view's relay ID.
-func (v *View) RelayURL() string {
-	return v.relayURL
-}
-
 // InvalidateHeader invalidates the relay name and banner.
 func (v *View) InvalidateHeader() {
 	// state := gtkcord.FromContext(v.ctx.Take())
@@ -329,4 +318,65 @@ func (v *View) invalidateBanner() {
 	} else {
 		v.RemoveCSSClass("groups-has-banner")
 	}
+}
+
+type GroupsView struct {
+	*gtk.Box
+	Children []*Group
+	Banner   *Banner
+}
+
+func NewGroupsView(ctx context.Context) *GroupsView {
+	gv := &GroupsView{}
+
+	gv.Box = gtk.NewBox(gtk.OrientationVertical, 0)
+	gv.Box.SetSizeRequest(bannerWidth, -1)
+	gv.Box.AddCSSClass("groups-viewtree")
+	gv.Box.SetHExpand(true)
+	gv.Box.SetVExpand(true)
+
+	// gv.Banner = NewBanner(ctx)
+	// gv.Banner.Invalidate()
+	// gv.Box.Append(gv.Banner)
+
+	return gv
+}
+
+func (v *GroupsView) get(needle nip29.GroupAddress) *Group {
+	for _, child := range v.Children {
+		if child.gad.Equals(needle) {
+			return child
+		}
+	}
+	return nil
+}
+
+func (v *GroupsView) append(this *Group) {
+	v.Children = append(v.Children, this)
+	v.Box.Append(this)
+}
+
+func (v *GroupsView) remove(this nip29.GroupAddress) {
+	for i, child := range v.Children {
+		if child.gad.Equals(this) {
+			v.Children = append(v.Children[:i], v.Children[i+1:]...)
+			v.Box.Remove(child)
+			break
+		}
+	}
+}
+
+func gadFromListItem(item *gtk.ListItem) nip29.GroupAddress {
+	return gadFromItem(item.Item())
+}
+
+func gadFromItem(item *glib.Object) nip29.GroupAddress {
+	str := item.Cast().(*gtk.StringObject)
+
+	gad, err := nip29.ParseGroupAddress(str.String())
+	if err != nil {
+		panic(fmt.Sprintf("gadFromListItem: failed to parse gad: %v", err))
+	}
+
+	return gad
 }

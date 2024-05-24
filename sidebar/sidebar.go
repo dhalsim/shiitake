@@ -133,16 +133,6 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	return &s
 }
 
-// RelayURL returns the relay ID that the group list is showing for, if any.
-// If not, 0 is returned.
-func (s *Sidebar) RelayURL() string {
-	ch, ok := s.current.w.(*groups.View)
-	if !ok {
-		return ""
-	}
-	return ch.RelayURL()
-}
-
 func (s *Sidebar) removeCurrent() {
 	if s.current.w == nil {
 		return
@@ -165,24 +155,24 @@ func (s *Sidebar) removeCurrent() {
 	})
 }
 
-func (s *Sidebar) openRelay(relayID string) *groups.View {
+func (s *Sidebar) openRelay(relayURL string) *groups.View {
 	chs, ok := s.current.w.(*groups.View)
-	if ok && chs.RelayURL() == relayID {
+	if ok && chs.RelayURL == relayURL {
 		// We're already there.
 		return chs
 	}
 
 	s.unselect()
-	s.Relays.SetSelectedRelay(relayID)
+	s.Relays.SetSelectedRelay(relayURL)
 
-	chs = groups.NewView(s.ctx, relayID)
+	chs = groups.NewView(s.ctx, relayURL)
 	chs.SetVExpand(true)
 	s.current.w = chs
 
 	s.Right.AddChild(chs)
 	s.Right.SetVisibleChild(chs)
 
-	chs.Child.View.GrabFocus()
+	chs.Child.GrabFocus()
 	chs.InvalidateHeader()
 	return chs
 }

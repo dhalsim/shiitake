@@ -12,17 +12,16 @@ import (
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 )
 
-// Guild is a widget showing a single guild icon.
+// Relay is a widget showing a single relay icon.
 type Relay struct {
 	*sidebutton.Button
 	ctx     context.Context
 	popover *hoverpopover.MarkupHoverPopover
 	url     string
 	name    string
-	image   string
 }
 
-var guildCSS = cssutil.Applier("guild-guild", `
+var relayCSS = cssutil.Applier("relay-relay", `
 	.relay-name {
 		font-weight: bold;
 	}
@@ -30,10 +29,9 @@ var guildCSS = cssutil.Applier("guild-guild", `
 
 func NewRelay(ctx context.Context, relay *global.Relay) *Relay {
 	g := &Relay{
-		ctx:   ctx,
-		url:   relay.URL,
-		name:  relay.Name,
-		image: relay.Image,
+		ctx:  ctx,
+		url:  relay.URL,
+		name: relay.Name,
 	}
 
 	g.name = relay.URL
@@ -51,7 +49,7 @@ func NewRelay(ctx context.Context, relay *global.Relay) *Relay {
 		return true
 	})
 
-	guildCSS(g)
+	relayCSS(g)
 
 	g.SetSensitive(true)
 	initials := strings.Join(strings.Split(strings.Split(relay.URL, "://")[1], "."), " ")
@@ -63,21 +61,21 @@ func NewRelay(ctx context.Context, relay *global.Relay) *Relay {
 	return g
 }
 
-// ID returns the guild ID.
+// ID returns the relay ID.
 func (g *Relay) ID() string { return g.url }
 
-// Name returns the guild's name.
+// Name returns the relay's name.
 func (g *Relay) Name() string { return g.name }
 
-// Invalidate invalidates and updates the state of the guild.
+// Invalidate invalidates and updates the state of the relay.
 func (g *Relay) Invalidate() {
-	// guild, err := state.Cabinet.Guild(g.id)
+	// relay, err := state.Cabinet.Relay(g.id)
 	// if err != nil {
 	// 	g.SetUnavailable()
 	// 	return
 	// }
 
-	// g.Update(guild)
+	// g.Update(relay)
 }
 
 func (g *Relay) viewChild() {}

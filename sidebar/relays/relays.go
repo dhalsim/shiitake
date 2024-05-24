@@ -207,7 +207,6 @@ func (v *View) SelectedRelayURL() string {
 	return v.current.relay.url
 }
 
-// Relay finds a relay inside View by its ID.
 func (v *View) Relay(url string) *Relay {
 	var relay *Relay
 	v.eachRelay(func(g *Relay) bool {
