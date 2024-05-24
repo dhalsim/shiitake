@@ -23,7 +23,7 @@ type groupItemState struct {
 	reveal *app.TypedState[bool]
 }
 
-func newGroupItemFactory(ctx context.Context, model *gtk.TreeListModel) *gtk.ListItemFactory {
+func newGroupItemFactory(ctx context.Context, model *groupsModelManager) *gtk.ListItemFactory {
 	factory := gtk.NewSignalListItemFactory()
 	state := groupItemState{
 		reveal: revealStateKey.Acquire(ctx),
@@ -32,7 +32,6 @@ func newGroupItemFactory(ctx context.Context, model *gtk.TreeListModel) *gtk.Lis
 	unbindFns := make(map[uintptr]func())
 
 	factory.ConnectBind(func(item *gtk.ListItem) {
-		fmt.Println("item", item)
 		row := model.Row(item.Position())
 		unbind := bindGroupItem(state, item, row)
 		unbindFns[item.Native()] = unbind

@@ -3,6 +3,7 @@ package groups
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"fiatjaf.com/shiitake/global"
 	"fiatjaf.com/shiitake/signaling"
@@ -12,80 +13,72 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
-type modelManager struct {
+type groupsModelManager struct {
 	*gtk.TreeListModel
-	relayID string
+	relayURL string
 }
 
-func newModelManager(relayID string) *modelManager {
-	m := &modelManager{
-		relayID: relayID,
+func newGroupsModelManager(relayURL string) *groupsModelManager {
+	m := &groupsModelManager{
+		relayURL: relayURL,
 	}
+
+	gmodel := groupsModel(nip29.GroupAddress{})
+
 	m.TreeListModel = gtk.NewTreeListModel(
-		m.Model(nip29.GroupAddress{}), true, true,
-		func(item *glib.Object) *gio.ListModel {
-			fmt.Println("blub")
-			gad := gadFromItem(item)
-			fmt.Println("  gad", gad)
+		gmodel.model,
+		true,
+		true,
+		func(item *glib.Object) (listModel *gio.ListModel) { return nil },
+	)
 
-			model := m.Model(gad)
-			fmt.Println("    model", model)
-			if model == nil {
-				return nil
-			}
-
-			return &model.ListModel
-		})
 	return m
 }
 
-// Model returns the list model containing all groups within the given group
-// ID. If gad is 0, then the relay's root groups will be returned. This
+// groupsModel returns the list model containing all groups within the given relay
+// If gad is 0, then the relay's root groups will be returned. This
 // function may return nil, indicating that the group will never have any
 // children.
-func (m *modelManager) Model(gad nip29.GroupAddress) *gtk.StringList {
+func groupsModel(gad nip29.GroupAddress) *groupList {
 	model := gtk.NewStringList(nil)
 
-	list := newGroupList(model)
+	gl := &groupList{
+		model: model,
+		ids:   make([]nip29.GroupAddress, 0, 4),
+	}
 
 	var unbind signaling.DisconnectStack
-	list.ConnectDestroy(func() { unbind.Disconnect() })
+	gl.ConnectDestroy(func() { unbind.Disconnect() })
 
 	ctx, cancel := context.WithCancel(context.Background())
-
 	go func() {
 		me := global.GetMe(ctx)
 		for {
 			select {
 			case group := <-me.JoinedGroup:
-				list.Append(group.Address)
+				fmt.Println("jjj", group)
+				gl.Append(group.Address)
 			case gad := <-me.LeftGroup:
-				list.Remove(gad)
+				gl.Remove(gad)
 			}
 		}
 	}()
 
 	unbind.Push(cancel)
-	return model
+	return gl
 }
 
 // groupList wraps a StringList to maintain a set of group IDs.
 // Because this is a set, each group ID can only appear once.
 type groupList struct {
-	list *gtk.StringList
-	ids  []nip29.GroupAddress
-}
-
-func newGroupList(list *gtk.StringList) *groupList {
-	return &groupList{
-		list: list,
-		ids:  make([]nip29.GroupAddress, 0, 4),
-	}
+	model *gtk.StringList
+	ids   []nip29.GroupAddress
 }
 
 // Append appends a group to the list. If the group already exists, then
 // this function does nothing.
 func (l *groupList) Append(gad nip29.GroupAddress) {
+	l.model.Append(gad.String())
 	l.ids = append(l.ids, gad)
 }
 
@@ -93,14 +86,14 @@ func (l *groupList) Append(gad nip29.GroupAddress) {
 // list, then this function does nothing.
 func (l *groupList) Remove(gad nip29.GroupAddress) {
 	i := l.Index(gad)
-	if i != -1 {
-		l.ids = append(l.ids[:i], l.ids[i+1:]...)
-
-		list := l.list
-		if list != nil {
-			list.Remove(uint(i))
-		}
+	if i == -1 {
+		return
 	}
+
+	l.ids = slices.Delete(l.ids, i, i+1)
+	l.ids = append(l.ids[:i], l.ids[i+1:]...)
+
+	l.model.Remove(uint(i))
 }
 
 // Contains returns whether the group ID is in the list.
@@ -123,14 +116,14 @@ func (l *groupList) Index(gad nip29.GroupAddress) int {
 func (l *groupList) Clear() {
 	l.ids = l.ids[:0]
 
-	list := l.list
+	list := l.model
 	if list != nil {
 		list.Splice(0, list.NItems(), nil)
 	}
 }
 
 func (l *groupList) ConnectDestroy(f func()) {
-	list := l.list
+	list := l.model
 	if list == nil {
 		return
 	}

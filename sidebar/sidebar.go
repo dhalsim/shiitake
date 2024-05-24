@@ -133,14 +133,14 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	return &s
 }
 
-// RelayID returns the relay ID that the group list is showing for, if any.
+// RelayURL returns the relay ID that the group list is showing for, if any.
 // If not, 0 is returned.
-func (s *Sidebar) RelayID() string {
+func (s *Sidebar) RelayURL() string {
 	ch, ok := s.current.w.(*groups.View)
 	if !ok {
 		return ""
 	}
-	return ch.RelayID()
+	return ch.RelayURL()
 }
 
 func (s *Sidebar) removeCurrent() {
@@ -167,7 +167,7 @@ func (s *Sidebar) removeCurrent() {
 
 func (s *Sidebar) openRelay(relayID string) *groups.View {
 	chs, ok := s.current.w.(*groups.View)
-	if ok && chs.RelayID() == relayID {
+	if ok && chs.RelayURL() == relayID {
 		// We're already there.
 		return chs
 	}
@@ -226,10 +226,10 @@ func (s *Sidebar) SelectGroup(chID string) {
 	// 	return
 	// }
 
-	// s.Relays.SetSelectedRelay(ch.RelayID)
+	// s.Relays.SetSelectedRelay(ch.RelayURL)
 
-	// if ch.RelayID.IsValid() {
-	// 	relay := s.openRelay(ch.RelayID)
+	// if ch.RelayURL.IsValid() {
+	// 	relay := s.openRelay(ch.RelayURL)
 	// 	relay.SelectGroup(chID)
 	// } else {
 	// 	direct := s.OpenDMs()

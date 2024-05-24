@@ -48,10 +48,10 @@ type View struct {
 
 	ctx gtkutil.Cancellable
 
-	model     *modelManager
+	model     *groupsModelManager
 	selection *gtk.SingleSelection
 
-	relayID   string
+	relayURL  string
 	selectGAD nip29.GroupAddress // delegate to select later
 }
 
@@ -128,12 +128,12 @@ var viewCSS = cssutil.Applier("groups-view", `
 `)
 
 // NewView creates a new View.
-func NewView(ctx context.Context, relayID string) *View {
+func NewView(ctx context.Context, relayURL string) *View {
 	// state.MemberState.Subscribe(relayID)
 
 	v := View{
-		model:   newModelManager(relayID),
-		relayID: relayID,
+		model:    newGroupsModelManager(relayURL),
+		relayURL: relayURL,
 	}
 
 	v.ToolbarView = adw.NewToolbarView()
@@ -182,14 +182,14 @@ func NewView(ctx context.Context, relayID string) *View {
 		}
 	})
 
-	v.Child.Banner = NewBanner(ctx, relayID)
+	v.Child.Banner = NewBanner(ctx, relayURL)
 	v.Child.Banner.Invalidate()
 
 	v.selection = gtk.NewSingleSelection(v.model)
 	v.selection.SetAutoselect(false)
 	v.selection.SetCanUnselect(true)
 
-	v.Child.View = gtk.NewListView(v.selection, newGroupItemFactory(ctx, v.model.TreeListModel))
+	v.Child.View = gtk.NewListView(v.selection, newGroupItemFactory(ctx, v.model))
 	v.Child.View.SetSizeRequest(bannerWidth, -1)
 	v.Child.View.AddCSSClass("groups-viewtree")
 	v.Child.View.SetVExpand(true)
@@ -303,8 +303,8 @@ func (v *View) findGroupItem(gad nip29.GroupAddress) (uint, bool) {
 }
 
 // RelayID returns the view's relay ID.
-func (v *View) RelayID() string {
-	return v.relayID
+func (v *View) RelayURL() string {
+	return v.relayURL
 }
 
 // InvalidateHeader invalidates the relay name and banner.
