@@ -1,4 +1,4 @@
-package sidebar
+package window
 
 import (
 	"context"

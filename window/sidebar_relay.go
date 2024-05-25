@@ -1,4 +1,4 @@
-package relays
+package window
 
 import (
 	"context"
@@ -6,8 +6,8 @@ import (
 
 	"fiatjaf.com/shiitake/components/hoverpopover"
 	"fiatjaf.com/shiitake/global"
-	"fiatjaf.com/shiitake/sidebar/sidebutton"
 	"fiatjaf.com/shiitake/utils"
+	"fiatjaf.com/shiitake/window/sidebutton"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 )

@@ -1,16 +1,16 @@
-package relays
+package window
 
 import (
 	"context"
 
 	"fiatjaf.com/shiitake/components/form_entry"
-	"fiatjaf.com/shiitake/sidebar/sidebutton"
+	"fiatjaf.com/shiitake/window/sidebutton"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/app"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 )
 
-type Button struct {
+type AddRelayButton struct {
 	*gtk.Overlay
 	Pill   *sidebutton.Pill
 	Button *gtk.Button
@@ -29,8 +29,8 @@ var buttonCSS = cssutil.Applier("sidebar-add-button-overlay", `
 	}
 `)
 
-func NewButton(ctx context.Context, done func(string)) *Button {
-	b := Button{ctx: ctx}
+func NewAddRelayButton(ctx context.Context, done func(string)) *AddRelayButton {
+	b := AddRelayButton{ctx: ctx}
 
 	icon := gtk.NewImageFromIconName("list-add-symbolic")
 	icon.SetIconSize(gtk.IconSizeLarge)

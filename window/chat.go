@@ -5,7 +5,6 @@ import (
 
 	"fiatjaf.com/shiitake/global"
 	"fiatjaf.com/shiitake/messages"
-	"fiatjaf.com/shiitake/sidebar"
 	"fiatjaf.com/shiitake/window/backbutton"
 	"fiatjaf.com/shiitake/window/quickswitcher"
 	"github.com/diamondburned/adaptive"
@@ -31,7 +30,7 @@ var (
 
 type ChatPage struct {
 	*adw.OverlaySplitView
-	Sidebar     *sidebar.Sidebar
+	Sidebar     *Sidebar
 	RightHeader *adw.HeaderBar
 	RightTitle  *gtk.Label
 
@@ -82,7 +81,7 @@ func NewChatPage(ctx context.Context, w *Window) *ChatPage {
 
 	p.chatView = NewChatView(ctx)
 
-	p.Sidebar = sidebar.NewSidebar(ctx)
+	p.Sidebar = NewSidebar(ctx)
 	p.Sidebar.SetHAlign(gtk.AlignStart)
 
 	p.RightTitle = gtk.NewLabel("")
@@ -219,7 +218,6 @@ func (p *ChatPage) SwitchToMessages() {
 // OpenRelay opens the relay with the given ID.
 func (p *ChatPage) OpenRelay(relayURL string) {
 	p.lastRelay.Set("")
-	p.Sidebar.SetSelectedRelay(relayURL)
 	p.restoreLastGroup()
 }
 

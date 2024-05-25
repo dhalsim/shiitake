@@ -18,28 +18,22 @@ func New(ctx context.Context) *adw.AboutWindow {
 	about := adw.NewAboutWindow()
 	about.SetTransientFor(app.GTKWindowFromContext(ctx))
 	about.SetModal(true)
-	about.SetApplicationName("Dissent")
+	about.SetApplicationName("Shiitabke")
 	about.SetApplicationIcon("logo")
 	about.SetVersion("git") // TODO: version
 	about.SetWebsite("https://fiatjaf.com/shiitake")
 	about.SetCopyright("© 2023 diamondburned and contributors")
 	about.SetLicenseType(gtk.LicenseGPL30)
-
 	about.SetDevelopers([]string{
+		"fiatjaf",
 		"diamondburned",
-		"Dissent contributors",
-	})
-
-	about.AddCreditSection("Sound Files", []string{
-		"freedesktop.org https://www.freedesktop.org/wiki/",
-		"Lennart Poettering",
 	})
 
 	build, ok := debug.ReadBuildInfo()
 	if ok {
 		about.AddCreditSection("Dependency Authors", modAuthors(build.Deps))
 		about.SetDebugInfo(debugInfo(build))
-		about.SetDebugInfoFilename("dissent-debuginfo")
+		about.SetDebugInfoFilename("shiitake-debuginfo")
 
 		version := buildVersion(build.Settings)
 		about.SetVersion(version)

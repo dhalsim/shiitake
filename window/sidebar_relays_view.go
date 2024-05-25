@@ -1,4 +1,4 @@
-package relays
+package window
 
 import (
 	"context"
@@ -19,7 +19,7 @@ type ViewChild interface {
 }
 
 // View contains a list of relays and folders.
-type View struct {
+type RelaysView struct {
 	*gtk.Box
 	Children []ViewChild
 
@@ -27,7 +27,7 @@ type View struct {
 	ctx     context.Context
 }
 
-var viewCSS = cssutil.Applier("relay-view", `
+var relaysViewCSS = cssutil.Applier("relay-view", `
 	.relay-view {
 		margin: 4px 0;
 	}
@@ -37,8 +37,8 @@ var viewCSS = cssutil.Applier("relay-view", `
 `)
 
 // NewView creates a new View.
-func NewView(ctx context.Context) *View {
-	v := View{
+func NewRelaysView(ctx context.Context) *RelaysView {
+	v := RelaysView{
 		ctx: ctx,
 	}
 
@@ -113,7 +113,7 @@ func NewView(ctx context.Context) *View {
 }
 
 // Invalidate invalidates the view and recreates everything. Use with care.
-func (v *View) Invalidate() {
+func (v *RelaysView) Invalidate() {
 	// TODO: reselect.
 
 	// state := gtkcord.FromContext(v.ctx)
@@ -169,12 +169,12 @@ func (v *View) Invalidate() {
 	// }
 }
 
-func (v *View) append(this ViewChild) {
+func (v *RelaysView) append(this ViewChild) {
 	v.Children = append(v.Children, this)
 	v.Box.Append(this)
 }
 
-func (v *View) prepend(this ViewChild) {
+func (v *RelaysView) prepend(this ViewChild) {
 	v.Children = append(v.Children, nil)
 	copy(v.Children[1:], v.Children)
 	v.Children[0] = this
@@ -182,7 +182,7 @@ func (v *View) prepend(this ViewChild) {
 	v.Box.Prepend(this)
 }
 
-func (v *View) remove(this ViewChild) {
+func (v *RelaysView) remove(this ViewChild) {
 	for i, child := range v.Children {
 		if child == this {
 			v.Children = append(v.Children[:i], v.Children[i+1:]...)
@@ -192,7 +192,7 @@ func (v *View) remove(this ViewChild) {
 	}
 }
 
-func (v *View) clear() {
+func (v *RelaysView) clear() {
 	for _, child := range v.Children {
 		v.Box.Remove(child)
 	}
@@ -200,14 +200,14 @@ func (v *View) clear() {
 }
 
 // SelectedRelayID returns the selected relay ID, if any.
-func (v *View) SelectedRelayURL() string {
+func (v *RelaysView) SelectedRelayURL() string {
 	if v.current.relay == nil {
 		return ""
 	}
 	return v.current.relay.url
 }
 
-func (v *View) Relay(url string) *Relay {
+func (v *RelaysView) Relay(url string) *Relay {
 	var relay *Relay
 	v.eachRelay(func(g *Relay) bool {
 		if g.ID() == nostr.NormalizeURL(url) {
@@ -219,7 +219,7 @@ func (v *View) Relay(url string) *Relay {
 	return relay
 }
 
-func (v *View) eachRelay(f func(*Relay) (stop bool)) {
+func (v *RelaysView) eachRelay(f func(*Relay) (stop bool)) {
 	for _, child := range v.Children {
 		switch child := child.(type) {
 		case *Relay:
@@ -232,7 +232,7 @@ func (v *View) eachRelay(f func(*Relay) (stop bool)) {
 
 // SetSelectedRelay sets the selected relay. It does not propagate the selection
 // to the sidebar.
-func (v *View) SetSelectedRelay(id string) {
+func (v *RelaysView) SetSelectedRelay(id string) {
 	relay := v.Relay(id)
 	if relay == nil {
 		log.Printf("relays.View: cannot select relay %d: not found", id)
@@ -253,14 +253,14 @@ func (v *View) SetSelectedRelay(id string) {
 
 // Unselect unselects any relays inside this relay view. Use this when the
 // window is showing a group that's not from any relay.
-func (v *View) Unselect() {
+func (v *RelaysView) Unselect() {
 	v.current.Unselect()
 	v.current = currentRelay{}
 }
 
 // saveSelection saves the current relay selection to be restored later using
 // the returned callback.
-func (v *View) saveSelection() (restore func()) {
+func (v *RelaysView) saveSelection() (restore func()) {
 	if v.current.relay == nil {
 		// Nothing to restore.
 		return func() {}

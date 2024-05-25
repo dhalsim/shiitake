@@ -1,13 +1,9 @@
-// Package sidebar contains the sidebar showing relays and groups.
-package sidebar
+package window
 
 import (
 	"context"
 
 	"fiatjaf.com/shiitake/global"
-	"fiatjaf.com/shiitake/sidebar/groups"
-	"fiatjaf.com/shiitake/sidebar/relays"
-	"fiatjaf.com/shiitake/utils"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/gtkutil"
@@ -15,20 +11,14 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
-// Sidebar is the bar on the left side of the application once it's logged in.
 type Sidebar struct {
 	*gtk.Box // horizontal
 
 	Left   *gtk.Box
-	AddNew *relays.Button
-	Relays *relays.View
+	AddNew *AddRelayButton
+	Relays *RelaysView
 	Right  *gtk.Stack
 
-	// Keep track of the last child to remove.
-	current struct {
-		w gtk.Widgetter
-		// id string
-	}
 	placeholder gtk.Widgetter
 
 	ctx context.Context
@@ -49,16 +39,15 @@ var sidebarCSS = cssutil.Applier("sidebar-sidebar", `
 	}
 `)
 
-// NewSidebar creates a new Sidebar.
 func NewSidebar(ctx context.Context) *Sidebar {
 	s := Sidebar{
 		ctx: ctx,
 	}
 
-	s.Relays = relays.NewView(ctx)
+	s.Relays = NewRelaysView(ctx)
 	// s.Relays.Invalidate()
 
-	s.AddNew = relays.NewButton(ctx, func(v string) {
+	s.AddNew = NewAddRelayButton(ctx, func(v string) {
 		if v != "" {
 			gad, err := nip29.ParseGroupAddress(v)
 			if err != nil {
@@ -95,7 +84,7 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	s.placeholder = gtk.NewWindowHandle()
 
 	s.Right = gtk.NewStack()
-	s.Right.SetSizeRequest(groups.GroupsWidth, -1)
+	s.Right.SetSizeRequest(GroupsWidth, -1)
 	s.Right.SetVExpand(true)
 	s.Right.SetHExpand(true)
 	s.Right.AddChild(s.placeholder)
@@ -131,98 +120,4 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	sidebarCSS(s)
 
 	return &s
-}
-
-func (s *Sidebar) removeCurrent() {
-	if s.current.w == nil {
-		return
-	}
-
-	w := s.current.w
-	s.current.w = nil
-
-	if w == nil {
-		return
-	}
-
-	gtkutil.NotifyProperty(s.Right, "transition-running", func() bool {
-		// Remove the widget when the transition is done.
-		if !s.Right.TransitionRunning() {
-			s.Right.Remove(w)
-			return true
-		}
-		return false
-	})
-}
-
-func (s *Sidebar) openRelay(relayURL string) *groups.View {
-	chs, ok := s.current.w.(*groups.View)
-	if ok && chs.RelayURL == relayURL {
-		// We're already there.
-		return chs
-	}
-
-	s.unselect()
-	s.Relays.SetSelectedRelay(relayURL)
-
-	chs = groups.NewView(s.ctx, relayURL)
-	chs.SetVExpand(true)
-	s.current.w = chs
-
-	s.Right.AddChild(chs)
-	s.Right.SetVisibleChild(chs)
-
-	chs.Child.GrabFocus()
-	chs.InvalidateHeader()
-	return chs
-}
-
-func (s *Sidebar) unselect() {
-	s.Relays.Unselect()
-	s.removeCurrent()
-}
-
-// Unselect unselects the current relay or group.
-func (s *Sidebar) Unselect() {
-	s.unselect()
-	s.Right.SetVisibleChild(s.placeholder)
-}
-
-// SetSelectedRelay marks the relay with the given ID as selected.
-func (s *Sidebar) SetSelectedRelay(relayURL string) {
-	s.Relays.SetSelectedRelay(relayURL)
-	s.openRelay(relayURL)
-}
-
-// SelectRelay selects and activates the relay with the given ID.
-func (s *Sidebar) SelectRelay(url string) {
-	if s.Relays.SelectedRelayURL() != url {
-		s.Relays.SetSelectedRelay(url)
-
-		parent := gtk.BaseWidget(s.Parent())
-		parent.ActivateAction("win.open-relay", utils.NewRelayURLVariant(url))
-	}
-}
-
-// SelectGroup selects and activates the group with the given ID. It ensures
-// that the sidebar is at the right place then activates the controller.
-// This function acts the same as if the user clicked on the group, meaning it
-// funnels down to a single widget that then floats up to the controller.
-func (s *Sidebar) SelectGroup(chID string) {
-	// state := gtkcord.FromContext(s.ctx)
-	// ch, _ := state.Cabinet.Group(chID)
-	// if ch == nil {
-	// 	log.Println("sidebar: group with ID", chID, "not found")
-	// 	return
-	// }
-
-	// s.Relays.SetSelectedRelay(ch.RelayURL)
-
-	// if ch.RelayURL.IsValid() {
-	// 	relay := s.openRelay(ch.RelayURL)
-	// 	relay.SelectGroup(chID)
-	// } else {
-	// 	direct := s.OpenDMs()
-	// 	direct.SelectGroup(chID)
-	// }
 }

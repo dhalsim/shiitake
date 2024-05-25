@@ -1,40 +1,23 @@
-package groups
+package window
 
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
+	"github.com/diamondburned/gotkit/app"
 	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
-// Refactor notice
-//
-// We should probably settle for an API that's kind of like this:
-//
-//    ch := NewView(ctx, ctrl, relayID)
-//    var signal glib.SignalHandle
-//    signal = ch.ConnectOnUpdate(func() bool {
-//        if node := ch.Node(wantedChID); node != nil {
-//            node.Select()
-//            ch.HandlerDisconnect(signal)
-//        }
-//    })
-//    ch.Invalidate()
-//
-
 const GroupsWidth = bannerWidth
 
-// View holds the entire group sidebar containing all the categories, groups
-// and threads.
-type View struct {
+type GroupsView struct {
 	*adw.ToolbarView
 
 	Header struct {
@@ -43,11 +26,9 @@ type View struct {
 	}
 
 	Scroll *gtk.ScrolledWindow
-	Child  *GroupsView
+	Child  *GroupsListView
 
 	ctx gtkutil.Cancellable
-
-	selection *gtk.SingleSelection
 
 	RelayURL  string
 	selectGAD nip29.GroupAddress // delegate to select later
@@ -125,9 +106,9 @@ var viewCSS = cssutil.Applier("groups-view", `
 	}
 `)
 
-// NewView creates a new View.
-func NewView(ctx context.Context, relayURL string) *View {
-	v := View{
+// NewView creates a new GroupsView.
+func NewView(ctx context.Context, relayURL string) *GroupsView {
+	v := GroupsView{
 		RelayURL: relayURL,
 	}
 
@@ -177,18 +158,33 @@ func NewView(ctx context.Context, relayURL string) *View {
 		}
 	})
 
-	v.selection = gtk.NewSingleSelection(nil)
-	v.selection.SetAutoselect(false)
-	v.selection.SetCanUnselect(true)
-
 	v.Child = NewGroupsView(ctx)
+
+	groups := make([]*Group, 0, 4)
+	var lastOpen nip29.GroupAddress
+	handleSelect := func(gad nip29.GroupAddress) {
+		if lastOpen.Equals(gad) {
+			return
+		}
+
+		app.NewStateKey[string]("last-group").Acquire(ctx).Set(gad.Relay, gad.ID)
+		for _, g := range groups {
+			if g.gad.Equals(gad) {
+				continue
+			}
+			g.unselect()
+		}
+	}
 
 	go func() {
 		me := global.GetMe(ctx)
 		for {
 			select {
 			case group := <-me.JoinedGroup:
-				v.Child.append(NewGroup(ctx, group))
+				g := NewGroup(ctx, group, handleSelect)
+				groups = append(groups, g)
+				fmt.Println("joined", g)
+				v.Child.append(g)
 			case gad := <-me.LeftGroup:
 				v.Child.remove(gad)
 			}
@@ -202,107 +198,17 @@ func NewView(ctx context.Context, relayURL string) *View {
 	v.ToolbarView.SetContent(v.Scroll)
 	v.ToolbarView.SetFocusChild(v.Scroll)
 
-	var lastOpen nip29.GroupAddress
-
-	v.selection.ConnectSelectionChanged(func(position, nItems uint) {
-		item := v.selection.SelectedItem()
-		if item == nil {
-			// ctrl.OpenGroup(0)
-			return
-		}
-
-		gad := gadFromItem(item)
-
-		if lastOpen.Equals(gad) {
-			return
-		}
-		lastOpen = gad
-
-		// ch, _ := state.Cabinet.Group(gad)
-		// if ch == nil {
-		// 	log.Printf("groups.View: tried opening non-existent group %d", gad)
-		// 	return
-		// }
-
-		// switch ch.Type {
-		// case discord.RelayCategory, discord.RelayForum:
-		// 	// We cannot display these group types.
-		// 	// TODO: implement forum browsing
-		// 	log.Printf("groups.View: ignoring group %d of type %d", gad, ch.Type)
-		// 	return
-		// }
-
-		// log.Printf("groups.View: selected group %d", gad)
-
-		// v.selectGAD = 0
-
-		// row := v.model.Row(v.selection.Selected())
-		// row.SetExpanded(true)
-
-		// parent := gtk.BaseWidget(v.Child.View.Parent())
-		// parent.ActivateAction("win.open-group", gtkcord.NewGroupIDVariant(gad))
-	})
-
-	// Bind to a signal that selects any group that we need to be selected.
-	// This lets the group be lazy-loaded.
-	v.selection.ConnectAfter("items-changed", func() {
-		if v.selectGAD.Relay == "" {
-			return
-		}
-
-		log.Println("groups.View: selecting group", v.selectGAD, "after items changed")
-
-		i, ok := v.findGroupItem(v.selectGAD)
-		if ok {
-			v.selection.SelectItem(i, true)
-			v.selectGAD.Relay = ""
-			v.selectGAD.ID = ""
-		}
-	})
-
 	viewCSS(v)
 	return &v
 }
 
-// SelectGroup selects a known group. If none is known, then it is selected
-// later when the list is changed or never selected if the user selects
-// something else.
-func (v *View) SelectGroup(selectGAD nip29.GroupAddress) bool {
-	i, ok := v.findGroupItem(selectGAD)
-	if ok && v.selection.SelectItem(i, true) {
-		log.Println("groups.View: selected group", selectGAD, "immediately at", i)
-		v.selectGAD.Relay = ""
-		v.selectGAD.ID = ""
-		return true
-	}
-
-	log.Println("groups.View: group", selectGAD, "not found, selecting later")
-	v.selectGAD = selectGAD
-	return false
-}
-
-// findGroupItem finds the group item by ID.
-// BUG: this function is not able to find groups within collapsed categories.
-func (v *View) findGroupItem(gad nip29.GroupAddress) (uint, bool) {
-	n := v.selection.NItems()
-	for i := uint(0); i < n; i++ {
-		item := v.selection.Item(i)
-		gadf := gadFromItem(item)
-		if gadf.Equals(gad) {
-			return i, true
-		}
-	}
-	// TODO: recursively search v.model so we can find collapsed groups.
-	return n, false
-}
-
 // InvalidateHeader invalidates the relay name and banner.
-func (v *View) InvalidateHeader() {
+func (v *GroupsView) InvalidateHeader() {
 	// state := gtkcord.FromContext(v.ctx.Take())
 
 	// g, err := state.Cabinet.Relay(v.relayID)
 	// if err != nil {
-	// 	log.Printf("groups.View: cannot fetch relay %d: %v", v.relayID, err)
+	// 	log.Printf("groups.GroupsView: cannot fetch relay %d: %v", v.relayID, err)
 	// 	return
 	// }
 
@@ -310,7 +216,7 @@ func (v *View) InvalidateHeader() {
 	// v.invalidateBanner()
 }
 
-func (v *View) invalidateBanner() {
+func (v *GroupsView) invalidateBanner() {
 	v.Child.Banner.Invalidate()
 
 	if v.Child.Banner.HasBanner() {
@@ -320,14 +226,14 @@ func (v *View) invalidateBanner() {
 	}
 }
 
-type GroupsView struct {
+type GroupsListView struct {
 	*gtk.Box
 	Children []*Group
 	Banner   *Banner
 }
 
-func NewGroupsView(ctx context.Context) *GroupsView {
-	gv := &GroupsView{}
+func NewGroupsView(ctx context.Context) *GroupsListView {
+	gv := &GroupsListView{}
 
 	gv.Box = gtk.NewBox(gtk.OrientationVertical, 0)
 	gv.Box.SetSizeRequest(bannerWidth, -1)
@@ -342,7 +248,7 @@ func NewGroupsView(ctx context.Context) *GroupsView {
 	return gv
 }
 
-func (v *GroupsView) get(needle nip29.GroupAddress) *Group {
+func (v *GroupsListView) get(needle nip29.GroupAddress) *Group {
 	for _, child := range v.Children {
 		if child.gad.Equals(needle) {
 			return child
@@ -351,12 +257,12 @@ func (v *GroupsView) get(needle nip29.GroupAddress) *Group {
 	return nil
 }
 
-func (v *GroupsView) append(this *Group) {
+func (v *GroupsListView) append(this *Group) {
 	v.Children = append(v.Children, this)
 	v.Box.Append(this)
 }
 
-func (v *GroupsView) remove(this nip29.GroupAddress) {
+func (v *GroupsListView) remove(this nip29.GroupAddress) {
 	for i, child := range v.Children {
 		if child.gad.Equals(this) {
 			v.Children = append(v.Children[:i], v.Children[i+1:]...)

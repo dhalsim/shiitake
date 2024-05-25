@@ -1,4 +1,4 @@
-package groups
+package window
 
 import (
 	"context"
@@ -26,7 +26,7 @@ var _ = cssutil.WriteCSS(`
 		background: alpha(@theme_fg_color, 0.175);
 	}
 	.group-item {
-		padding: 0.35em 0;
+		padding: 0.35em;
 	}
 	.group-item :first-child {
 		min-width: 2.5em;
@@ -74,7 +74,8 @@ type Group struct {
 
 	*gtk.Box
 
-	gad nip29.GroupAddress
+	unselect func()
+	gad      nip29.GroupAddress
 }
 
 var groupCSS = cssutil.Applier("group-group", `
@@ -83,25 +84,35 @@ var groupCSS = cssutil.Applier("group-group", `
 	}
 `)
 
-func NewGroup(ctx context.Context, group *global.Group) *Group {
+func NewGroup(
+	ctx context.Context,
+	group *global.Group,
+	onSelected func(nip29.GroupAddress),
+) *Group {
 	g := &Group{
 		ctx: ctx,
 		gad: group.Address,
 	}
 
-	indicator := gtk.NewLabel("")
-	indicator.AddCSSClass("group-unread-indicator")
-	indicator.SetHExpand(true)
-	indicator.SetHAlign(gtk.AlignEnd)
-	indicator.SetVAlign(gtk.AlignCenter)
-
-	button := gtk.NewButton()
-	button.AddCSSClass("group-item")
-
-	label := gtk.NewLabel(group.Name)
-	button.SetChild(label)
-
 	g.Box = gtk.NewBox(gtk.OrientationHorizontal, 0)
+	g.SetHExpand(true)
+
+	// indicator := gtk.NewLabel("")
+	// indicator.AddCSSClass("group-unread-indicator")
+	// indicator.SetHExpand(true)
+	// indicator.SetHAlign(gtk.AlignEnd)
+	// indicator.SetVAlign(gtk.AlignCenter)
+
+	button := gtk.NewToggleButtonWithLabel(group.Name)
+	button.AddCSSClass("group-item")
+	button.SetHExpand(true)
+
+	button.ConnectToggled(func() {
+		onSelected(group.Address)
+	})
+	g.unselect = func() {
+		button.SetActive(false)
+	}
 
 	groupCSS(g)
 
@@ -112,7 +123,7 @@ func NewGroup(ctx context.Context, group *global.Group) *Group {
 	}
 
 	g.Box.Append(button)
-	g.Box.Append(indicator)
+	// g.Box.Append(indicator)
 
 	return g
 }
