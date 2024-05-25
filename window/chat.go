@@ -217,7 +217,8 @@ func (p *ChatPage) SwitchToMessages() {
 
 // OpenRelay opens the relay with the given ID.
 func (p *ChatPage) OpenRelay(relayURL string) {
-	p.lastRelay.Set("")
+	p.lastRelay.Set(relayURL)
+	p.Sidebar.openRelay(relayURL)
 	p.restoreLastGroup()
 }
 

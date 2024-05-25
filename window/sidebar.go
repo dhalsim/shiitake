@@ -11,19 +11,6 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
-type Sidebar struct {
-	*gtk.Box // horizontal
-
-	Left   *gtk.Box
-	AddNew *AddRelayButton
-	Relays *RelaysView
-	Right  *gtk.Stack
-
-	placeholder gtk.Widgetter
-
-	ctx context.Context
-}
-
 var sidebarCSS = cssutil.Applier("sidebar-sidebar", `
 	@define-color sidebar_bg mix(@borders, @theme_bg_color, 0.25);
 
@@ -39,13 +26,27 @@ var sidebarCSS = cssutil.Applier("sidebar-sidebar", `
 	}
 `)
 
+type Sidebar struct {
+	*gtk.Box // horizontal
+
+	current *GroupsView
+
+	Left   *gtk.Box
+	AddNew *AddRelayButton
+	Relays *RelaysView
+	Right  *gtk.Stack
+
+	placeholder gtk.Widgetter
+
+	ctx context.Context
+}
+
 func NewSidebar(ctx context.Context) *Sidebar {
 	s := Sidebar{
 		ctx: ctx,
 	}
 
 	s.Relays = NewRelaysView(ctx)
-	// s.Relays.Invalidate()
 
 	s.AddNew = NewAddRelayButton(ctx, func(v string) {
 		if v != "" {
@@ -120,4 +121,24 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	sidebarCSS(s)
 
 	return &s
+}
+
+func (s *Sidebar) openRelay(relayURL string) {
+	if s.current != nil && s.current.RelayURL == relayURL {
+		// we're already there.
+		return
+	}
+
+	chs := NewGroupsView(s.ctx, relayURL)
+
+	s.current = chs
+
+	chs.SetVExpand(true)
+	s.current = chs
+
+	s.Right.AddChild(chs)
+	s.Right.SetVisibleChild(chs)
+
+	chs.Child.GrabFocus()
+	chs.InvalidateHeader()
 }

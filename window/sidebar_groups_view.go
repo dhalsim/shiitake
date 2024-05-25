@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"fiatjaf.com/shiitake/global"
+	"fiatjaf.com/shiitake/utils"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -106,8 +107,7 @@ var viewCSS = cssutil.Applier("groups-view", `
 	}
 `)
 
-// NewView creates a new GroupsView.
-func NewView(ctx context.Context, relayURL string) *GroupsView {
+func NewGroupsView(ctx context.Context, relayURL string) *GroupsView {
 	v := GroupsView{
 		RelayURL: relayURL,
 	}
@@ -158,7 +158,7 @@ func NewView(ctx context.Context, relayURL string) *GroupsView {
 		}
 	})
 
-	v.Child = NewGroupsView(ctx)
+	v.Child = NewGroupsListView(ctx)
 
 	groups := make([]*Group, 0, 4)
 	var lastOpen nip29.GroupAddress
@@ -166,6 +166,9 @@ func NewView(ctx context.Context, relayURL string) *GroupsView {
 		if lastOpen.Equals(gad) {
 			return
 		}
+
+		parent := gtk.BaseWidget(v.Parent())
+		parent.ActivateAction("win.open-group", utils.NewGroupAddressVariant(gad))
 
 		app.NewStateKey[string]("last-group").Acquire(ctx).Set(gad.Relay, gad.ID)
 		for _, g := range groups {
@@ -183,7 +186,6 @@ func NewView(ctx context.Context, relayURL string) *GroupsView {
 			case group := <-me.JoinedGroup:
 				g := NewGroup(ctx, group, handleSelect)
 				groups = append(groups, g)
-				fmt.Println("joined", g)
 				v.Child.append(g)
 			case gad := <-me.LeftGroup:
 				v.Child.remove(gad)
@@ -232,7 +234,7 @@ type GroupsListView struct {
 	Banner   *Banner
 }
 
-func NewGroupsView(ctx context.Context) *GroupsListView {
+func NewGroupsListView(ctx context.Context) *GroupsListView {
 	gv := &GroupsListView{}
 
 	gv.Box = gtk.NewBox(gtk.OrientationVertical, 0)

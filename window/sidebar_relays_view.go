@@ -2,7 +2,6 @@ package window
 
 import (
 	"context"
-	"log"
 
 	"fiatjaf.com/shiitake/global"
 	"fiatjaf.com/shiitake/utils"
@@ -36,7 +35,6 @@ var relaysViewCSS = cssutil.Applier("relay-view", `
 	}
 `)
 
-// NewView creates a new View.
 func NewRelaysView(ctx context.Context) *RelaysView {
 	v := RelaysView{
 		ctx: ctx,
@@ -53,7 +51,7 @@ func NewRelaysView(ctx context.Context) *RelaysView {
 				g := NewRelay(v.ctx, relay)
 				v.prepend(g)
 			case url := <-me.LeftRelay:
-				relay := v.Relay(url)
+				relay := v.get(url)
 				if relay != nil {
 					v.remove(relay)
 				}
@@ -207,55 +205,17 @@ func (v *RelaysView) SelectedRelayURL() string {
 	return v.current.relay.url
 }
 
-func (v *RelaysView) Relay(url string) *Relay {
-	var relay *Relay
-	v.eachRelay(func(g *Relay) bool {
-		if g.ID() == nostr.NormalizeURL(url) {
-			relay = g
-			return true
-		}
-		return false
-	})
-	return relay
-}
-
-func (v *RelaysView) eachRelay(f func(*Relay) (stop bool)) {
+func (v *RelaysView) get(url string) *Relay {
 	for _, child := range v.Children {
 		switch child := child.(type) {
 		case *Relay:
-			if f(child) {
-				return
+			if child.url == nostr.NormalizeURL(url) {
+				return child
 			}
 		}
 	}
-}
 
-// SetSelectedRelay sets the selected relay. It does not propagate the selection
-// to the sidebar.
-func (v *RelaysView) SetSelectedRelay(id string) {
-	relay := v.Relay(id)
-	if relay == nil {
-		log.Printf("relays.View: cannot select relay %d: not found", id)
-		v.Unselect()
-		return
-	}
-
-	current := currentRelay{
-		relay: relay,
-	}
-
-	if current != v.current {
-		v.Unselect()
-		v.current = current
-		v.current.SetSelected(true)
-	}
-}
-
-// Unselect unselects any relays inside this relay view. Use this when the
-// window is showing a group that's not from any relay.
-func (v *RelaysView) Unselect() {
-	v.current.Unselect()
-	v.current = currentRelay{}
+	return nil
 }
 
 // saveSelection saves the current relay selection to be restored later using
