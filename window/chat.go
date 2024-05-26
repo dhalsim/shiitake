@@ -267,7 +267,7 @@ func (p *ChatPage) updateWindowTitle() {
 type ChatView struct {
 	*gtk.Stack
 	placeholder gtk.Widgetter
-	messageView *messages.View // nilable
+	messageView *messages.MessagesView // nilable
 	ctx         context.Context
 }
 
@@ -303,7 +303,7 @@ func (t *ChatView) switchToGroup(gad nip29.GroupAddress) bool {
 
 	old := t.messageView
 
-	t.messageView = messages.NewView(t.ctx, gad)
+	t.messageView = messages.NewMessagesView(t.ctx, gad)
 
 	t.Stack.AddChild(t.messageView)
 	t.Stack.SetVisibleChild(t.messageView)

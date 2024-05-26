@@ -27,7 +27,7 @@ import (
 type Content struct {
 	*gtk.Box
 	ctx    context.Context
-	view   *View
+	view   *MessagesView
 	menu   *gio.Menu
 	mdview *mdrender.MarkdownViewer
 	react  *contentReactions
@@ -66,7 +66,7 @@ var contentCSS = cssutil.Applier("message-content-box", `
 `)
 
 // NewContent creates a new Content widget.
-func NewContent(ctx context.Context, v *View) *Content {
+func NewContent(ctx context.Context, v *MessagesView) *Content {
 	c := Content{
 		ctx:   ctx,
 		view:  v,

@@ -2,7 +2,6 @@ package messages
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"log/slog"
 	"slices"
@@ -44,8 +43,8 @@ func newMessageInfo(msg *nostr.Event) messageInfo {
 	}
 }
 
-// View is a message view widget.
-type View struct {
+// MessagesView is a message view widget.
+type MessagesView struct {
 	*adaptive.LoadablePage
 	focused gtk.Widgetter
 
@@ -135,12 +134,10 @@ func applyViewClamp(clamp *adw.Clamp) {
 	clamp.SetTighteningThreshold(int(float64(messagesWidth.Value()) * 0.9))
 }
 
-// NewView creates a new View widget associated with the given channel ID. All
+// NewView creates a new MessagesView widget associated with the given channel ID. All
 // methods call on it will act on that channel.
-func NewView(ctx context.Context, gad nip29.GroupAddress) *View {
-	fmt.Println("new view")
-
-	v := &View{
+func NewMessagesView(ctx context.Context, gad nip29.GroupAddress) *MessagesView {
+	v := &MessagesView{
 		msgs: make(map[messageKey]messageRow),
 		gad:  gad,
 		ctx:  ctx,
@@ -250,6 +247,14 @@ func NewView(ctx context.Context, gad nip29.GroupAddress) *View {
 		window.HandlerDisconnect(windowSignal)
 		windowSignal = 0
 	})
+
+	go func() {
+		group := global.GetGroup(ctx, gad)
+		for message := range group.Messages {
+		}
+		for message := range group.NewMessage {
+		}
+	}()
 
 	// state := gtkcord.FromContext(v.ctx)
 	// if ch, err := state.Cabinet.Channel(v.chID); err == nil {
@@ -414,7 +419,7 @@ func NewView(ctx context.Context, gad nip29.GroupAddress) *View {
 // HeaderButtons returns the header buttons widget for the message view.
 // This widget is kept on the header bar for as long as the message view is
 // active.
-func (v *View) HeaderButtons() []gtk.Widgetter {
+func (v *MessagesView) HeaderButtons() []gtk.Widgetter {
 	var buttons []gtk.Widgetter
 
 	// if v.guildID.IsValid() {
@@ -487,7 +492,7 @@ func (v *View) HeaderButtons() []gtk.Widgetter {
 	return buttons
 }
 
-func (v *View) load() {
+func (v *MessagesView) load() {
 	log.Println("loading message view for", v.gad)
 
 	v.LoadablePage.SetLoading()
@@ -513,7 +518,7 @@ func (v *View) load() {
 	})
 }
 
-func (v *View) loadMore() {
+func (v *MessagesView) loadMore() {
 	firstRow, ok := v.firstMessage()
 	if !ok {
 		return
@@ -619,11 +624,11 @@ func (v *View) loadMore() {
 	})
 }
 
-func (v *View) setPageToMain() {
+func (v *MessagesView) setPageToMain() {
 	v.LoadablePage.SetChild(v.focused)
 }
 
-func (v *View) unload() {
+func (v *MessagesView) unload() {
 	for k, msg := range v.msgs {
 		v.List.Remove(msg)
 		delete(v.msgs, k)
@@ -640,7 +645,7 @@ const (
 
 // upsertMessage inserts or updates a new message row.
 // TODO: move boolean args to flags.
-func (v *View) upsertMessage(id string, info messageInfo, flags upsertFlags) Message {
+func (v *MessagesView) upsertMessage(id string, info messageInfo, flags upsertFlags) Message {
 	if flags&upsertFlagOverrideCollapse == 0 && v.shouldBeCollapsed(info) {
 		flags |= upsertFlagCollapsed
 	}
@@ -648,7 +653,7 @@ func (v *View) upsertMessage(id string, info messageInfo, flags upsertFlags) Mes
 }
 
 // upsertMessageKeyed inserts or updates a new message row with the given key.
-func (v *View) upsertMessageKeyed(key messageKey, info messageInfo, flags upsertFlags) Message {
+func (v *MessagesView) upsertMessageKeyed(key messageKey, info messageInfo, flags upsertFlags) Message {
 	if msg, ok := v.msgs[key]; ok {
 		return msg.message
 	}
@@ -666,7 +671,7 @@ func (v *View) upsertMessageKeyed(key messageKey, info messageInfo, flags upsert
 	return msg.message
 }
 
-func (v *View) createMessageKeyed(key messageKey, info messageInfo, flags upsertFlags) messageRow {
+func (v *MessagesView) createMessageKeyed(key messageKey, info messageInfo, flags upsertFlags) messageRow {
 	var message Message
 	if flags&upsertFlagCollapsed != 0 {
 		message = NewCollapsedMessage(v.ctx, v)
@@ -688,7 +693,7 @@ func (v *View) createMessageKeyed(key messageKey, info messageInfo, flags upsert
 
 // resetMessage resets the message with the given messageRow.
 // Its main point is to re-evaluate the collapsed state of the message.
-func (v *View) resetMessage(key messageKey) {
+func (v *MessagesView) resetMessage(key messageKey) {
 	row, ok := v.msgs[key]
 	if !ok || row.message == nil {
 		return
@@ -713,7 +718,7 @@ func (v *View) resetMessage(key messageKey) {
 
 // surroundingMessagesResetter creates a function that resets the messages
 // surrounding the given message.
-func (v *View) surroundingMessagesResetter(key messageKey) func() {
+func (v *MessagesView) surroundingMessagesResetter(key messageKey) func() {
 	msg, ok := v.msgs[key]
 	if !ok {
 		slog.Warn(
@@ -738,12 +743,12 @@ func (v *View) surroundingMessagesResetter(key messageKey) func() {
 	}
 }
 
-func (v *View) deleteMessage(id string) {
+func (v *MessagesView) deleteMessage(id string) {
 	key := messageKeyID(id)
 	v.deleteMessageKeyed(key)
 }
 
-func (v *View) deleteMessageKeyed(key messageKey) {
+func (v *MessagesView) deleteMessageKeyed(key messageKey) {
 	msg, ok := v.msgs[key]
 	if !ok {
 		return
@@ -761,7 +766,7 @@ func (v *View) deleteMessageKeyed(key messageKey) {
 	delete(v.msgs, key)
 }
 
-func (v *View) shouldBeCollapsed(info messageInfo) bool {
+func (v *MessagesView) shouldBeCollapsed(info messageInfo) bool {
 	var last messageRow
 	var lastOK bool
 	if curr, ok := v.msgs[messageKeyID(info.id)]; ok {
@@ -792,7 +797,7 @@ func shouldBeCollapsed(curr, last messageInfo) bool {
 		last.timestamp.Time().Add(10*time.Minute).After(curr.timestamp.Time())
 }
 
-func (v *View) nextMessageKey(row messageRow) (messageKey, bool) {
+func (v *MessagesView) nextMessageKey(row messageRow) (messageKey, bool) {
 	next, _ := row.NextSibling().(*gtk.ListBoxRow)
 	if next != nil {
 		return messageKeyRow(next), true
@@ -800,7 +805,7 @@ func (v *View) nextMessageKey(row messageRow) (messageKey, bool) {
 	return "", false
 }
 
-func (v *View) prevMessageKey(row messageRow) (messageKey, bool) {
+func (v *MessagesView) prevMessageKey(row messageRow) (messageKey, bool) {
 	prev, _ := row.PrevSibling().(*gtk.ListBoxRow)
 	if prev != nil {
 		return messageKeyRow(prev), true
@@ -808,7 +813,7 @@ func (v *View) prevMessageKey(row messageRow) (messageKey, bool) {
 	return "", false
 }
 
-func (v *View) lastMessage() (messageRow, bool) {
+func (v *MessagesView) lastMessage() (messageRow, bool) {
 	row, _ := v.List.LastChild().(*gtk.ListBoxRow)
 	if row != nil {
 		msg, ok := v.msgs[messageKeyRow(row)]
@@ -818,7 +823,7 @@ func (v *View) lastMessage() (messageRow, bool) {
 	return messageRow{}, false
 }
 
-func (v *View) lastUserMessage() Message {
+func (v *MessagesView) lastUserMessage() Message {
 	me := global.GetMe(v.ctx)
 
 	var msg Message
@@ -830,7 +835,7 @@ func (v *View) lastUserMessage() Message {
 	return msg
 }
 
-func (v *View) firstMessage() (messageRow, bool) {
+func (v *MessagesView) firstMessage() (messageRow, bool) {
 	row, _ := v.List.FirstChild().(*gtk.ListBoxRow)
 	if row != nil {
 		msg, ok := v.msgs[messageKeyRow(row)]
@@ -842,7 +847,7 @@ func (v *View) firstMessage() (messageRow, bool) {
 
 // eachMessage iterates over each message in the view, starting from the bottom.
 // If the callback returns true, the loop will break.
-func (v *View) eachMessage(f func(messageRow) bool) {
+func (v *MessagesView) eachMessage(f func(messageRow) bool) {
 	row, _ := v.List.LastChild().(*gtk.ListBoxRow)
 	for row != nil {
 		key := messageKey(row.Name())
@@ -859,7 +864,7 @@ func (v *View) eachMessage(f func(messageRow) bool) {
 	}
 }
 
-func (v *View) eachMessageFromUser(pubkey string, f func(messageRow) bool) {
+func (v *MessagesView) eachMessageFromUser(pubkey string, f func(messageRow) bool) {
 	v.eachMessage(func(row messageRow) bool {
 		if row.info.author == pubkey {
 			return f(row)
@@ -868,7 +873,7 @@ func (v *View) eachMessageFromUser(pubkey string, f func(messageRow) bool) {
 	})
 }
 
-func (v *View) updateMember(member string) {
+func (v *MessagesView) updateMember(member string) {
 	v.eachMessageFromUser(member, func(msg messageRow) bool {
 		m, ok := msg.message.(MessageWithUser)
 		if ok {
@@ -878,7 +883,7 @@ func (v *View) updateMember(member string) {
 	})
 }
 
-func (v *View) updateMessageReactions(id string) {
+func (v *MessagesView) updateMessageReactions(id string) {
 	widget, ok := v.msgs[messageKeyID(id)]
 	if !ok || widget.message == nil {
 		return
@@ -895,7 +900,7 @@ func (v *View) updateMessageReactions(id string) {
 }
 
 // SendMessage implements composer.Controller.
-func (v *View) SendMessage(msg composer.SendingMessage) {
+func (v *MessagesView) SendMessage(msg composer.SendingMessage) {
 	// state := gtkcord.FromContext(v.ctx)
 
 	// me, _ := state.Cabinet.Me()
@@ -996,7 +1001,7 @@ func (v *View) SendMessage(msg composer.SendingMessage) {
 }
 
 // ScrollToMessage scrolls to the message with the given ID.
-func (v *View) ScrollToMessage(id string) {
+func (v *MessagesView) ScrollToMessage(id string) {
 	if !v.List.ActivateAction("messages.scroll-to", glib.NewVariantString(id)) {
 		slog.Error(
 			"cannot emit messages.scroll-to signal",
@@ -1005,7 +1010,7 @@ func (v *View) ScrollToMessage(id string) {
 }
 
 // AddReaction adds an reaction to the message with the given ID.
-func (v *View) AddReaction(id string, emoji discord.APIEmoji) {
+func (v *MessagesView) AddReaction(id string, emoji discord.APIEmoji) {
 	// state := gtkcord.FromContext(v.ctx)
 	// emoji = discord.APIEmoji(gtkcord.SanitizeEmoji(string(emoji)))
 
@@ -1024,12 +1029,12 @@ func (v *View) AddReaction(id string, emoji discord.APIEmoji) {
 }
 
 // AddToast adds a toast to the message view.
-func (v *View) AddToast(toast *adw.Toast) {
+func (v *MessagesView) AddToast(toast *adw.Toast) {
 	v.ToastOverlay.AddToast(toast)
 }
 
 // ReplyTo starts replying to the message with the given ID.
-func (v *View) ReplyTo(id string) {
+func (v *MessagesView) ReplyTo(id string) {
 	v.stopEditingOrReplying()
 
 	msg, ok := v.msgs[messageKeyID(id)]
@@ -1045,16 +1050,16 @@ func (v *View) ReplyTo(id string) {
 }
 
 // StopEditing implements composer.Controller.
-func (v *View) StopEditing() {
+func (v *MessagesView) StopEditing() {
 	v.stopEditingOrReplying()
 }
 
 // StopReplying implements composer.Controller.
-func (v *View) StopReplying() {
+func (v *MessagesView) StopReplying() {
 	v.stopEditingOrReplying()
 }
 
-func (v *View) stopEditingOrReplying() {
+func (v *MessagesView) stopEditingOrReplying() {
 	if v.state.row == nil {
 		return
 	}
@@ -1067,7 +1072,7 @@ func (v *View) stopEditingOrReplying() {
 
 // Delete deletes the message with the given ID. It may prompt the user to
 // confirm the deletion.
-func (v *View) Delete(id string) {
+func (v *MessagesView) Delete(id string) {
 	if !askBeforeDelete.Value() {
 		v.delete(id)
 		return
@@ -1104,7 +1109,7 @@ func (v *View) Delete(id string) {
 	dialog.Show()
 }
 
-func (v *View) delete(id string) {
+func (v *MessagesView) delete(id string) {
 	if msg, ok := v.msgs[messageKeyID(id)]; ok {
 		// Visual indicator.
 		msg.SetSensitive(false)
@@ -1122,7 +1127,7 @@ func (v *View) delete(id string) {
 	// }()
 }
 
-func (v *View) onScrollBottomed() {
+func (v *MessagesView) onScrollBottomed() {
 	if v.IsActive() {
 		v.MarkRead()
 	}
@@ -1150,7 +1155,7 @@ func (v *View) onScrollBottomed() {
 }
 
 // MarkRead marks the view's latest messages as read.
-func (v *View) MarkRead() {
+func (v *MessagesView) MarkRead() {
 	// state := gtkcord.FromContext(v.ctx)
 	// Grab the last message from the state cache, since we sometimes don't even
 	// render blocked messages.
@@ -1163,13 +1168,13 @@ func (v *View) MarkRead() {
 
 	// readState := state.ReadState.ReadState(v.ChannelID())
 	// if readState != nil {
-	// 	log.Println("message.View.MarkRead: marked", msgs[0].ID, "as read, last read", readState.LastMessageID)
+	// 	log.Println("message.MessagesView.MarkRead: marked", msgs[0].ID, "as read, last read", readState.LastMessageID)
 	// }
 }
 
-// IsActive returns true if View is active and visible. This implies that the
+// IsActive returns true if MessagesView is active and visible. This implies that the
 // window is focused.
-func (v *View) IsActive() bool {
+func (v *MessagesView) IsActive() bool {
 	win := app.GTKWindowFromContext(v.ctx)
 	return win.IsActive() && v.Mapped()
 }

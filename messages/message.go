@@ -58,7 +58,7 @@ type message struct {
 	menu    *gio.Menu
 }
 
-func newMessage(ctx context.Context, v *View) message {
+func newMessage(ctx context.Context, v *MessagesView) message {
 	return message{
 		content: NewContent(ctx, v),
 	}
@@ -89,10 +89,6 @@ func (m *message) Redact() {
 	m.content.Redact()
 }
 
-func (m *message) view() *View {
-	return m.content.view
-}
-
 func (m *message) bind(parent gtk.Widgetter) *gio.Menu {
 	if m.menu != nil {
 		return m.menu
@@ -100,7 +96,7 @@ func (m *message) bind(parent gtk.Widgetter) *gio.Menu {
 
 	actions := map[string]func(){
 		"message.show-source": func() { m.ShowSource() },
-		"message.reply":       func() { m.view().ReplyTo(m.message.ID) },
+		"message.reply":       func() { m.content.view.ReplyTo(m.message.ID) },
 	}
 
 	// state := gtkcord.FromContext(m.ctx())
@@ -161,7 +157,7 @@ func (m *message) ShowEmojiChooser() {
 
 	e.ConnectEmojiPicked(func(text string) {
 		emoji := discord.APIEmoji(text)
-		m.view().AddReaction(m.content.msgID, emoji)
+		m.content.view.AddReaction(m.content.msgID, emoji)
 	})
 
 	e.Present()
@@ -204,7 +200,7 @@ func (m *message) ShowSource() {
 	copyBtn := gtk.NewButtonFromIconName("edit-copy-symbolic")
 	copyBtn.SetTooltipText(locale.Get("Copy JSON"))
 	copyBtn.ConnectClicked(func() {
-		clipboard := m.view().Clipboard()
+		clipboard := m.content.view.Clipboard()
 		sourceText := buf.Text(buf.StartIter(), buf.EndIter(), false)
 		clipboard.SetText(sourceText)
 	})
@@ -247,7 +243,7 @@ var cozyCSS = cssutil.Applier("message-cozy", `
 `)
 
 // NewCozyMessage creates a new cozy message.
-func NewCozyMessage(ctx context.Context, v *View) Message {
+func NewCozyMessage(ctx context.Context, v *MessagesView) Message {
 	m := cozyMessage{
 		message: newMessage(ctx, v),
 	}
@@ -348,7 +344,7 @@ var collapsedCSS = cssutil.Applier("message-collapsed", `
 `)
 
 // NewCollapsedMessage creates a new collapsed cozy message.
-func NewCollapsedMessage(ctx context.Context, v *View) Message {
+func NewCollapsedMessage(ctx context.Context, v *MessagesView) Message {
 	m := collapsedMessage{
 		message: newMessage(ctx, v),
 	}
