@@ -2,10 +2,10 @@ package messages
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"log/slog"
 	"slices"
-	"time"
 
 	"fiatjaf.com/shiitake/global"
 	"fiatjaf.com/shiitake/messages/composer"
@@ -25,8 +25,8 @@ import (
 
 type messageRow struct {
 	*gtk.ListBoxRow
-	message Message
-	info    messageInfo
+	message *cozyMessage
+	event   *nostr.Event
 }
 
 type messageInfo struct {
@@ -55,7 +55,7 @@ type MessagesView struct {
 	Composer        *composer.View
 	TypingIndicator *TypingIndicator
 
-	msgs  map[messageKey]messageRow
+	msgs  map[string]messageRow
 	Group global.Group
 
 	state struct {
@@ -138,7 +138,7 @@ func applyViewClamp(clamp *adw.Clamp) {
 // methods call on it will act on that channel.
 func NewMessagesView(ctx context.Context, gad nip29.GroupAddress) *MessagesView {
 	v := &MessagesView{
-		msgs: make(map[messageKey]messageRow),
+		msgs: make(map[string]messageRow),
 		gad:  gad,
 		ctx:  ctx,
 	}
@@ -250,9 +250,11 @@ func NewMessagesView(ctx context.Context, gad nip29.GroupAddress) *MessagesView 
 
 	go func() {
 		group := global.GetGroup(ctx, gad)
-		for message := range group.Messages {
+		for _, evt := range group.Messages {
+			v.upsertMessage(evt, -1)
 		}
-		for message := range group.NewMessage {
+		for evt := range group.NewMessage {
+			v.upsertMessage(evt, -1)
 		}
 	}()
 
@@ -524,7 +526,7 @@ func (v *MessagesView) loadMore() {
 		return
 	}
 
-	firstID := firstRow.info.id
+	firstID := firstRow.event.ID
 
 	log.Println("loading more messages for", v.gad, firstID)
 
@@ -635,199 +637,70 @@ func (v *MessagesView) unload() {
 	}
 }
 
-type upsertFlags int
+func (v *MessagesView) upsertMessage(event *nostr.Event, pos int) *cozyMessage {
+	id := event.ID
 
-const (
-	upsertFlagCollapsed upsertFlags = 1 << iota
-	upsertFlagOverrideCollapse
-	upsertFlagPrepend
-)
-
-// upsertMessage inserts or updates a new message row.
-// TODO: move boolean args to flags.
-func (v *MessagesView) upsertMessage(id string, info messageInfo, flags upsertFlags) Message {
-	if flags&upsertFlagOverrideCollapse == 0 && v.shouldBeCollapsed(info) {
-		flags |= upsertFlagCollapsed
-	}
-	return v.upsertMessageKeyed(messageKeyID(id), info, flags)
-}
-
-// upsertMessageKeyed inserts or updates a new message row with the given key.
-func (v *MessagesView) upsertMessageKeyed(key messageKey, info messageInfo, flags upsertFlags) Message {
-	if msg, ok := v.msgs[key]; ok {
+	if msg, ok := v.msgs[id]; ok {
 		return msg.message
 	}
 
-	msg := v.createMessageKeyed(key, info, flags)
-	v.msgs[key] = msg
+	msg := v.createMessage(id, event)
+	v.msgs[id] = msg
 
-	if flags&upsertFlagPrepend != 0 {
-		v.List.Prepend(msg.ListBoxRow)
-	} else {
-		v.List.Append(msg.ListBoxRow)
-	}
-
+	v.List.Insert(msg.ListBoxRow, pos)
 	v.List.SetFocusChild(msg.ListBoxRow)
 	return msg.message
 }
 
-func (v *MessagesView) createMessageKeyed(key messageKey, info messageInfo, flags upsertFlags) messageRow {
-	var message Message
-	if flags&upsertFlagCollapsed != 0 {
-		message = NewCollapsedMessage(v.ctx, v)
-	} else {
-		message = NewCozyMessage(v.ctx, v)
-	}
+func (v *MessagesView) createMessage(id string, evt *nostr.Event) messageRow {
+	message := NewCozyMessage(v.ctx, evt, v)
 
 	row := gtk.NewListBoxRow()
 	row.AddCSSClass("message-row")
-	row.SetName(string(key))
+	row.SetName(id)
 	row.SetChild(message)
 
 	return messageRow{
 		ListBoxRow: row,
 		message:    message,
-		info:       info,
-	}
-}
-
-// resetMessage resets the message with the given messageRow.
-// Its main point is to re-evaluate the collapsed state of the message.
-func (v *MessagesView) resetMessage(key messageKey) {
-	row, ok := v.msgs[key]
-	if !ok || row.message == nil {
-		return
-	}
-
-	var message Message
-	if v.shouldBeCollapsed(row.info) {
-		message = NewCollapsedMessage(v.ctx, v)
-	} else {
-		message = NewCozyMessage(v.ctx, v)
-	}
-
-	// message.Update(&gateway.MessageCreateEvent{
-	// 	Message: *row.message.Message(),
-	// })
-
-	row.message = message
-	row.ListBoxRow.SetChild(message)
-
-	v.msgs[key] = row
-}
-
-// surroundingMessagesResetter creates a function that resets the messages
-// surrounding the given message.
-func (v *MessagesView) surroundingMessagesResetter(key messageKey) func() {
-	msg, ok := v.msgs[key]
-	if !ok {
-		slog.Warn(
-			"useless surroundingMessagesResetter call on non-existent message",
-			"key", key)
-		return func() {}
-	}
-
-	// Just be really safe.
-	resets := make([]func(), 0, 2)
-	if key, ok := v.nextMessageKey(msg); ok {
-		resets = append(resets, func() { v.resetMessage(key) })
-	}
-	if key, ok := v.prevMessageKey(msg); ok {
-		resets = append(resets, func() { v.resetMessage(key) })
-	}
-
-	return func() {
-		for _, reset := range resets {
-			reset()
-		}
+		event:      evt,
 	}
 }
 
 func (v *MessagesView) deleteMessage(id string) {
-	key := messageKeyID(id)
-	v.deleteMessageKeyed(key)
-}
-
-func (v *MessagesView) deleteMessageKeyed(key messageKey) {
-	msg, ok := v.msgs[key]
+	msg, ok := v.msgs[id]
 	if !ok {
 		return
 	}
 
 	if redactMessages.Value() && msg.message != nil {
-		msg.message.Redact()
+		msg.message.Content.Redact()
 		return
 	}
 
-	reset := v.surroundingMessagesResetter(key)
-	defer reset()
-
 	v.List.Remove(msg)
-	delete(v.msgs, key)
-}
-
-func (v *MessagesView) shouldBeCollapsed(info messageInfo) bool {
-	var last messageRow
-	var lastOK bool
-	if curr, ok := v.msgs[messageKeyID(info.id)]; ok {
-		prev, ok := v.prevMessageKey(curr)
-		if ok {
-			last, lastOK = v.msgs[prev]
-		}
-	} else {
-		slog.Warn(
-			"shouldBeCollapsed called on non-existent message, assuming last",
-			"id", info.id,
-			"timestamp", info.timestamp.Time())
-
-		// Assume we're about to append a new message.
-		last, lastOK = v.lastMessage()
-	}
-	if !lastOK || last.message == nil {
-		return false
-	}
-	return shouldBeCollapsed(info, last.info)
-}
-
-func shouldBeCollapsed(curr, last messageInfo) bool {
-	return true &&
-		// same author
-		last.author == curr.author &&
-		// within the last 10 minutes
-		last.timestamp.Time().Add(10*time.Minute).After(curr.timestamp.Time())
-}
-
-func (v *MessagesView) nextMessageKey(row messageRow) (messageKey, bool) {
-	next, _ := row.NextSibling().(*gtk.ListBoxRow)
-	if next != nil {
-		return messageKeyRow(next), true
-	}
-	return "", false
-}
-
-func (v *MessagesView) prevMessageKey(row messageRow) (messageKey, bool) {
-	prev, _ := row.PrevSibling().(*gtk.ListBoxRow)
-	if prev != nil {
-		return messageKeyRow(prev), true
-	}
-	return "", false
+	delete(v.msgs, id)
 }
 
 func (v *MessagesView) lastMessage() (messageRow, bool) {
 	row, _ := v.List.LastChild().(*gtk.ListBoxRow)
 	if row != nil {
-		msg, ok := v.msgs[messageKeyRow(row)]
+		msg, ok := v.msgs[row.Name()]
 		return msg, ok
 	}
 
 	return messageRow{}, false
 }
 
-func (v *MessagesView) lastUserMessage() Message {
+func (v *MessagesView) lastUserMessage() *cozyMessage {
 	me := global.GetMe(v.ctx)
 
-	var msg Message
-	v.eachMessageFromUser(me.PubKey, func(row messageRow) bool {
+	var msg *cozyMessage
+	v.eachMessage(func(row messageRow) bool {
+		if row.event.PubKey != me.PubKey {
+			// keep looping
+			return false
+		}
 		msg = row.message
 		return true
 	})
@@ -838,7 +711,7 @@ func (v *MessagesView) lastUserMessage() Message {
 func (v *MessagesView) firstMessage() (messageRow, bool) {
 	row, _ := v.List.FirstChild().(*gtk.ListBoxRow)
 	if row != nil {
-		msg, ok := v.msgs[messageKeyRow(row)]
+		msg, ok := v.msgs[row.Name()]
 		return msg, ok
 	}
 
@@ -850,7 +723,7 @@ func (v *MessagesView) firstMessage() (messageRow, bool) {
 func (v *MessagesView) eachMessage(f func(messageRow) bool) {
 	row, _ := v.List.LastChild().(*gtk.ListBoxRow)
 	for row != nil {
-		key := messageKey(row.Name())
+		key := row.Name()
 
 		m, ok := v.msgs[key]
 		if ok {
@@ -866,25 +739,27 @@ func (v *MessagesView) eachMessage(f func(messageRow) bool) {
 
 func (v *MessagesView) eachMessageFromUser(pubkey string, f func(messageRow) bool) {
 	v.eachMessage(func(row messageRow) bool {
-		if row.info.author == pubkey {
+		if row.event.PubKey == pubkey {
 			return f(row)
 		}
 		return false
 	})
 }
 
-func (v *MessagesView) updateMember(member string) {
-	v.eachMessageFromUser(member, func(msg messageRow) bool {
-		m, ok := msg.message.(MessageWithUser)
-		if ok {
-			m.UpdateMember(member)
+func (v *MessagesView) updateMember(pubkey string) {
+	v.eachMessage(func(row messageRow) bool {
+		if row.event.PubKey != pubkey {
+			// keep looping
+			return false
 		}
+
+		row.message.UpdateMember(pubkey)
 		return false // keep looping
 	})
 }
 
 func (v *MessagesView) updateMessageReactions(id string) {
-	widget, ok := v.msgs[messageKeyID(id)]
+	widget, ok := v.msgs[id]
 	if !ok || widget.message == nil {
 		return
 	}
@@ -897,6 +772,14 @@ func (v *MessagesView) updateMessageReactions(id string) {
 
 	// content := widget.message.Content()
 	// content.SetReactions(msg.Reactions)
+}
+
+func (v *MessagesView) messageIDFromRow(row *gtk.ListBoxRow) string {
+	if row == nil {
+		return ""
+	}
+
+	return row.Name()
 }
 
 // SendMessage implements composer.Controller.
@@ -921,7 +804,7 @@ func (v *MessagesView) SendMessage(msg composer.SendingMessage) {
 	// }
 
 	// key := messageKeyLocal()
-	// row := v.upsertMessageKeyed(key, info, flags)
+	// row := v.upsertMessage(key, info, flags)
 
 	// m := nostr.Event{
 	// 	ChannelID: v.chID,
@@ -1037,8 +920,8 @@ func (v *MessagesView) AddToast(toast *adw.Toast) {
 func (v *MessagesView) ReplyTo(id string) {
 	v.stopEditingOrReplying()
 
-	msg, ok := v.msgs[messageKeyID(id)]
-	if !ok || msg.message == nil || msg.message.Message() == nil {
+	msg, ok := v.msgs[id]
+	if !ok || msg.message == nil || msg.message.Event == nil {
 		return
 	}
 
@@ -1046,7 +929,7 @@ func (v *MessagesView) ReplyTo(id string) {
 	v.state.replying = true
 
 	msg.AddCSSClass("message-replying")
-	v.Composer.StartReplyingTo(msg.message.Message())
+	v.Composer.StartReplyingTo(msg.message.Event)
 }
 
 // StopEditing implements composer.Controller.
@@ -1078,22 +961,18 @@ func (v *MessagesView) Delete(id string) {
 		return
 	}
 
-	user := "?" // juuust in case
+	username := "?" // juuust in case
 
-	row, ok := v.msgs[messageKeyID(id)]
+	row, ok := v.msgs[id]
 	if ok {
-		message := row.message.Message()
-		log.Println("message", message)
-		// state := gtkcord.FromContext(v.ctx)
-		// user = state.AuthorMarkup(&gateway.MessageCreateEvent{Message: *message},
-		// 	author.WithMinimal())
-		user = "<b>" + user + "</b>"
+		user := global.GetUser(v.ctx, row.message.Event.PubKey)
+		username = fmt.Sprintf(`<span weight="normal">%s</span>`, user.ShortName())
 	}
 
 	window := app.GTKWindowFromContext(v.ctx)
 	dialog := adw.NewMessageDialog(window,
 		locale.Get("Delete Message"),
-		locale.Sprintf("Are you sure you want to delete %s's message?", user))
+		locale.Sprintf("Are you sure you want to delete %s's message?", username))
 	dialog.SetBodyUseMarkup(true)
 	dialog.AddResponse("cancel", locale.Get("_Cancel"))
 	dialog.AddResponse("delete", locale.Get("_Delete"))
@@ -1110,7 +989,7 @@ func (v *MessagesView) Delete(id string) {
 }
 
 func (v *MessagesView) delete(id string) {
-	if msg, ok := v.msgs[messageKeyID(id)]; ok {
+	if msg, ok := v.msgs[id]; ok {
 		// Visual indicator.
 		msg.SetSensitive(false)
 	}
@@ -1146,7 +1025,7 @@ func (v *MessagesView) onScrollBottomed() {
 			} else {
 				// Start purging messages.
 				v.List.Remove(row)
-				delete(v.msgs, messageKeyRow(row))
+				delete(v.msgs, row.Name())
 			}
 
 			row = next

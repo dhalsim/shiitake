@@ -3,7 +3,11 @@ package messages
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"html"
+	"time"
 
+	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/arikawa/v3/discord"
 	"github.com/diamondburned/chatkit/md/hl"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -25,22 +29,6 @@ type ExtraMenuSetter interface {
 	SetExtraMenu(gio.MenuModeller)
 }
 
-// TODO: Implement BlockedMessage widget
-// Message describes a Message widget.
-type Message interface {
-	gtk.Widgetter
-	Update(*nostr.Event)
-	Redact()
-	Content() *Content
-	Message() *nostr.Event
-}
-
-// MessageWithUser extends Message for types that also show user information.
-type MessageWithUser interface {
-	Message
-	UpdateMember(string)
-}
-
 var blockedCSS = cssutil.Applier("message-blocked", `
 	.message-blocked {
 		transition-property: all;
@@ -53,88 +41,53 @@ var blockedCSS = cssutil.Applier("message-blocked", `
 
 // message is a base that implements Message.
 type message struct {
-	content *Content
-	message *nostr.Event
-	menu    *gio.Menu
+	parent *cozyMessage
+
+	Content *Content
+	Event   *nostr.Event
+	Menu    *gio.Menu
 }
 
-func newMessage(ctx context.Context, v *MessagesView) message {
-	return message{
-		content: NewContent(ctx, v),
-	}
-}
-
-func (m *message) ctx() context.Context {
-	return m.content.ctx
-}
-
-// Message implements Message.
-func (m *message) Message() *nostr.Event {
-	return m.message
-}
-
-// Content implements Message.
-func (m *message) Content() *Content {
-	return m.content
-}
-
-func (m *message) update(parent gtk.Widgetter, message *nostr.Event) {
-	m.message = message
-	m.bind(parent)
-	m.content.Update(message)
-}
-
-// Redact implements Message.
-func (m *message) Redact() {
-	m.content.Redact()
-}
-
-func (m *message) bind(parent gtk.Widgetter) *gio.Menu {
-	if m.menu != nil {
-		return m.menu
+func (msg *message) bind() *gio.Menu {
+	if msg.Menu != nil {
+		return msg.Menu
 	}
 
 	actions := map[string]func(){
-		"message.show-source": func() { m.ShowSource() },
-		"message.reply":       func() { m.content.view.ReplyTo(m.message.ID) },
+		"message.show-source": func() { msg.ShowSource() },
+		"message.reply":       func() { msg.Content.view.ReplyTo(msg.Event.ID) },
 	}
 
-	// state := gtkcord.FromContext(m.ctx())
-	// me, _ := state.Cabinet.Me()
-	// channel, _ := state.Cabinet.Channel(m.message.ChannelID)
+	me := global.GetMe(msg.Content.ctx)
 
-	// if me != nil && m.message.Author.ID == me.ID {
+	// if me != nil && m.message.PubKey == me.PubKey {
 	// 	actions["message.edit"] = func() { m.view().Edit(m.message.ID) }
 	// 	actions["message.delete"] = func() { m.view().Delete(m.message.ID) }
 	// }
 
-	// if state.Offline().HasPermissions(m.message.ChannelID, discord.PermissionManageMessages) {
-	// 	actions["message.delete"] = func() { m.view().Delete(m.message.ID) }
-	// }
+	if me != nil && msg.Event.PubKey == me.PubKey /* TODO: admins should also be able to delete */ {
+		actions["message.delete"] = func() { msg.Content.view.Delete(msg.Event.ID) }
+	}
 
-	// if channel != nil && (channel.Type == discord.DirectMessage || channel.Type == discord.GroupDM) {
-	// 	actions["message.add-reaction"] = func() { m.ShowEmojiChooser() }
-	// }
-
-	// if state.Offline().HasPermissions(m.message.ChannelID, discord.PermissionAddReactions) {
-	// 	actions["message.add-reaction"] = func() { m.ShowEmojiChooser() }
-	// }
+	// 	if channel != nil && (channel.Type == discord.DirectMessage || channel.Type == discord.GroupDM) {
+	// 		actions["message.add-reaction"] = func() { m.ShowEmojiChooser() }
+	// 	}
 
 	menuItems := []gtkutil.PopoverMenuItem{
-		menuItemIfOK(actions, "Add _Reaction", "message.add-reaction"),
+		// menuItemIfOK(actions, "Add _Reaction", "message.add-reaction"),
 		menuItemIfOK(actions, "_Reply", "message.reply"),
-		menuItemIfOK(actions, "_Edit", "message.edit"),
+		// menuItemIfOK(actions, "_Edit", "message.edit"),
 		menuItemIfOK(actions, "_Delete", "message.delete"),
 		menuItemIfOK(actions, "Show _Source", "message.show-source"),
 	}
 
-	gtkutil.BindActionMap(parent, actions)
-	gtkutil.BindPopoverMenuCustom(parent, gtk.PosTop, menuItems)
+	gtkutil.BindActionMap(msg.parent, actions)
+	gtkutil.BindPopoverMenuCustom(msg.parent, gtk.PosTop, menuItems)
 
-	m.menu = gtkutil.CustomMenu(menuItems)
-	m.content.SetExtraMenu(m.menu)
+	msg.Menu = gtkutil.CustomMenu(menuItems)
+	msg.Content.SetExtraMenu(msg.Menu)
 
-	return m.menu
+	return msg.Menu
 }
 
 func menuItemIfOK(actions map[string]func(), label locale.Localized, action string) gtkutil.PopoverMenuItem {
@@ -150,14 +103,14 @@ var sourceCSS = cssutil.Applier("message-source", `
 `)
 
 // ShowEmojiChooser opens a Gtk.EmojiChooser popover.
-func (m *message) ShowEmojiChooser() {
+func (msg *message) ShowEmojiChooser() {
 	e := gtk.NewEmojiChooser()
-	e.SetParent(m.content)
+	e.SetParent(msg.Content)
 	e.SetHasArrow(false)
 
 	e.ConnectEmojiPicked(func(text string) {
 		emoji := discord.APIEmoji(text)
-		m.content.view.AddReaction(m.content.msgID, emoji)
+		msg.Content.view.AddReaction(msg.Content.MessageID, emoji)
 	})
 
 	e.Present()
@@ -165,10 +118,10 @@ func (m *message) ShowEmojiChooser() {
 }
 
 // ShowSource opens a JSON showing the message JSON.
-func (m *message) ShowSource() {
+func (msg *message) ShowSource() {
 	d := adw.NewWindow()
 	d.SetTitle(locale.Get("View Source"))
-	d.SetTransientFor(app.GTKWindowFromContext(m.ctx()))
+	d.SetTransientFor(app.GTKWindowFromContext(msg.Content.ctx))
 	d.SetModal(true)
 	d.SetDefaultSize(500, 300)
 
@@ -177,11 +130,11 @@ func (m *message) ShowSource() {
 
 	buf := gtk.NewTextBuffer(nil)
 
-	if raw, err := json.MarshalIndent(m.message, "", "\t"); err != nil {
+	if raw, err := json.MarshalIndent(msg.Event, "", "\t"); err != nil {
 		buf.SetText("Error marshaing JSON: " + err.Error())
 	} else {
 		buf.SetText(string(raw))
-		hl.Highlight(m.ctx(), buf.StartIter(), buf.EndIter(), "json")
+		hl.Highlight(msg.Content.ctx, buf.StartIter(), buf.EndIter(), "json")
 	}
 
 	t := gtk.NewTextViewWithBuffer(buf)
@@ -200,7 +153,7 @@ func (m *message) ShowSource() {
 	copyBtn := gtk.NewButtonFromIconName("edit-copy-symbolic")
 	copyBtn.SetTooltipText(locale.Get("Copy JSON"))
 	copyBtn.ConnectClicked(func() {
-		clipboard := m.content.view.Clipboard()
+		clipboard := msg.Content.view.Clipboard()
 		sourceText := buf.Text(buf.StartIter(), buf.EndIter(), false)
 		clipboard.SetText(sourceText)
 	})
@@ -226,8 +179,6 @@ type cozyMessage struct {
 	tooltip string // markup
 }
 
-var _ MessageWithUser = (*cozyMessage)(nil)
-
 var cozyCSS = cssutil.Applier("message-cozy", `
 	.message-cozy {
 		margin-top: 2px;
@@ -242,127 +193,69 @@ var cozyCSS = cssutil.Applier("message-cozy", `
 	}
 `)
 
-// NewCozyMessage creates a new cozy message.
-func NewCozyMessage(ctx context.Context, v *MessagesView) Message {
-	m := cozyMessage{
-		message: newMessage(ctx, v),
+func NewCozyMessage(ctx context.Context, event *nostr.Event, v *MessagesView) *cozyMessage {
+	m := &cozyMessage{
+		message: message{
+			Content: NewContent(ctx, event, v),
+			Event:   event,
+		},
 	}
+	m.message.parent = m
+
+	guctx, cancel := context.WithTimeout(ctx, time.Second*2)
+	user := global.GetUser(guctx, event.PubKey)
+	cancel()
+
+	markup := "<b>" + user.ShortName() + "</b>"
+	markup += ` <span alpha="75%" size="small">` +
+		locale.TimeAgo(event.CreatedAt.Time()) +
+		"</span>"
+
+	tooltip := fmt.Sprintf(
+		"<b>%s</b> (%s)\n%s",
+		html.EscapeString(user.ShortName()), user.Npub(),
+		html.EscapeString(locale.Time(event.CreatedAt.Time(), true)),
+	)
+
+	// TODO: query tooltip
 
 	m.TopLabel = gtk.NewLabel("")
 	m.TopLabel.AddCSSClass("message-cozy-header")
 	m.TopLabel.SetXAlign(0)
 	m.TopLabel.SetEllipsize(pango.EllipsizeEnd)
 	m.TopLabel.SetSingleLineMode(true)
+	m.TopLabel.SetMarkup(markup)
+	m.TopLabel.SetTooltipMarkup(tooltip)
 
 	m.RightBox = gtk.NewBox(gtk.OrientationVertical, 0)
 	m.RightBox.SetHExpand(true)
 	m.RightBox.Append(m.TopLabel)
-	m.RightBox.Append(m.message.content)
+	m.RightBox.Append(m.message.Content)
 
 	m.Avatar = onlineimage.NewAvatar(ctx, imgutil.HTTPProvider, 12)
 	m.Avatar.AddCSSClass("message-cozy-avatar")
 	m.Avatar.SetVAlign(gtk.AlignStart)
 	m.Avatar.EnableAnimation().OnHover()
+	m.Avatar.SetTooltipMarkup(tooltip)
+	m.Avatar.SetFromURL(user.Picture)
 
 	m.Box = gtk.NewBox(gtk.OrientationHorizontal, 0)
 	m.Box.Append(m.Avatar)
 	m.Box.Append(m.RightBox)
 
+	m.message.bind()
+
 	cozyCSS(m)
-	return &m
-}
-
-func (m *cozyMessage) Update(message *nostr.Event) {
-	m.message.update(m, message)
-	m.updateAuthor(message)
-
-	// tooltip := fmt.Sprintf(
-	// 	"<b>%s</b> (%s)\n%s",
-	// 	html.EscapeString(message.Author.Tag()), message.Author.ID,
-	// 	html.EscapeString(locale.Time(message.Timestamp.Time(), true)),
-	// )
-
-	// TODO: query tooltip
-	// m.Avatar.SetTooltipMarkup(tooltip)
-	// m.TopLabel.SetTooltipMarkup(tooltip)
+	return m
 }
 
 func (m *cozyMessage) UpdateMember(member string) {
-	if m.message.message == nil {
+	if m.message.Event == nil {
 		return
 	}
 
 	// m.updateAuthor(&gateway.MessageCreateEvent{
-	// 	Message: *m.message.message,
+	// 	Message: *m.message.Event,
 	// 	Member:  member,
 	// })
-}
-
-func (m *cozyMessage) updateAuthor(message *nostr.Event) {
-	// var avatarURL string
-	// if message.Member != nil && message.Member.Avatar != "" {
-	// 	avatarURL = message.Member.AvatarURL(message.GuildID)
-	// } else {
-	// 	avatarURL = message.Author.AvatarURL()
-	// }
-	// m.Avatar.SetFromURL(gtkcord.InjectAvatarSize(avatarURL))
-
-	// state := gtkcord.FromContext(m.ctx())
-
-	// markup := "<b>" + state.AuthorMarkup(message) + "</b>"
-	// markup += ` <span alpha="75%" size="small">` +
-	// 	locale.TimeAgo(message.Timestamp.Time()) +
-	// 	"</span>"
-
-	// m.TopLabel.SetMarkup(markup)
-}
-
-// collapsedMessage is a collapsed cozy message.
-type collapsedMessage struct {
-	*gtk.Box
-	Timestamp *gtk.Label
-
-	message
-}
-
-var _ Message = (*collapsedMessage)(nil)
-
-var collapsedCSS = cssutil.Applier("message-collapsed", `
-	.message-collapsed {
-		margin-bottom: 1px;
-	}
-	.message-collapsed-timestamp {
-		opacity: 0;
-		font-size: 0.7em;
-		min-width: calc((8px * 2) + {$message_avatar_size});
-		min-height: calc(1em + 0.7rem);
-	}
-	.message-row:hover .message-collapsed-timestamp {
-		opacity: 1;
-		color: alpha(@theme_fg_color, 0.75);
-	}
-`)
-
-// NewCollapsedMessage creates a new collapsed cozy message.
-func NewCollapsedMessage(ctx context.Context, v *MessagesView) Message {
-	m := collapsedMessage{
-		message: newMessage(ctx, v),
-	}
-
-	m.Timestamp = gtk.NewLabel("")
-	m.Timestamp.AddCSSClass("message-collapsed-timestamp")
-	m.Timestamp.SetEllipsize(pango.EllipsizeEnd)
-
-	m.Box = gtk.NewBox(gtk.OrientationHorizontal, 0)
-	m.Box.Append(m.Timestamp)
-	m.Box.Append(m.message.content)
-
-	collapsedCSS(m)
-	return &m
-}
-
-func (m *collapsedMessage) Update(message *nostr.Event) {
-	// m.message.update(m, &message.Message)
-	// m.Timestamp.SetLabel(locale.Time(message.Timestamp.Time(), false))
-	// m.Timestamp.SetTooltipText(locale.Time(message.Timestamp.Time(), true))
 }

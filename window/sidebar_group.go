@@ -2,6 +2,7 @@ package window
 
 import (
 	"context"
+	"fmt"
 
 	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -124,6 +125,17 @@ func NewGroup(
 
 	g.Box.Append(button)
 	// g.Box.Append(indicator)
+
+	go func() {
+		for {
+			select {
+			case <-group.GroupUpdated:
+				fmt.Println(group.Address, "UPDATED")
+			case err := <-group.NewError:
+				fmt.Println(group.Address, "ERROR", err)
+			}
+		}
+	}()
 
 	return g
 }

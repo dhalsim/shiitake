@@ -157,7 +157,7 @@ func (rs *contentReactions) SetReactions(reactions []string) {
 		messageReactions[i] = messageReaction{
 			Emoji:        r,
 			GroupAddress: rs.parent.view.Group.Address,
-			MessageID:    rs.parent.MessageID(),
+			MessageID:    rs.parent.MessageID,
 		}
 	}
 	rs.reactions.Splice(0, rs.reactions.NItems(), messageReactions...)

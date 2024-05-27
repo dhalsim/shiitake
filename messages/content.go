@@ -33,8 +33,8 @@ type Content struct {
 	react  *contentReactions
 	child  []gtk.Widgetter
 
-	Group nip29.GroupAddress
-	msgID string
+	Group     nip29.GroupAddress
+	MessageID string
 }
 
 var contentCSS = cssutil.Applier("message-content-box", `
@@ -66,7 +66,7 @@ var contentCSS = cssutil.Applier("message-content-box", `
 `)
 
 // NewContent creates a new Content widget.
-func NewContent(ctx context.Context, v *MessagesView) *Content {
+func NewContent(ctx context.Context, event *nostr.Event, v *MessagesView) *Content {
 	c := Content{
 		ctx:   ctx,
 		view:  v,
@@ -77,11 +77,6 @@ func NewContent(ctx context.Context, v *MessagesView) *Content {
 	contentCSS(c.Box)
 
 	return &c
-}
-
-// MessageID returns the message ID.
-func (c *Content) MessageID() string {
-	return c.msgID
 }
 
 // SetExtraMenu implements ExtraMenuSetter.
@@ -134,7 +129,7 @@ var systemContentCSS = cssutil.Applier("message-system-content", `
 
 // Update replaces Content with the message.
 func (c *Content) Update(m *nostr.Event, customs ...gtk.Widgetter) {
-	c.msgID = m.ID
+	c.MessageID = m.ID
 	c.clear()
 
 	// if m.Reference != nil {
