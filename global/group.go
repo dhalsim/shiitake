@@ -19,6 +19,7 @@ type Group struct {
 	NewMessage   chan *nostr.Event
 	GroupUpdated chan struct{}
 	NewError     chan error
+	EOSE         chan struct{}
 }
 
 func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
@@ -36,6 +37,7 @@ func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
 		GroupUpdated: make(chan struct{}),
 		NewMessage:   make(chan *nostr.Event),
 		NewError:     make(chan error),
+		EOSE:         make(chan struct{}),
 	}
 	groups.Store(gad.String(), group)
 
@@ -68,6 +70,7 @@ func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
 
 	go func() {
 		log.Printf("opening subscription to %s", group.Address)
+		eosed := false
 		for {
 			select {
 			case evt, ok := <-sub.Events:
@@ -89,9 +92,19 @@ func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
 					group.Group.MergeInMembersEvent(evt)
 					group.GroupUpdated <- struct{}{}
 				case 9, 10:
-					group.Messages = append(group.Messages, evt)
-					group.NewMessage <- evt
+					if eosed {
+						group.NewMessage <- evt
+						group.Messages = append(group.Messages, evt)
+					} else {
+						group.Messages = append(group.Messages, evt)
+					}
 				}
+			case <-sub.EndOfStoredEvents:
+				slices.SortFunc(group.Messages, func(a, b *nostr.Event) int {
+					return int(a.CreatedAt - b.CreatedAt)
+				})
+				eosed = true
+				close(group.EOSE)
 			}
 		}
 	}()

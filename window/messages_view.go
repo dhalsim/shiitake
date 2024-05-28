@@ -1,14 +1,14 @@
-package messages
+package window
 
 import (
 	"context"
 	"fmt"
 	"log"
 	"log/slog"
-	"slices"
 
 	"fiatjaf.com/shiitake/global"
-	"fiatjaf.com/shiitake/messages/composer"
+	"fiatjaf.com/shiitake/utils"
+	"fiatjaf.com/shiitake/window/composer"
 	"github.com/diamondburned/adaptive"
 	"github.com/diamondburned/arikawa/v3/discord"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -29,31 +29,16 @@ type messageRow struct {
 	event   *nostr.Event
 }
 
-type messageInfo struct {
-	id        string
-	author    string
-	timestamp nostr.Timestamp
-}
-
-func newMessageInfo(msg *nostr.Event) messageInfo {
-	return messageInfo{
-		id:        msg.ID,
-		author:    msg.PubKey,
-		timestamp: msg.CreatedAt,
-	}
-}
-
 // MessagesView is a message view widget.
 type MessagesView struct {
 	*adaptive.LoadablePage
 	focused gtk.Widgetter
 
-	ToastOverlay    *adw.ToastOverlay
-	LoadMore        *gtk.Button
-	Scroll          *autoscroll.Window
-	List            *gtk.ListBox
-	Composer        *composer.View
-	TypingIndicator *TypingIndicator
+	ToastOverlay *adw.ToastOverlay
+	LoadMore     *gtk.Button
+	Scroll       *autoscroll.Window
+	List         *gtk.ListBox
+	Composer     *composer.View
 
 	msgs  map[string]messageRow
 	Group global.Group
@@ -67,7 +52,7 @@ type MessagesView struct {
 	gad nip29.GroupAddress
 }
 
-var viewCSS = cssutil.Applier("message-view", `
+var messagesViewCSS = cssutil.Applier("message-view", `
 	.message-list {
 		background: none;
 	}
@@ -202,12 +187,7 @@ func NewMessagesView(ctx context.Context, gad nip29.GroupAddress) *MessagesView 
 	v.Composer = composer.NewView(ctx, v, gad)
 	gtkutil.ForwardTyping(v.List, v.Composer.Input)
 
-	v.TypingIndicator = NewTypingIndicator(ctx, gad)
-	v.TypingIndicator.SetHExpand(true)
-	v.TypingIndicator.SetVAlign(gtk.AlignStart)
-
 	composerOverlay := gtk.NewOverlay()
-	composerOverlay.AddOverlay(v.TypingIndicator)
 	composerOverlay.SetChild(v.Composer)
 
 	composerClamp := adw.NewClamp()
@@ -228,7 +208,7 @@ func NewMessagesView(ctx context.Context, gad nip29.GroupAddress) *MessagesView 
 
 	v.LoadablePage = adaptive.NewLoadablePage()
 	v.LoadablePage.SetTransitionDuration(125)
-	v.setPageToMain()
+	v.LoadablePage.SetChild(v.focused)
 
 	// If the window gains focus, try to carefully mark the channel as read.
 	var windowSignal glib.SignalHandle
@@ -248,173 +228,63 @@ func NewMessagesView(ctx context.Context, gad nip29.GroupAddress) *MessagesView 
 		windowSignal = 0
 	})
 
-	go func() {
-		group := global.GetGroup(ctx, gad)
+	group := global.GetGroup(ctx, gad)
+
+	gtkutil.BindActionCallbackMap(v.List, map[string]gtkutil.ActionCallback{
+		"messages.scroll-to": {
+			ArgType: utils.EventIDVariant,
+			Func: func(args *glib.Variant) {
+				id := string(args.String())
+
+				msg, ok := v.msgs[id]
+				if !ok {
+					slog.Warn(
+						"tried to scroll to non-existent message",
+						"id", id)
+					return
+				}
+
+				if !msg.ListBoxRow.GrabFocus() {
+					slog.Warn(
+						"failed to grab focus of message",
+						"id", id)
+				}
+			},
+		},
+	})
+
+	log.Println("loading message view for", v.gad)
+
+	v.LoadablePage.SetLoading()
+
+	// remove all previous messages
+	for k, msg := range v.msgs {
+		v.List.Remove(msg)
+		delete(v.msgs, k)
+	}
+
+	// insert previously loaded messages
+	gtkutil.Async(v.ctx, func() func() {
+		<-group.EOSE
+
 		for _, evt := range group.Messages {
 			v.upsertMessage(evt, -1)
 		}
+
+		return func() {
+			v.LoadablePage.SetChild(v.focused)
+			v.Scroll.ScrollToBottom()
+		}
+	})
+
+	// insert new messages as they come
+	go func() {
 		for evt := range group.NewMessage {
 			v.upsertMessage(evt, -1)
 		}
 	}()
 
-	// state := gtkcord.FromContext(v.ctx)
-	// if ch, err := state.Cabinet.Channel(v.chID); err == nil {
-	// 	v.chName = ch.Name
-	// 	v.guildID = ch.GuildID
-	// }
-
-	// state.BindWidget(v, func(ev gateway.Event) {
-	// 	switch ev := ev.(type) {
-	// 	case *gateway.MessageCreateEvent:
-	// 		if ev.ChannelID != v.chID {
-	// 			return
-	// 		}
-
-	// 		// Use this to update existing messages' members as well.
-	// 		if ev.Member != nil {
-	// 			v.updateMember(ev.Member)
-	// 		}
-
-	// 		if ev.Nonce != "" {
-	// 			// Try and look up the nonce.
-	// 			key := messageKeyNonce(ev.Nonce)
-
-	// 			if msg, ok := v.msgs[key]; ok {
-	// 				delete(v.msgs, key)
-
-	// 				key = messageKeyID(ev.ID)
-	// 				// Known sent message. Update this instead.
-	// 				v.msgs[key] = msg
-
-	// 				msg.ListBoxRow.SetName(string(key))
-	// 				msg.message.Update(ev)
-	// 				return
-	// 			}
-	// 		}
-
-	// 		if !v.ignoreMessage(&ev.Message) {
-	// 			msg := v.upsertMessage(ev.ID, newMessageInfo(&ev.Message), 0)
-	// 			msg.Update(ev)
-	// 		}
-
-	// 	case *gateway.MessageUpdateEvent:
-	// 		if ev.ChannelID != v.chID {
-	// 			return
-	// 		}
-
-	// 		m, err := state.Cabinet.Message(ev.ChannelID, ev.ID)
-	// 		if err == nil && !v.ignoreMessage(&ev.Message) {
-	// 			msg := v.upsertMessage(ev.ID, newMessageInfo(m), 0)
-	// 			msg.Update(&gateway.MessageCreateEvent{
-	// 				Message: *m,
-	// 				Member:  ev.Member,
-	// 			})
-	// 		}
-
-	// 	case *gateway.MessageDeleteEvent:
-	// 		if ev.ChannelID != v.chID {
-	// 			return
-	// 		}
-
-	// 		v.deleteMessage(ev.ID)
-
-	// 	case *gateway.MessageReactionAddEvent:
-	// 		if ev.ChannelID != v.chID {
-	// 			return
-	// 		}
-	// 		v.updateMessageReactions(ev.MessageID)
-
-	// 	case *gateway.MessageReactionRemoveEvent:
-	// 		if ev.ChannelID != v.chID {
-	// 			return
-	// 		}
-	// 		v.updateMessageReactions(ev.MessageID)
-
-	// 	case *gateway.MessageReactionRemoveAllEvent:
-	// 		if ev.ChannelID != v.chID {
-	// 			return
-	// 		}
-	// 		v.updateMessageReactions(ev.MessageID)
-
-	// 	case *gateway.MessageReactionRemoveEmojiEvent:
-	// 		if ev.ChannelID != v.chID {
-	// 			return
-	// 		}
-	// 		v.updateMessageReactions(ev.MessageID)
-
-	// 	case *gateway.MessageDeleteBulkEvent:
-	// 		if ev.ChannelID != v.chID {
-	// 			return
-	// 		}
-
-	// 		for _, id := range ev.IDs {
-	// 			v.deleteMessage(id)
-	// 		}
-
-	// 	case *gateway.GuildMemberAddEvent:
-	// 		log.Println("TODO: handle GuildMemberAddEvent")
-
-	// 	case *gateway.GuildMemberUpdateEvent:
-	// 		if ev.GuildID != v.guildID {
-	// 			return
-	// 		}
-
-	// 		member, _ := state.Cabinet.Member(ev.GuildID, ev.User.ID)
-	// 		if member != nil {
-	// 			v.updateMember(member)
-	// 		}
-
-	// 	case *gateway.GuildMemberRemoveEvent:
-	// 		log.Println("TODO: handle GuildMemberDeleteEvent")
-
-	// 	case *gateway.GuildMembersChunkEvent:
-	// 		// TODO: Discord isn't sending us this event. I'm not sure why.
-	// 		// Their client has to work somehow. Maybe they use the right-side
-	// 		// member list?
-	// 		if ev.GuildID != v.guildID {
-	// 			return
-	// 		}
-
-	// 		for i := range ev.Members {
-	// 			v.updateMember(&ev.Members[i])
-	// 		}
-
-	// 	case *gateway.ConversationSummaryUpdateEvent:
-	// 		if ev.ChannelID != v.chID {
-	// 			return
-	// 		}
-
-	// 		v.updateSummaries(ev.Summaries)
-	// 	}
-	// })
-
-	// gtkutil.BindActionCallbackMap(v.List, map[string]gtkutil.ActionCallback{
-	// 	"messages.scroll-to": {
-	// 		ArgType: gtkcord.SnowflakeVariant,
-	// 		Func: func(args *glib.Variant) {
-	// 			id := string(args.Int64())
-
-	// 			msg, ok := v.msgs[messageKeyID(id)]
-	// 			if !ok {
-	// 				slog.Warn(
-	// 					"tried to scroll to non-existent message",
-	// 					"id", id)
-	// 				return
-	// 			}
-
-	// 			if !msg.ListBoxRow.GrabFocus() {
-	// 				slog.Warn(
-	// 					"failed to grab focus of message",
-	// 					"id", id)
-	// 			}
-	// 		},
-	// 	},
-	// })
-
-	v.load()
-
-	viewCSS(v)
+	messagesViewCSS(v)
 	return v
 }
 
@@ -492,32 +362,6 @@ func (v *MessagesView) HeaderButtons() []gtk.Widgetter {
 	// }
 
 	return buttons
-}
-
-func (v *MessagesView) load() {
-	log.Println("loading message view for", v.gad)
-
-	v.LoadablePage.SetLoading()
-	v.unload()
-
-	// state := gtkcord.FromContext(v.ctx).Online()
-
-	gtkutil.Async(v.ctx, func() func() {
-		msgs := make([]*nostr.Event, 0)
-		// msgs, err := state.Messages(v.chID, 15)
-		// if err != nil {
-		// 	return func() {
-		// 		v.LoadablePage.SetError(err)
-		// 	}
-		// }
-
-		slices.SortFunc(msgs, func(a, b *nostr.Event) int { return int(a.CreatedAt) - int(b.CreatedAt) })
-
-		return func() {
-			v.setPageToMain()
-			v.Scroll.ScrollToBottom()
-		}
-	})
 }
 
 func (v *MessagesView) loadMore() {
@@ -626,45 +470,28 @@ func (v *MessagesView) loadMore() {
 	})
 }
 
-func (v *MessagesView) setPageToMain() {
-	v.LoadablePage.SetChild(v.focused)
-}
-
-func (v *MessagesView) unload() {
-	for k, msg := range v.msgs {
-		v.List.Remove(msg)
-		delete(v.msgs, k)
-	}
-}
-
-func (v *MessagesView) upsertMessage(event *nostr.Event, pos int) *cozyMessage {
+func (v *MessagesView) upsertMessage(event *nostr.Event, pos int) {
 	id := event.ID
-
-	if msg, ok := v.msgs[id]; ok {
-		return msg.message
+	if _, ok := v.msgs[id]; ok {
+		return
 	}
 
-	msg := v.createMessage(id, event)
-	v.msgs[id] = msg
-
-	v.List.Insert(msg.ListBoxRow, pos)
-	v.List.SetFocusChild(msg.ListBoxRow)
-	return msg.message
-}
-
-func (v *MessagesView) createMessage(id string, evt *nostr.Event) messageRow {
-	message := NewCozyMessage(v.ctx, evt, v)
-
+	cmessage := NewCozyMessage(v.ctx, event, v)
 	row := gtk.NewListBoxRow()
 	row.AddCSSClass("message-row")
 	row.SetName(id)
-	row.SetChild(message)
-
-	return messageRow{
+	row.SetChild(cmessage)
+	msgRow := messageRow{
 		ListBoxRow: row,
-		message:    message,
-		event:      evt,
+		message:    cmessage,
+		event:      event,
 	}
+
+	v.msgs[id] = msgRow
+
+	v.List.Insert(row, pos)
+	v.List.Display().Flush()
+	v.List.SetFocusChild(row)
 }
 
 func (v *MessagesView) deleteMessage(id string) {
@@ -735,15 +562,6 @@ func (v *MessagesView) eachMessage(f func(messageRow) bool) {
 		// This repeats until index is -1, at which the loop will break.
 		row, _ = row.PrevSibling().(*gtk.ListBoxRow)
 	}
-}
-
-func (v *MessagesView) eachMessageFromUser(pubkey string, f func(messageRow) bool) {
-	v.eachMessage(func(row messageRow) bool {
-		if row.event.PubKey == pubkey {
-			return f(row)
-		}
-		return false
-	})
 }
 
 func (v *MessagesView) updateMember(pubkey string) {

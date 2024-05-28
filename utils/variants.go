@@ -8,6 +8,7 @@ import (
 var (
 	GroupAddressVariant = glib.NewVariantType("s")
 	RelayURLVariant     = glib.NewVariantType("s")
+	EventIDVariant      = glib.NewVariantType("s")
 )
 
 func NewGroupAddressVariant(gad nip29.GroupAddress) *glib.Variant {
@@ -16,4 +17,8 @@ func NewGroupAddressVariant(gad nip29.GroupAddress) *glib.Variant {
 
 func NewRelayURLVariant(url string) *glib.Variant {
 	return glib.NewVariantString(url)
+}
+
+func NewEventIDVariant(id string) *glib.Variant {
+	return glib.NewVariantString(id)
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"fiatjaf.com/shiitake/global"
-	"fiatjaf.com/shiitake/messages"
 	"fiatjaf.com/shiitake/window/backbutton"
 	"fiatjaf.com/shiitake/window/quickswitcher"
 	"github.com/diamondburned/adaptive"
@@ -267,7 +266,7 @@ func (p *ChatPage) updateWindowTitle() {
 type ChatView struct {
 	*gtk.Stack
 	placeholder gtk.Widgetter
-	messageView *messages.MessagesView // nilable
+	messageView *MessagesView // nilable
 	ctx         context.Context
 }
 
@@ -303,7 +302,7 @@ func (t *ChatView) switchToGroup(gad nip29.GroupAddress) bool {
 
 	old := t.messageView
 
-	t.messageView = messages.NewMessagesView(t.ctx, gad)
+	t.messageView = NewMessagesView(t.ctx, gad)
 
 	t.Stack.AddChild(t.messageView)
 	t.Stack.SetVisibleChild(t.messageView)

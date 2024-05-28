@@ -1,4 +1,4 @@
-package messages
+package window
 
 import (
 	"context"
@@ -23,11 +23,6 @@ import (
 	"github.com/diamondburned/gotkit/gtkutil/textutil"
 	"github.com/nbd-wtf/go-nostr"
 )
-
-// ExtraMenuSetter is an interface for types that implement SetExtraMenu.
-type ExtraMenuSetter interface {
-	SetExtraMenu(gio.MenuModeller)
-}
 
 var blockedCSS = cssutil.Applier("message-blocked", `
 	.message-blocked {

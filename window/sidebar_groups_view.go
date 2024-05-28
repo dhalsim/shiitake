@@ -16,7 +16,7 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
-const GroupsWidth = bannerWidth
+const groupsWidth = 400
 
 type GroupsView struct {
 	*adw.ToolbarView
@@ -35,7 +35,7 @@ type GroupsView struct {
 	selectGAD nip29.GroupAddress // delegate to select later
 }
 
-var viewCSS = cssutil.Applier("groups-view", `
+var sidebarViewCSS = cssutil.Applier("groups-view", `
 	.groups-viewtree {
 		background: none;
 	}
@@ -53,53 +53,6 @@ var viewCSS = cssutil.Applier("groups-view", `
 	.groups-view-scroll {
 		/* Space out the header, since it's in an overlay. */
 		margin-top: {$header_height};
-	}
-	.groups-has-banner .groups-view-scroll {
-		/* No need to space out here, since we have the banner. We do need to
-		 * turn the header opaque with the styling below though, so the user can
-		 * see it.
-		 */
-		margin-top: 0;
-	}
-	.groups-has-banner .top-bar {
-		background-color: transparent;
-		box-shadow: none;
-	}
-	.groups-has-banner  windowhandle,
-	.groups-has-banner .groups-header {
-		transition: linear 65ms all;
-	}
-	.groups-has-banner.groups-scrolled windowhandle {
-		background-color: transparent;
-	}
-	.groups-has-banner.groups-scrolled headerbar {
-		background-color: @theme_bg_color;
-	}
-	.groups-has-banner .groups-header {
-		box-shadow: 0 0 6px 0px @theme_bg_color;
-	}
-	.groups-has-banner:not(.groups-scrolled) .groups-header {
-		/* go run ./cmd/ease-in-out-gradient/ -max 0.25 -min 0 -steps 5 */
-		background: linear-gradient(to bottom,
-			alpha(black, 0.24),
-			alpha(black, 0.19),
-			alpha(black, 0.06),
-			alpha(black, 0.01),
-			alpha(black, 0.00) 100%
-		);
-		box-shadow: none;
-		border: none;
-	}
-	.groups-has-banner .groups-banner-shadow {
-		background: alpha(black, 0.75);
-	}
-	.groups-has-banner:not(.groups-scrolled) .groups-header * {
-		color: white;
-		text-shadow: 0px 0px 5px alpha(black, 0.75);
-	}
-	.groups-has-banner:not(.groups-scrolled) .groups-header *:backdrop {
-		color: alpha(white, 0.75);
-		text-shadow: 0px 0px 2px alpha(black, 0.35);
 	}
 	.groups-name {
 		font-weight: 600;
@@ -145,16 +98,9 @@ func NewGroupsView(ctx context.Context, relayURL string) *GroupsView {
 
 	vadj := v.Scroll.VAdjustment()
 	vadj.ConnectValueChanged(func() {
-		if scrolled := v.Child.Banner.SetScrollOpacity(vadj.Value()); scrolled {
-			if !headerScrolled {
-				headerScrolled = true
-				v.AddCSSClass("groups-scrolled")
-			}
-		} else {
-			if headerScrolled {
-				headerScrolled = false
-				v.RemoveCSSClass("groups-scrolled")
-			}
+		if headerScrolled {
+			headerScrolled = false
+			v.RemoveCSSClass("groups-scrolled")
 		}
 	})
 
@@ -200,52 +146,23 @@ func NewGroupsView(ctx context.Context, relayURL string) *GroupsView {
 	v.ToolbarView.SetContent(v.Scroll)
 	v.ToolbarView.SetFocusChild(v.Scroll)
 
-	viewCSS(v)
+	sidebarViewCSS(v)
 	return &v
-}
-
-// InvalidateHeader invalidates the relay name and banner.
-func (v *GroupsView) InvalidateHeader() {
-	// state := gtkcord.FromContext(v.ctx.Take())
-
-	// g, err := state.Cabinet.Relay(v.relayID)
-	// if err != nil {
-	// 	log.Printf("groups.GroupsView: cannot fetch relay %d: %v", v.relayID, err)
-	// 	return
-	// }
-
-	// v.Header.Name.SetText(g.Name)
-	// v.invalidateBanner()
-}
-
-func (v *GroupsView) invalidateBanner() {
-	v.Child.Banner.Invalidate()
-
-	if v.Child.Banner.HasBanner() {
-		v.AddCSSClass("groups-has-banner")
-	} else {
-		v.RemoveCSSClass("groups-has-banner")
-	}
 }
 
 type GroupsListView struct {
 	*gtk.Box
 	Children []*Group
-	Banner   *Banner
 }
 
 func NewGroupsListView(ctx context.Context) *GroupsListView {
 	gv := &GroupsListView{}
 
 	gv.Box = gtk.NewBox(gtk.OrientationVertical, 0)
-	gv.Box.SetSizeRequest(bannerWidth, -1)
+	gv.Box.SetSizeRequest(groupsWidth, -1)
 	gv.Box.AddCSSClass("groups-viewtree")
 	gv.Box.SetHExpand(true)
 	gv.Box.SetVExpand(true)
-
-	// gv.Banner = NewBanner(ctx)
-	// gv.Banner.Invalidate()
-	// gv.Box.Append(gv.Banner)
 
 	return gv
 }

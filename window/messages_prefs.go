@@ -1,4 +1,4 @@
-package messages
+package window
 
 import (
 	"context"
@@ -34,12 +34,6 @@ var redactMessages = prefs.NewBool(false, prefs.PropMeta{
 	Name:        "Redact Messages",
 	Section:     "Messages",
 	Description: "Redact instead of deleting messages. This will replace the message content with a redacted message.",
-})
-
-var showSummaries = prefs.NewBool(true, prefs.PropMeta{
-	Name:        "Show Summaries",
-	Section:     "Messages",
-	Description: "Show message summaries as they come.",
 })
 
 func init() {

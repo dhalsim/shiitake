@@ -41,7 +41,7 @@ func NewRelaysView(ctx context.Context) *RelaysView {
 	}
 
 	v.Box = gtk.NewBox(gtk.OrientationVertical, 0)
-	viewCSS(v)
+	relaysViewCSS(v)
 
 	go func() {
 		me := global.GetMe(ctx)

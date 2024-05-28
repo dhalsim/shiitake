@@ -85,7 +85,7 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	s.placeholder = gtk.NewWindowHandle()
 
 	s.Right = gtk.NewStack()
-	s.Right.SetSizeRequest(GroupsWidth, -1)
+	s.Right.SetSizeRequest(groupsWidth, -1)
 	s.Right.SetVExpand(true)
 	s.Right.SetHExpand(true)
 	s.Right.AddChild(s.placeholder)
@@ -140,5 +140,4 @@ func (s *Sidebar) openRelay(relayURL string) {
 	s.Right.SetVisibleChild(chs)
 
 	chs.Child.GrabFocus()
-	chs.InvalidateHeader()
 }
