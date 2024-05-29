@@ -8,18 +8,12 @@ import (
 	"fiatjaf.com/shiitake/window/quickswitcher"
 	"github.com/diamondburned/adaptive"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
-	"github.com/diamondburned/gotk4/pkg/core/glib"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
 	"github.com/diamondburned/gotkit/app"
 	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/nbd-wtf/go-nostr/nip29"
-)
-
-var (
-	lastRelay = app.NewSingleStateKey[string]("last-relay")
-	lastGroup = app.NewStateKey[string]("last-group")
 )
 
 // TODO: refactor this to support TabOverview. We do this by refactoring Sidebar
@@ -35,9 +29,6 @@ type ChatPage struct {
 
 	chatView      *ChatView
 	quickswitcher *quickswitcher.Dialog
-
-	lastRelay         *app.TypedSingleState[string]
-	lastGroupForRelay *app.TypedState[string]
 
 	// lastButtons keeps tracks of the header buttons of the previous view.
 	// On view change, these buttons will be removed.
@@ -70,9 +61,7 @@ var chatPageCSS = cssutil.Applier("window-chatpage", `
 
 func NewChatPage(ctx context.Context, w *Window) *ChatPage {
 	p := ChatPage{
-		ctx:               ctx,
-		lastRelay:         lastRelay.Acquire(ctx),
-		lastGroupForRelay: lastGroup.Acquire(ctx),
+		ctx: ctx,
 	}
 
 	p.quickswitcher = quickswitcher.NewDialog(ctx)
@@ -187,69 +176,6 @@ func (p *ChatPage) AskJoinGroup() {
 // OpenQuickSwitcher opens the Quick Switcher dialog.
 func (p *ChatPage) OpenQuickSwitcher() { p.quickswitcher.Show() }
 
-// ResetView switches out of any channel view and into the placeholder view.
-// This method is used when the guild becomes unavailable.
-func (p *ChatPage) ResetView() { p.SwitchToPlaceholder() }
-
-// SwitchToPlaceholder switches to the empty placeholder view.
-func (p *ChatPage) SwitchToPlaceholder() {
-	p.chatView.switchToPlaceholder()
-}
-
-// SwitchToMessages reopens a new message page of the same channel ID if the
-// user is opening one. Otherwise, the placeholder is seen.
-func (p *ChatPage) SwitchToMessages() {
-	p.chatView.switchToPlaceholder()
-
-	p.lastRelay.Exists(func(exists bool) {
-		if !exists {
-			return
-		}
-		// Restore the last opened channel if there is one.
-		p.lastRelay.Get(func(rl string) {
-			p.lastGroupForRelay.Get(rl, func(id string) {
-				p.OpenGroup(nip29.GroupAddress{Relay: rl, ID: id})
-			})
-		})
-	})
-}
-
-// OpenRelay opens the relay with the given ID.
-func (p *ChatPage) OpenRelay(relayURL string) {
-	p.lastRelay.Set(relayURL)
-	p.Sidebar.openRelay(relayURL)
-	p.restoreLastGroup()
-}
-
-func (p *ChatPage) restoreLastGroup() {
-	// Allow a bit of delay for the page to finish loading.
-	glib.IdleAdd(func() {
-		p.lastRelay.Exists(func(exists bool) {
-			if exists {
-				p.lastRelay.Get(func(rl string) {
-					p.lastGroupForRelay.Get(rl, func(id string) {
-						p.OpenGroup(nip29.GroupAddress{Relay: rl, ID: id})
-					})
-				})
-			} else {
-				p.SwitchToPlaceholder()
-			}
-		})
-	})
-}
-
-// OpenGroup opens the group with the given ID. Use this method to direct
-// the user to a new channel when they request to, e.g. through a notification.
-func (p *ChatPage) OpenGroup(gad nip29.GroupAddress) {
-	p.chatView.switchToGroup(gad)
-
-	group := global.GetGroup(p.ctx, gad)
-	if group != nil {
-		// Save the last opened channel for the guild.
-		p.lastGroupForRelay.Set(gad.Relay, gad.ID)
-	}
-}
-
 func (p *ChatPage) updateWindowTitle() {
 	// state := gtkcord.FromContext(p.ctx)
 
@@ -289,10 +215,6 @@ func (t *ChatView) Current() nip29.GroupAddress {
 		return nip29.GroupAddress{}
 	}
 	return t.messageView.Group.Address
-}
-
-func (t *ChatView) switchToPlaceholder() bool {
-	return t.switchToGroup(nip29.GroupAddress{})
 }
 
 func (t *ChatView) switchToGroup(gad nip29.GroupAddress) bool {

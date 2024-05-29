@@ -277,10 +277,11 @@ func NewMessagesView(ctx context.Context, gad nip29.GroupAddress) *MessagesView 
 		}
 	})
 
-	// insert new messages as they come
 	go func() {
 		for evt := range group.NewMessage {
-			v.upsertMessage(evt, -1)
+			glib.IdleAdd(func() {
+				v.upsertMessage(evt, -1)
+			})
 		}
 	}()
 

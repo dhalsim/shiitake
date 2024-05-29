@@ -10,7 +10,6 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
-	"github.com/diamondburned/gotkit/app"
 	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/nbd-wtf/go-nostr/nip29"
@@ -115,14 +114,6 @@ func NewGroupsView(ctx context.Context, relayURL string) *GroupsView {
 
 		parent := gtk.BaseWidget(v.Parent())
 		parent.ActivateAction("win.open-group", utils.NewGroupAddressVariant(gad))
-
-		app.NewStateKey[string]("last-group").Acquire(ctx).Set(gad.Relay, gad.ID)
-		for _, g := range groups {
-			if g.gad.Equals(gad) {
-				continue
-			}
-			g.unselect()
-		}
 	}
 
 	go func() {

@@ -125,7 +125,12 @@ func (w *Window) initActions() {
 		// "set-idle":       func() { w.setStatus(discord.IdleStatus) },
 		// "set-dnd":        func() { w.setStatus(discord.DoNotDisturbStatus) },
 		// "set-invisible":  func() { w.setStatus(discord.InvisibleStatus) },
-		"reset-view":     func() { w.useChatPage((*ChatPage).ResetView) },
+		"reset-view": func() {
+			w.useChatPage(
+				func(cp *ChatPage) {
+					cp.chatView.switchToGroup(nip29.GroupAddress{})
+				})
+		},
 		"quick-switcher": func() { w.useChatPage((*ChatPage).OpenQuickSwitcher) },
 	})
 
@@ -138,14 +143,19 @@ func (w *Window) initActions() {
 				if err != nil {
 					panic(fmt.Errorf("unexpectedly failed to parse gad '%s' %w", gadstr, err))
 				}
-				w.useChatPage(func(p *ChatPage) { p.OpenGroup(gad) })
+				w.useChatPage(func(p *ChatPage) {
+					p.chatView.switchToGroup(gad)
+				})
 			},
 		},
 		"open-relay": {
 			ArgType: utils.RelayURLVariant,
 			Func: func(variant *glib.Variant) {
 				url := string(variant.String())
-				w.useChatPage(func(p *ChatPage) { p.OpenRelay(url) })
+				w.useChatPage(func(p *ChatPage) {
+					p.Sidebar.openRelay(url)
+					p.chatView.switchToGroup(nip29.GroupAddress{})
+				})
 			},
 		},
 	})
@@ -157,7 +167,7 @@ func (w *Window) initActions() {
 
 func (w *Window) SwitchToChatPage() {
 	w.Stack.SetVisibleChild(w.Chat)
-	w.Chat.SwitchToMessages()
+	w.Chat.chatView.switchToGroup(nip29.GroupAddress{})
 	w.SetTitle("")
 }
 
