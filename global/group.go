@@ -128,14 +128,14 @@ func JoinGroup(ctx context.Context, gad nip29.GroupAddress) {
 	if found == nil {
 		// this is new, add
 		me.lastList.Tags = append(me.lastList.Tags, newTag)
-		for _, url := range sys.FetchOutboxRelays(ctx, me.PubKey) {
-			relay, _ := sys.Pool.EnsureRelay(url)
+	}
+	for _, url := range sys.FetchOutboxRelays(ctx, me.PubKey) {
+		relay, _ := sys.Pool.EnsureRelay(url)
 
-			if err := sys.Signer.SignEvent(me.lastList); err != nil {
-				panic(err)
-			}
-			relay.Publish(ctx, *me.lastList)
+		if err := sys.Signer.SignEvent(me.lastList); err != nil {
+			panic(err)
 		}
+		relay.Publish(ctx, *me.lastList)
 	}
 }
 
