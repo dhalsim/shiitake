@@ -7,17 +7,14 @@ import (
 
 	"github.com/diamondburned/adaptive"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotkit/app"
 	"github.com/diamondburned/gotkit/app/locale"
 	"github.com/diamondburned/gotkit/app/prefs"
 	"github.com/diamondburned/gotkit/components/logui"
 	"github.com/diamondburned/gotkit/components/prefui"
-	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 
 	_ "fiatjaf.com/shiitake/icons"
-	"fiatjaf.com/shiitake/utils"
 	"fiatjaf.com/shiitake/window"
 	"fiatjaf.com/shiitake/window/about"
 	_ "github.com/diamondburned/gotkit/gtkutil/aggressivegc"
@@ -53,53 +50,41 @@ var _ = cssutil.WriteCSS(`
 	}
 `)
 
+var (
+	win         *window.Window
+	application *app.Application
+)
+
 func main() {
-	m := manager{}
-	m.app = app.New(context.Background(), "com.fiatjaf.shiitake", "Shiitake")
-	m.app.AddJSONActions(map[string]interface{}{
-		"app.preferences": func() { prefui.ShowDialog(m.win.Context()) },
-		"app.about":       func() { about.New(m.win.Context()).Present() },
-		"app.logs":        func() { logui.ShowDefaultViewer(m.win.Context()) },
-		"app.quit":        func() { m.app.Quit() },
+	application = app.New(context.Background(), "com.fiatjaf.shiitake", "Shiitake")
+
+	application.AddJSONActions(map[string]interface{}{
+		"application.preferences": func() { prefui.ShowDialog(win.Context()) },
+		"application.about":       func() { about.New(win.Context()).Present() },
+		"application.logs":        func() { logui.ShowDefaultViewer(win.Context()) },
+		"application.quit":        func() { application.Quit() },
 	})
-	m.app.AddActionCallbacks(map[string]gtkutil.ActionCallback{
-		"app.open-group": m.forwardSignalToWindow("open-group", utils.GroupAddressVariant),
-		"app.open-relay": m.forwardSignalToWindow("open-relay", utils.RelayURLVariant),
+	application.AddActionShortcuts(map[string]string{
+		"<Ctrl>Q": "application.quit",
 	})
-	m.app.AddActionShortcuts(map[string]string{
-		"<Ctrl>Q": "app.quit",
-	})
-	m.app.ConnectActivate(func() { m.activate(m.app.Context()) })
-	m.app.RunMain()
-}
+	application.ConnectActivate(func() {
+		ctx := application.Context()
+		adw.Init()
+		adaptive.Init()
 
-type manager struct {
-	app *app.Application
-	win *window.Window
-}
-
-func (m *manager) forwardSignalToWindow(name string, t *glib.VariantType) gtkutil.ActionCallback {
-	return gtkutil.ActionCallback{
-		ArgType: t,
-		Func:    func(args *glib.Variant) { m.win.ActivateAction(name, args) },
-	}
-}
-
-func (m *manager) activate(ctx context.Context) {
-	adw.Init()
-	adaptive.Init()
-
-	if m.win != nil {
-		m.win.Present()
-		return
-	}
-
-	m.win = window.NewWindow(ctx)
-	m.win.Show()
-
-	prefs.AsyncLoadSaved(ctx, func(err error) {
-		if err != nil {
-			app.Error(ctx, err)
+		if win != nil {
+			win.Present()
+			return
 		}
+
+		win = window.NewWindow(ctx)
+		win.Show()
+
+		prefs.AsyncLoadSaved(ctx, func(err error) {
+			if err != nil {
+				app.Error(ctx, err)
+			}
+		})
 	})
+	application.RunMain()
 }
