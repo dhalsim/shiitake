@@ -2,13 +2,9 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
-	"fiatjaf.com/shiitake/components/quickswitcher"
-	"fiatjaf.com/shiitake/utils"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/app"
 	"github.com/diamondburned/gotkit/app/prefs"
@@ -130,34 +126,36 @@ func (w *Window) initActions() {
 		"quick-switcher": func() { w.useChatPage((*ChatPage).OpenQuickSwitcher) },
 	})
 
-	gtkutil.AddActionCallbacks(w, map[string]gtkutil.ActionCallback{
-		"open-group": {
-			ArgType: utils.GroupAddressVariant,
-			Func: func(variant *glib.Variant) {
-				gadstr := string(variant.String())
-				gad, err := nip29.ParseGroupAddress(gadstr)
-				if err != nil {
-					panic(fmt.Errorf("unexpectedly failed to parse gad '%s' %w", gadstr, err))
-				}
-				w.useChatPage(func(p *ChatPage) {
-					p.chatView.switchToGroup(gad)
-				})
-			},
-		},
-		"open-relay": {
-			ArgType: utils.RelayURLVariant,
-			Func: func(variant *glib.Variant) {
-				url := string(variant.String())
-				w.useChatPage(func(p *ChatPage) {
-					p.Sidebar.openRelay(url)
-					p.chatView.switchToGroup(nip29.GroupAddress{})
-				})
-			},
-		},
-	})
-
 	gtkutil.AddActionShortcuts(w, map[string]string{
 		"<Ctrl>K": "win.quick-switcher",
+	})
+}
+
+func (w *Window) OpenGroup(gad nip29.GroupAddress) {
+	w.useChatPage(func(p *ChatPage) {
+		eachChild(p.Sidebar.Groups.List, func(lbr *gtk.ListBoxRow) bool {
+			if lbr.Name() == gad.String() {
+				p.Sidebar.Groups.List.SelectRow(lbr)
+				return true
+			}
+			return false
+		})
+		p.chatView.switchToGroup(gad)
+	})
+}
+
+func (w *Window) OpenRelay(url string) {
+	w.useChatPage(func(p *ChatPage) {
+		eachChild(p.Sidebar.Relays.Widget, func(lbr *gtk.ListBoxRow) bool {
+			if lbr.Name() == url {
+				p.Sidebar.Relays.Widget.SelectRow(lbr)
+				return true
+			}
+			return false
+		})
+
+		p.Sidebar.openRelay(url)
+		p.chatView.switchToGroup(nip29.GroupAddress{})
 	})
 }
 
@@ -179,7 +177,7 @@ func (w *Window) SetTitle(title string) {
 
 func (w *Window) showQuickSwitcher() {
 	w.useChatPage(func(*ChatPage) {
-		quickswitcher.ShowDialog(w.ctx)
+		ShowQuickSwitcherDialog(w.ctx)
 	})
 }
 

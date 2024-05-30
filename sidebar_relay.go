@@ -7,7 +7,6 @@ import (
 	"fiatjaf.com/shiitake/components/hoverpopover"
 	"fiatjaf.com/shiitake/components/sidebutton"
 	"fiatjaf.com/shiitake/global"
-	"fiatjaf.com/shiitake/utils"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 )
@@ -36,8 +35,7 @@ func NewRelay(ctx context.Context, relay *global.Relay) *Relay {
 	g.name = relay.URL
 
 	g.Button = sidebutton.NewButton(ctx, func() {
-		parent := gtk.BaseWidget(g.Button.Parent())
-		parent.ActivateAction("win.open-relay", utils.NewRelayURLVariant(relay.URL))
+		win.OpenRelay(relay.URL)
 	})
 
 	hoverpopover.NewMarkupHoverPopover(g.Button, func(w *hoverpopover.MarkupHoverPopoverWidget) bool {

@@ -12,3 +12,16 @@ func eachChild(list *gtk.ListBox, fn func(*gtk.ListBoxRow) bool) {
 		row, _ = row.PrevSibling().(*gtk.ListBoxRow)
 	}
 }
+
+func getChild(list *gtk.ListBox, fn func(*gtk.ListBoxRow) bool) *gtk.ListBoxRow {
+	var row *gtk.ListBoxRow
+	eachChild(list, func(lbr *gtk.ListBoxRow) bool {
+		if fn(lbr) {
+			// found it
+			row = lbr
+			return true
+		}
+		return false
+	})
+	return row
+}

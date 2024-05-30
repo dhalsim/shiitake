@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"fiatjaf.com/shiitake/global"
-	"fiatjaf.com/shiitake/utils"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -106,8 +105,7 @@ func NewGroupsView(ctx context.Context, relayURL string) *GroupsView {
 		if gad.Equals(current) {
 			return
 		}
-		parent := gtk.BaseWidget(v.Parent())
-		parent.ActivateAction("win.open-group", utils.NewGroupAddressVariant(gad))
+		win.OpenGroup(gad)
 	})
 
 	go func() {

@@ -33,8 +33,10 @@ type Sidebar struct {
 
 	Left   *gtk.Box
 	AddNew *AddRelayButton
-	Relays *RelaysView
 	Right  *gtk.Stack
+
+	Relays *RelaysView
+	Groups *GroupsView
 
 	placeholder gtk.Widgetter
 
@@ -65,7 +67,7 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	// leftBox holds just the new button and the relay view, as opposed to s.Left
 	// which holds the scrolled window and the window controls.
 	leftBox := gtk.NewBox(gtk.OrientationVertical, 0)
-	leftBox.Append(s.Relays)
+	leftBox.Append(s.Relays.Widget)
 	leftBox.Append(separator)
 	leftBox.Append(s.AddNew)
 
@@ -129,15 +131,15 @@ func (s *Sidebar) openRelay(relayURL string) {
 		return
 	}
 
-	chs := NewGroupsView(s.ctx, relayURL)
+	s.Groups = NewGroupsView(s.ctx, relayURL)
 
-	s.current = chs
+	s.current = s.Groups
 
-	chs.SetVExpand(true)
-	s.current = chs
+	s.Groups.SetVExpand(true)
+	s.current = s.Groups
 
-	s.Right.AddChild(chs)
-	s.Right.SetVisibleChild(chs)
+	s.Right.AddChild(s.Groups)
+	s.Right.SetVisibleChild(s.Groups)
 
-	chs.List.GrabFocus()
+	s.Groups.List.GrabFocus()
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"fiatjaf.com/shiitake/components/backbutton"
-	"fiatjaf.com/shiitake/components/quickswitcher"
 	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/adaptive"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -28,7 +27,7 @@ type ChatPage struct {
 	RightTitle  *gtk.Label
 
 	chatView      *ChatView
-	quickswitcher *quickswitcher.Dialog
+	quickswitcher *QuickSwitcherDialog
 
 	// lastButtons keeps tracks of the header buttons of the previous view.
 	// On view change, these buttons will be removed.
@@ -64,7 +63,7 @@ func NewChatPage(ctx context.Context, w *Window) *ChatPage {
 		ctx: ctx,
 	}
 
-	p.quickswitcher = quickswitcher.NewDialog(ctx)
+	p.quickswitcher = NewQuickSwitcherDialog(ctx)
 	p.quickswitcher.SetHideOnClose(true) // so we can reopen it later
 
 	p.chatView = NewChatView(ctx)
