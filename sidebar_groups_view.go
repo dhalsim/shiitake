@@ -97,7 +97,7 @@ func NewGroupsView(ctx context.Context, relayURL string) *GroupsView {
 	v.List = gtk.NewListBox()
 	v.List.SetSelectionMode(gtk.SelectionSingle)
 	v.List.SetSizeRequest(groupsWidth, -1)
-	// v.List.AddCSSClass("groups-viewtree")
+	v.List.AddCSSClass("groups-viewtree")
 	v.List.SetHExpand(true)
 	v.List.SetVExpand(true)
 	v.List.ConnectRowSelected(func(row *gtk.ListBoxRow) {

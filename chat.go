@@ -10,7 +10,6 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
 	"github.com/diamondburned/gotkit/app"
-	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/nbd-wtf/go-nostr/nip29"
 )
@@ -184,7 +183,7 @@ func (p *ChatPage) updateWindowTitle() {
 type ChatView struct {
 	*gtk.Stack
 	placeholder gtk.Widgetter
-	messageView *MessagesView // nilable
+	messageView *MessagesView
 	ctx         context.Context
 }
 
@@ -199,14 +198,18 @@ func NewChatView(ctx context.Context) *ChatView {
 	t.Stack.AddChild(t.placeholder)
 	t.Stack.SetVisibleChild(t.placeholder)
 
+	t.messageView = NewMessagesView(ctx)
+	t.Stack.AddChild(t.messageView)
+	t.Stack.SetVisibleChild(t.messageView)
+
 	return &t
 }
 
 func (t *ChatView) Current() nip29.GroupAddress {
-	if t.messageView == nil {
+	if t.messageView.currentGroup == nil {
 		return nip29.GroupAddress{}
 	}
-	return t.messageView.Group.Address
+	return t.messageView.currentGroup.Address
 }
 
 func (t *ChatView) switchToGroup(gad nip29.GroupAddress) bool {
@@ -214,25 +217,9 @@ func (t *ChatView) switchToGroup(gad nip29.GroupAddress) bool {
 		return false
 	}
 
-	old := t.messageView
+	t.messageView.switchTo(gad)
 
-	t.messageView = NewMessagesView(t.ctx, gad)
-
-	t.Stack.AddChild(t.messageView)
-	t.Stack.SetVisibleChild(t.messageView)
-
-	viewWidget := gtk.BaseWidget(t.messageView)
-	viewWidget.GrabFocus()
-
-	if old != nil {
-		gtkutil.NotifyProperty(t.Stack, "transition-running", func() bool {
-			if !t.Stack.TransitionRunning() {
-				t.Stack.Remove(old)
-				return true
-			}
-			return false
-		})
-	}
+	gtk.BaseWidget(t.messageView).GrabFocus()
 
 	return true
 }

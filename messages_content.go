@@ -68,7 +68,7 @@ func NewContent(ctx context.Context, event *nostr.Event, v *MessagesView) *Conte
 		ctx:       ctx,
 		view:      v,
 		child:     make([]gtk.Widgetter, 0, 2),
-		Group:     v.Group.Address,
+		Group:     v.currentGroup.Address,
 		MessageID: event.ID,
 	}
 	c.Box = gtk.NewBox(gtk.OrientationVertical, 0)
@@ -264,6 +264,7 @@ func (c *Content) newReplyBox(m *nostr.Event) gtk.Widgetter {
 	// 		}
 
 	// 		if !c.ActivateAction("messages.scroll-to", gtkcord.NewMessageIDVariant(m.ID)) {
+	// TODO: call function on parent directly instead of emitting this event thing
 	// 			slog.Error(
 	// 				"Failed to activate messages.scroll-to",
 	// 				"id", m.ID)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"slices"
+	"sync"
 
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip29"
@@ -22,7 +23,12 @@ type Group struct {
 	EOSE         chan struct{}
 }
 
+var getGroupMutex sync.Mutex
+
 func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
+	getGroupMutex.Lock()
+	defer getGroupMutex.Unlock()
+
 	if group, ok := groups.Load(gad.String()); ok {
 		return group
 	}

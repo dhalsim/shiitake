@@ -4,11 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"log/slog"
 
 	"fiatjaf.com/shiitake/components/composer"
 	"fiatjaf.com/shiitake/global"
-	"fiatjaf.com/shiitake/utils"
 	"github.com/diamondburned/adaptive"
 	"github.com/diamondburned/arikawa/v3/discord"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -21,6 +19,7 @@ import (
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip29"
+	"golang.org/x/exp/slog"
 )
 
 type messageRow struct {
@@ -37,11 +36,14 @@ type MessagesView struct {
 	ToastOverlay *adw.ToastOverlay
 	LoadMore     *gtk.Button
 	Scroll       *autoscroll.Window
-	List         *gtk.ListBox
 	Composer     *composer.View
 
-	msgs  map[string]messageRow
-	Group global.Group
+	listStack *gtk.Stack
+
+	currentGroup *global.Group
+	switchTo     func(gad nip29.GroupAddress)
+
+	msgs map[string]messageRow
 
 	state struct {
 		row      *gtk.ListBoxRow
@@ -119,14 +121,14 @@ func applyViewClamp(clamp *adw.Clamp) {
 	clamp.SetTighteningThreshold(int(float64(messagesWidth.Value()) * 0.9))
 }
 
-// NewView creates a new MessagesView widget associated with the given channel ID. All
-// methods call on it will act on that channel.
-func NewMessagesView(ctx context.Context, gad nip29.GroupAddress) *MessagesView {
+func NewMessagesView(ctx context.Context) *MessagesView {
 	v := &MessagesView{
 		msgs: make(map[string]messageRow),
-		gad:  gad,
 		ctx:  ctx,
 	}
+
+	v.listStack = gtk.NewStack()
+	v.listStack.SetTransitionType(gtk.StackTransitionTypeCrossfade)
 
 	v.LoadMore = gtk.NewButton()
 	v.LoadMore.AddCSSClass("message-show-more")
@@ -135,15 +137,11 @@ func NewMessagesView(ctx context.Context, gad nip29.GroupAddress) *MessagesView 
 	v.LoadMore.SetSensitive(true)
 	v.LoadMore.ConnectClicked(v.loadMore)
 
-	v.List = gtk.NewListBox()
-	v.List.AddCSSClass("message-list")
-	v.List.SetSelectionMode(gtk.SelectionNone)
-
 	clampBox := gtk.NewBox(gtk.OrientationVertical, 0)
 	clampBox.SetHExpand(true)
 	clampBox.SetVExpand(true)
 	clampBox.Append(v.LoadMore)
-	clampBox.Append(v.List)
+	clampBox.Append(v.listStack)
 
 	// Require 2 clamps, one inside the scroll view and another outside the
 	// scroll view. This way, the scrollbars will be on the far right rather
@@ -182,10 +180,8 @@ func NewMessagesView(ctx context.Context, gad nip29.GroupAddress) *MessagesView 
 
 	vp := v.Scroll.Viewport()
 	vp.SetScrollToFocus(true)
-	v.List.SetAdjustment(v.Scroll.VAdjustment())
 
-	v.Composer = composer.NewView(ctx, v, gad)
-	gtkutil.ForwardTyping(v.List, v.Composer.Input)
+	v.Composer = composer.NewView(ctx, v, nip29.GroupAddress{})
 
 	composerOverlay := gtk.NewOverlay()
 	composerOverlay.SetChild(v.Composer)
@@ -228,63 +224,83 @@ func NewMessagesView(ctx context.Context, gad nip29.GroupAddress) *MessagesView 
 		windowSignal = 0
 	})
 
-	group := global.GetGroup(ctx, gad)
+	var current nip29.GroupAddress
+	v.switchTo = func(gad nip29.GroupAddress) {
+		if current.Equals(gad) {
+			return
+		}
 
-	gtkutil.BindActionCallbackMap(v.List, map[string]gtkutil.ActionCallback{
-		"messages.scroll-to": {
-			ArgType: utils.EventIDVariant,
-			Func: func(args *glib.Variant) {
-				id := string(args.String())
+		gtkutil.NotifyProperty(v.Parent(), "transition-running", func() bool {
+			if !v.Stack.TransitionRunning() {
+				return true
+			}
+			return false
+		})
 
-				msg, ok := v.msgs[id]
-				if !ok {
-					slog.Warn(
-						"tried to scroll to non-existent message",
-						"id", id)
-					return
+		group := global.GetGroup(ctx, gad)
+		v.currentGroup = group
+
+		// get existing list
+		listI := v.listStack.ChildByName(gad.String())
+		var list *gtk.ListBox
+		if listI != nil {
+			list, _ = listI.(*gtk.ListBox)
+		} else {
+			// create list if we haven't done that before
+			// TODO: we need a context here or something so the subscription is canceled if this group is removed
+			list = gtk.NewListBox()
+			list.AddCSSClass("message-list")
+			list.SetSelectionMode(gtk.SelectionNone)
+			list.SetAdjustment(v.Scroll.VAdjustment())
+
+			// insert previously loaded messages
+			gtkutil.Async(v.ctx, func() func() {
+				<-group.EOSE
+
+				for _, evt := range group.Messages {
+					v.upsertMessage(list, evt, -1)
 				}
 
-				if !msg.ListBoxRow.GrabFocus() {
-					slog.Warn(
-						"failed to grab focus of message",
-						"id", id)
+				return func() {
+					v.LoadablePage.SetChild(v.focused)
+					v.Scroll.ScrollToBottom()
 				}
-			},
-		},
-	})
+			})
+
+			// listen for new messages
+			go func() {
+				for evt := range group.NewMessage {
+					glib.IdleAdd(func() {
+						v.upsertMessage(list, evt, -1)
+					})
+				}
+			}()
+
+			// insert in the stack
+			v.listStack.AddNamed(list, gad.String())
+		}
+
+		// make it visible
+		v.listStack.SetVisibleChild(list)
+
+		// recreate composer and forward typing
+		v.Composer = composer.NewView(ctx, v, gad)
+		composerOverlay.SetChild(v.Composer)
+		gtkutil.ForwardTyping(list, v.Composer.Input)
+	}
 
 	v.LoadablePage.SetLoading()
 
-	// remove all previous messages
-	for k, msg := range v.msgs {
-		v.List.Remove(msg)
-		delete(v.msgs, k)
-	}
-
-	// insert previously loaded messages
-	gtkutil.Async(v.ctx, func() func() {
-		<-group.EOSE
-
-		for _, evt := range group.Messages {
-			v.upsertMessage(evt, -1)
-		}
-
-		return func() {
-			v.LoadablePage.SetChild(v.focused)
-			v.Scroll.ScrollToBottom()
-		}
-	})
-
-	go func() {
-		for evt := range group.NewMessage {
-			glib.IdleAdd(func() {
-				v.upsertMessage(evt, -1)
-			})
-		}
-	}()
-
 	messagesViewCSS(v)
 	return v
+}
+
+func (v *MessagesView) visibleList() *gtk.ListBox {
+	listI := v.listStack.VisibleChild()
+	if listI == nil {
+		return nil
+	}
+	return listI.(*gtk.ListBox)
 }
 
 // HeaderButtons returns the header buttons widget for the message view.
@@ -364,12 +380,20 @@ func (v *MessagesView) HeaderButtons() []gtk.Widgetter {
 }
 
 func (v *MessagesView) loadMore() {
-	firstRow, ok := v.firstMessage()
-	if !ok {
+	list := v.visibleList()
+	if list == nil {
 		return
 	}
 
-	firstID := firstRow.event.ID
+	firstRow, _ := list.FirstChild().(*gtk.ListBoxRow)
+	if firstRow == nil {
+		return
+	}
+	msg, ok := v.msgs[firstRow.Name()]
+	if !ok {
+		return
+	}
+	firstID := msg.event.ID
 
 	log.Println("loading more messages for", v.gad, firstID)
 
@@ -469,7 +493,7 @@ func (v *MessagesView) loadMore() {
 	})
 }
 
-func (v *MessagesView) upsertMessage(event *nostr.Event, pos int) {
+func (v *MessagesView) upsertMessage(list *gtk.ListBox, event *nostr.Event, pos int) {
 	id := event.ID
 	if _, ok := v.msgs[id]; ok {
 		return
@@ -488,12 +512,12 @@ func (v *MessagesView) upsertMessage(event *nostr.Event, pos int) {
 
 	v.msgs[id] = msgRow
 
-	v.List.Insert(row, pos)
-	v.List.Display().Flush()
-	v.List.SetFocusChild(row)
+	list.Insert(row, pos)
+	list.Display().Flush()
+	list.SetFocusChild(row)
 }
 
-func (v *MessagesView) deleteMessage(id string) {
+func (v *MessagesView) deleteMessage(list *gtk.ListBox, id string) {
 	msg, ok := v.msgs[id]
 	if !ok {
 		return
@@ -504,12 +528,12 @@ func (v *MessagesView) deleteMessage(id string) {
 		return
 	}
 
-	v.List.Remove(msg)
+	list.Remove(msg)
 	delete(v.msgs, id)
 }
 
-func (v *MessagesView) lastMessage() (messageRow, bool) {
-	row, _ := v.List.LastChild().(*gtk.ListBoxRow)
+func (v *MessagesView) lastMessage(list *gtk.ListBox) (messageRow, bool) {
+	row, _ := list.LastChild().(*gtk.ListBoxRow)
 	if row != nil {
 		msg, ok := v.msgs[row.Name()]
 		return msg, ok
@@ -520,59 +544,31 @@ func (v *MessagesView) lastMessage() (messageRow, bool) {
 
 func (v *MessagesView) lastUserMessage() *cozyMessage {
 	me := global.GetMe(v.ctx)
+	var res *cozyMessage
 
-	var msg *cozyMessage
-	v.eachMessage(func(row messageRow) bool {
-		if row.event.PubKey != me.PubKey {
-			// keep looping
-			return false
+	list := v.visibleList()
+	if list == nil {
+		return nil
+	}
+
+	eachChild(list, func(lbr *gtk.ListBoxRow) bool {
+		if msg, ok := v.msgs[lbr.Name()]; ok && msg.event.PubKey == me.PubKey {
+			res = msg.message
+			return true
 		}
-		msg = row.message
-		return true
+		return false
 	})
 
-	return msg
-}
-
-func (v *MessagesView) firstMessage() (messageRow, bool) {
-	row, _ := v.List.FirstChild().(*gtk.ListBoxRow)
-	if row != nil {
-		msg, ok := v.msgs[row.Name()]
-		return msg, ok
-	}
-
-	return messageRow{}, false
-}
-
-// eachMessage iterates over each message in the view, starting from the bottom.
-// If the callback returns true, the loop will break.
-func (v *MessagesView) eachMessage(f func(messageRow) bool) {
-	row, _ := v.List.LastChild().(*gtk.ListBoxRow)
-	for row != nil {
-		key := row.Name()
-
-		m, ok := v.msgs[key]
-		if ok {
-			if f(m) {
-				break
-			}
-		}
-
-		// This repeats until index is -1, at which the loop will break.
-		row, _ = row.PrevSibling().(*gtk.ListBoxRow)
-	}
+	return res
 }
 
 func (v *MessagesView) updateMember(pubkey string) {
-	v.eachMessage(func(row messageRow) bool {
-		if row.event.PubKey != pubkey {
-			// keep looping
-			return false
+	for _, msg := range v.msgs {
+		if msg.event.PubKey != pubkey {
+			continue
 		}
-
-		row.message.UpdateMember(pubkey)
-		return false // keep looping
-	})
+		msg.message.UpdateMember(pubkey)
+	}
 }
 
 func (v *MessagesView) updateMessageReactions(id string) {
@@ -702,9 +698,19 @@ func (v *MessagesView) SendMessage(msg composer.SendingMessage) {
 
 // ScrollToMessage scrolls to the message with the given ID.
 func (v *MessagesView) ScrollToMessage(id string) {
-	if !v.List.ActivateAction("messages.scroll-to", glib.NewVariantString(id)) {
-		slog.Error(
-			"cannot emit messages.scroll-to signal",
+	msg, ok := v.msgs[id]
+	if !ok {
+		slog.Warn(
+			"tried to scroll to non-existent message",
+			"id", id)
+		return
+	}
+
+	v.listStack.SetVisibleChildName(msg.message.Content.view.gad.String())
+
+	if !msg.ListBoxRow.GrabFocus() {
+		slog.Warn(
+			"failed to grab focus of message",
 			"id", id)
 	}
 }
@@ -810,17 +816,6 @@ func (v *MessagesView) delete(id string) {
 		// Visual indicator.
 		msg.SetSensitive(false)
 	}
-
-	// state := gtkcord.FromContext(v.ctx)
-	// go func() {
-	// 	// This is a fairly important operation, so ensure it goes through even
-	// 	// if the user switches away.
-	// 	state = state.WithContext(context.Background())
-
-	// 	if err := state.DeleteMessage(v.chID, id, ""); err != nil {
-	// 		app.Error(v.ctx, errors.Wrap(err, "cannot delete message"))
-	// 	}
-	// }()
 }
 
 func (v *MessagesView) onScrollBottomed() {
@@ -833,7 +828,8 @@ func (v *MessagesView) onScrollBottomed() {
 	if len(v.msgs) > idealMaxCount {
 		var count int
 
-		row, _ := v.List.LastChild().(*gtk.ListBoxRow)
+		list := v.listStack.VisibleChild().(*gtk.ListBox)
+		row, _ := list.LastChild().(*gtk.ListBoxRow)
 		for row != nil {
 			next, _ := row.PrevSibling().(*gtk.ListBoxRow)
 
@@ -841,7 +837,7 @@ func (v *MessagesView) onScrollBottomed() {
 				count++
 			} else {
 				// Start purging messages.
-				v.List.Remove(row)
+				list.Remove(row)
 				delete(v.msgs, row.Name())
 			}
 

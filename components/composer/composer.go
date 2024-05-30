@@ -103,6 +103,8 @@ type View struct {
 
 	chooser *gtk.FileChooserNative
 
+	SwitchTo func(nip29.GroupAddress)
+
 	state struct {
 		id       string
 		replying replyingState
@@ -148,6 +150,9 @@ func NewView(ctx context.Context, ctrl Controller, gad nip29.GroupAddress) *View
 	}
 
 	v.Input = NewInput(ctx, inputControllerView{v}, gad)
+	v.SwitchTo = func(gad nip29.GroupAddress) {
+		v.gad = gad
+	}
 
 	scroll := gtk.NewScrolledWindow()
 	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)

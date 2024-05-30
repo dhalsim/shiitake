@@ -81,7 +81,6 @@ var inputStateKey = app.NewStateKey[string]("input-state")
 
 var inputStateMemory sync.Map // map[string]string
 
-// NewInput creates a new Input widget.
 func NewInput(ctx context.Context, ctrl InputController, gad nip29.GroupAddress) *Input {
 	i := Input{
 		ctx:  ctx,

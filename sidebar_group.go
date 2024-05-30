@@ -84,10 +84,7 @@ var groupCSS = cssutil.Applier("group-group", `
 	}
 `)
 
-func NewGroup(
-	ctx context.Context,
-	group *global.Group,
-) *Group {
+func NewGroup(ctx context.Context, group *global.Group) *Group {
 	g := &Group{
 		ctx: ctx,
 		gad: group.Address,

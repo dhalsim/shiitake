@@ -135,7 +135,9 @@ func (w *Window) OpenGroup(gad nip29.GroupAddress) {
 	w.useChatPage(func(p *ChatPage) {
 		eachChild(p.Sidebar.CurrentGroupsView.List, func(lbr *gtk.ListBoxRow) bool {
 			if lbr.Name() == gad.String() {
-				p.Sidebar.CurrentGroupsView.List.SelectRow(lbr)
+				if p.Sidebar.CurrentGroupsView.List.SelectedRow() != lbr {
+					p.Sidebar.CurrentGroupsView.List.SelectRow(lbr)
+				}
 				return true
 			}
 			return false
@@ -148,7 +150,9 @@ func (w *Window) OpenRelay(url string) {
 	w.useChatPage(func(p *ChatPage) {
 		eachChild(p.Sidebar.RelaysView.Widget, func(lbr *gtk.ListBoxRow) bool {
 			if lbr.Name() == url {
-				p.Sidebar.RelaysView.Widget.SelectRow(lbr)
+				if p.Sidebar.RelaysView.Widget.SelectedRow() != lbr {
+					p.Sidebar.RelaysView.Widget.SelectRow(lbr)
+				}
 				return true
 			}
 			return false
