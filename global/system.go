@@ -28,11 +28,13 @@ func Init(ctx context.Context, keyOrBunker string, password string) error {
 type Me struct {
 	User
 
-	lastList    *nostr.Event
-	JoinedRelay chan *Relay
-	JoinedGroup chan *Group
-	LeftRelay   chan string
-	LeftGroup   chan nip29.GroupAddress
+	lastList *nostr.Event
+
+	MetadataUpdated chan struct{}
+	JoinedRelay     chan *Relay
+	JoinedGroup     chan *Group
+	LeftRelay       chan string
+	LeftGroup       chan nip29.GroupAddress
 }
 
 type User struct {
@@ -57,15 +59,35 @@ func GetMe(ctx context.Context) *Me {
 	me = &Me{
 		User: GetUser(ctx, pubkey),
 
-		JoinedRelay: make(chan *Relay, 20),
-		JoinedGroup: make(chan *Group, 20),
-		LeftRelay:   make(chan string),
-		LeftGroup:   make(chan nip29.GroupAddress),
+		MetadataUpdated: make(chan struct{}),
+		JoinedRelay:     make(chan *Relay, 20),
+		JoinedGroup:     make(chan *Group, 20),
+		LeftRelay:       make(chan string),
+		LeftGroup:       make(chan nip29.GroupAddress),
 	}
 
-	go func() {
-		bg := context.Background()
+	bg := context.Background()
 
+	go func() {
+		for ie := range sys.Pool.SubMany(bg, sys.MetadataRelays, nostr.Filters{
+			{
+				Kinds:   []int{0},
+				Authors: []string{me.PubKey},
+			},
+		}) {
+			if me.Event != nil && ie.Event.CreatedAt < me.Event.CreatedAt {
+				continue
+			}
+			meta, err := sdk.ParseMetadata(ie.Event)
+			if err != nil {
+				continue
+			}
+			me.User.ProfileMetadata = meta
+			me.MetadataUpdated <- struct{}{}
+		}
+	}()
+
+	go func() {
 		// these are just for continued comparison with new events
 		currentGroups := make([]nip29.GroupAddress, 0, 20)
 

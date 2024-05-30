@@ -129,6 +129,7 @@ func JoinGroup(ctx context.Context, gad nip29.GroupAddress) {
 		// this is new, add
 		me.lastList.Tags = append(me.lastList.Tags, newTag)
 	}
+	me.lastList.CreatedAt = nostr.Now()
 	for _, url := range sys.FetchOutboxRelays(ctx, me.PubKey) {
 		relay, _ := sys.Pool.EnsureRelay(url)
 
@@ -153,6 +154,7 @@ func LeaveGroup(ctx context.Context, gad nip29.GroupAddress) {
 
 	if before != after {
 		// we have removed something, update
+		me.lastList.CreatedAt = nostr.Now()
 		for _, url := range sys.FetchOutboxRelays(ctx, me.PubKey) {
 			relay, _ := sys.Pool.EnsureRelay(url)
 

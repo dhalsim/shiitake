@@ -15,7 +15,6 @@ import (
 )
 
 type userBar struct {
-	// *gtk.ActionBar
 	*gtk.Box
 	avatar *onlineimage.Avatar
 	name   *gtk.Label
@@ -73,48 +72,30 @@ func newUserBar(ctx context.Context, menuActions []gtkutil.PopoverMenuItem) *use
 	anim := b.avatar.EnableAnimation()
 	anim.ConnectMotion(b)
 
-	// vis := gtkutil.WithVisibility(ctx, b)
-	// state := gtkcord.FromContext(ctx)
-	// state.BindHandler(vis,
-	// 	func(ev gateway.Event) {
-	// 		switch ev := ev.(type) {
-	// 		case *gateway.UserUpdateEvent:
-	// 			b.updateUser(&ev.User)
-	// 		case
-	// 			*gateway.PresenceUpdateEvent,
-	// 			*gateway.PresencesReplaceEvent,
-	// 			*gateway.SessionsReplaceEvent,
-	// 			*gateway.UserSettingsUpdateEvent,
-	// 			*gateway.ReadyEvent:
-	// 			b.invalidatePresence()
-	// 		}
-	// 	},
-	// 	(*gateway.UserUpdateEvent)(nil),
-	// 	(*gateway.PresenceUpdateEvent)(nil),
-	// 	(*gateway.PresencesReplaceEvent)(nil),
-	// 	(*gateway.SessionsReplaceEvent)(nil),
-	// 	(*gateway.UserSettingsUpdateEvent)(nil),
-	// 	(*gateway.ReadyEvent)(nil),
-	// )
-
 	me := global.GetMe(ctx)
-	b.updateUser(me)
+	resetMetadata := func() {
+		// if v, _ := strconv.Atoi(me.Discriminator); v != 0 {
+		// 	tag += `<span size="smaller">` + "#" + me.Discriminator + "</span>"
+		// }
+
+		b.avatar.SetInitials(me.ShortName())
+		b.avatar.SetFromURL(me.Picture)
+		b.name.SetMarkup(me.ShortName())
+		b.name.SetTooltipMarkup(me.ShortName())
+	}
+
+	resetMetadata()
+
+	go func() {
+		for range me.MetadataUpdated {
+			resetMetadata()
+		}
+	}()
 
 	return &b
 }
 
 var discriminatorRe = regexp.MustCompile(`#\d{1,4}$`)
-
-func (b *userBar) updateUser(me *global.Me) {
-	// if v, _ := strconv.Atoi(me.Discriminator); v != 0 {
-	// 	tag += `<span size="smaller">` + "#" + me.Discriminator + "</span>"
-	// }
-
-	b.avatar.SetInitials(me.ShortName())
-	b.avatar.SetFromURL(me.Picture)
-	b.name.SetMarkup(me.ShortName())
-	b.name.SetTooltipMarkup(me.ShortName())
-}
 
 // func (b *userBar) updatePresence(presence *discord.Presence) {
 // 	if presence == nil {

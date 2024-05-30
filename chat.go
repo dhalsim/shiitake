@@ -15,16 +15,9 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
-// TODO: refactor this to support TabOverview. We do this by refactoring Sidebar
-// out completely and merging it into ChatPage. We can then get rid of the logic
-// to keep the Sidebar in sync with the ChatPage, since each tab will have its
-// own Sidebar.
-
 type ChatPage struct {
 	*adw.OverlaySplitView
-	Sidebar     *Sidebar
-	RightHeader *adw.HeaderBar
-	RightTitle  *gtk.Label
+	Sidebar *Sidebar
 
 	chatView      *ChatView
 	quickswitcher *QuickSwitcherDialog
@@ -71,11 +64,11 @@ func NewChatPage(ctx context.Context, w *Window) *ChatPage {
 	p.Sidebar = NewSidebar(ctx)
 	p.Sidebar.SetHAlign(gtk.AlignStart)
 
-	p.RightTitle = gtk.NewLabel("")
-	p.RightTitle.AddCSSClass("right-header-label")
-	p.RightTitle.SetXAlign(0)
-	p.RightTitle.SetHExpand(true)
-	p.RightTitle.SetEllipsize(pango.EllipsizeEnd)
+	rightTitle := gtk.NewLabel("")
+	rightTitle.AddCSSClass("right-header-label")
+	rightTitle.SetXAlign(0)
+	rightTitle.SetHExpand(true)
+	rightTitle.SetEllipsize(pango.EllipsizeEnd)
 
 	back := backbutton.New()
 	back.SetTransitionType(gtk.RevealerTransitionTypeSlideRight)
@@ -84,14 +77,14 @@ func NewChatPage(ctx context.Context, w *Window) *ChatPage {
 	joinGroupButton.SetTooltipText("Join Group")
 	joinGroupButton.ConnectClicked(p.AskJoinGroup)
 
-	p.RightHeader = adw.NewHeaderBar()
-	p.RightHeader.AddCSSClass("right-header")
-	p.RightHeader.SetShowEndTitleButtons(true)
-	p.RightHeader.SetShowBackButton(false) // this is useless with OverlaySplitView
-	p.RightHeader.SetShowTitle(false)
-	p.RightHeader.PackStart(back)
-	p.RightHeader.PackStart(p.RightTitle)
-	p.RightHeader.PackEnd(joinGroupButton)
+	rightHeader := adw.NewHeaderBar()
+	rightHeader.AddCSSClass("right-header")
+	rightHeader.SetShowEndTitleButtons(true)
+	rightHeader.SetShowBackButton(false) // this is useless with OverlaySplitView
+	rightHeader.SetShowTitle(false)
+	rightHeader.PackStart(back)
+	rightHeader.PackStart(rightTitle)
+	rightHeader.PackEnd(joinGroupButton)
 
 	p.OverlaySplitView = adw.NewOverlaySplitView()
 	p.OverlaySplitView.SetSidebar(p.Sidebar)
