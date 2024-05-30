@@ -14,9 +14,8 @@ import (
 	"github.com/diamondburned/gotkit/components/prefui"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 
+	"fiatjaf.com/shiitake/about"
 	_ "fiatjaf.com/shiitake/icons"
-	"fiatjaf.com/shiitake/window"
-	"fiatjaf.com/shiitake/window/about"
 	_ "github.com/diamondburned/gotkit/gtkutil/aggressivegc"
 )
 
@@ -51,7 +50,7 @@ var _ = cssutil.WriteCSS(`
 `)
 
 var (
-	win         *window.Window
+	win         *Window
 	application *app.Application
 )
 
@@ -77,7 +76,7 @@ func main() {
 			return
 		}
 
-		win = window.NewWindow(ctx)
+		win = NewWindow(ctx)
 		win.Show()
 
 		prefs.AsyncLoadSaved(ctx, func(err error) {

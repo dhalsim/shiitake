@@ -1,4 +1,4 @@
-package window
+package main
 
 import (
 	"context"

@@ -1,12 +1,12 @@
-package window
+package main
 
 import (
 	"context"
 	"fmt"
 	"sync"
 
+	"fiatjaf.com/shiitake/components/quickswitcher"
 	"fiatjaf.com/shiitake/utils"
-	"fiatjaf.com/shiitake/window/quickswitcher"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"

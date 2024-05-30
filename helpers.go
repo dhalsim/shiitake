@@ -1,4 +1,4 @@
-package window
+package main
 
 import "github.com/diamondburned/gotk4/pkg/gtk/v4"
 

@@ -1,13 +1,13 @@
-package window
+package main
 
 import (
 	"context"
 	"strings"
 
 	"fiatjaf.com/shiitake/components/hoverpopover"
+	"fiatjaf.com/shiitake/components/sidebutton"
 	"fiatjaf.com/shiitake/global"
 	"fiatjaf.com/shiitake/utils"
-	"fiatjaf.com/shiitake/window/sidebutton"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 )

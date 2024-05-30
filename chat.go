@@ -1,11 +1,11 @@
-package window
+package main
 
 import (
 	"context"
 
+	"fiatjaf.com/shiitake/components/backbutton"
+	"fiatjaf.com/shiitake/components/quickswitcher"
 	"fiatjaf.com/shiitake/global"
-	"fiatjaf.com/shiitake/window/backbutton"
-	"fiatjaf.com/shiitake/window/quickswitcher"
 	"github.com/diamondburned/adaptive"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"

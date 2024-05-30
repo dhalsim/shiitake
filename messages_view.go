@@ -1,4 +1,4 @@
-package window
+package main
 
 import (
 	"context"
@@ -6,9 +6,9 @@ import (
 	"log"
 	"log/slog"
 
+	"fiatjaf.com/shiitake/components/composer"
 	"fiatjaf.com/shiitake/global"
 	"fiatjaf.com/shiitake/utils"
-	"fiatjaf.com/shiitake/window/composer"
 	"github.com/diamondburned/adaptive"
 	"github.com/diamondburned/arikawa/v3/discord"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
