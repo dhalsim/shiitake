@@ -58,15 +58,13 @@ type Window struct {
 	win *app.Window
 	ctx context.Context
 
-	Stack   *gtk.Stack
-	Login   *LoginPage
-	Loading *LoadingPage
-	Chat    *ChatPage
+	Stack *gtk.Stack
+	Login *LoginPage
+	Chat  *ChatPage
 
 	readyOnce sync.Once
 }
 
-// NewWindow creates a new Window.
 func NewWindow(ctx context.Context) *Window {
 	appInstance := app.FromContext(ctx)
 
@@ -85,12 +83,10 @@ func NewWindow(ctx context.Context) *Window {
 	w.ctx = ctxt.With(w.ctx, &w)
 
 	w.Login = NewLoginPage(ctx, &w)
-	w.Loading = NewLoadingPage(ctx)
 
 	w.Stack = gtk.NewStack()
 	w.Stack.SetTransitionType(gtk.StackTransitionTypeCrossfade)
 	w.Stack.AddChild(w.Login)
-	w.Stack.AddChild(w.Loading)
 	w.Stack.SetVisibleChild(w.Login)
 	win.SetContent(w.Stack)
 
@@ -174,10 +170,6 @@ func (w *Window) SwitchToChatPage() {
 func (w *Window) SwitchToLoginPage() {
 	w.Stack.SetVisibleChild(w.Login)
 	w.SetTitle("Login")
-}
-
-func (w *Window) SetLoading() {
-	panic("not implemented")
 }
 
 // SetTitle sets the window title.
