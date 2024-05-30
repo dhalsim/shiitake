@@ -253,8 +253,6 @@ func NewMessagesView(ctx context.Context, gad nip29.GroupAddress) *MessagesView 
 		},
 	})
 
-	log.Println("loading message view for", v.gad)
-
 	v.LoadablePage.SetLoading()
 
 	// remove all previous messages

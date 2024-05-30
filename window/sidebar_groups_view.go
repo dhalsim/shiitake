@@ -15,7 +15,7 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
-const groupsWidth = 400
+const groupsWidth = 300
 
 type GroupsView struct {
 	*adw.ToolbarView
@@ -26,7 +26,7 @@ type GroupsView struct {
 	}
 
 	Scroll *gtk.ScrolledWindow
-	Child  *GroupsListView
+	List   *gtk.ListBox
 
 	ctx gtkutil.Cancellable
 
@@ -93,45 +93,47 @@ func NewGroupsView(ctx context.Context, relayURL string) *GroupsView {
 	// v.Scroll.SetPropagateNaturalWidth(true)
 	// v.Scroll.SetPropagateNaturalHeight(true)
 
-	var headerScrolled bool
+	var current nip29.GroupAddress
 
-	vadj := v.Scroll.VAdjustment()
-	vadj.ConnectValueChanged(func() {
-		if headerScrolled {
-			headerScrolled = false
-			v.RemoveCSSClass("groups-scrolled")
-		}
-	})
-
-	v.Child = NewGroupsListView(ctx)
-
-	groups := make([]*Group, 0, 4)
-	var lastOpen nip29.GroupAddress
-	handleSelect := func(gad nip29.GroupAddress) {
-		if lastOpen.Equals(gad) {
+	v.List = gtk.NewListBox()
+	v.List.SetSelectionMode(gtk.SelectionSingle)
+	v.List.SetSizeRequest(groupsWidth, -1)
+	// v.List.AddCSSClass("groups-viewtree")
+	v.List.SetHExpand(true)
+	v.List.SetVExpand(true)
+	v.List.ConnectRowSelected(func(row *gtk.ListBoxRow) {
+		gad, _ := nip29.ParseGroupAddress(row.Name())
+		if gad.Equals(current) {
 			return
 		}
-
 		parent := gtk.BaseWidget(v.Parent())
 		parent.ActivateAction("win.open-group", utils.NewGroupAddressVariant(gad))
-	}
+	})
 
 	go func() {
 		me := global.GetMe(ctx)
 		for {
 			select {
 			case group := <-me.JoinedGroup:
-				g := NewGroup(ctx, group, handleSelect)
-				groups = append(groups, g)
-				v.Child.append(g)
+				g := NewGroup(ctx, group)
+				lbr := gtk.NewListBoxRow()
+				lbr.SetName(g.gad.String())
+				lbr.SetChild(g)
+				v.List.Append(lbr)
 			case gad := <-me.LeftGroup:
-				v.Child.remove(gad)
+				eachChild(v.List, func(lbr *gtk.ListBoxRow) bool {
+					if lbr.Name() == gad.String() {
+						v.List.Remove(lbr)
+						return true // stop
+					}
+					return false // continue
+				})
 			}
 		}
 	}()
 
-	viewport.SetChild(v.Child)
-	viewport.SetFocusChild(v.Child)
+	viewport.SetChild(v.List)
+	viewport.SetFocusChild(v.List)
 
 	v.ToolbarView.AddTopBar(v.Header)
 	v.ToolbarView.SetContent(v.Scroll)
@@ -144,18 +146,6 @@ func NewGroupsView(ctx context.Context, relayURL string) *GroupsView {
 type GroupsListView struct {
 	*gtk.Box
 	Children []*Group
-}
-
-func NewGroupsListView(ctx context.Context) *GroupsListView {
-	gv := &GroupsListView{}
-
-	gv.Box = gtk.NewBox(gtk.OrientationVertical, 0)
-	gv.Box.SetSizeRequest(groupsWidth, -1)
-	gv.Box.AddCSSClass("groups-viewtree")
-	gv.Box.SetHExpand(true)
-	gv.Box.SetVExpand(true)
-
-	return gv
 }
 
 func (v *GroupsListView) get(needle nip29.GroupAddress) *Group {

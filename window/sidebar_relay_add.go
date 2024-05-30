@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"fiatjaf.com/shiitake/components/form_entry"
-	"fiatjaf.com/shiitake/window/sidebutton"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/app"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
@@ -12,7 +11,6 @@ import (
 
 type AddRelayButton struct {
 	*gtk.Overlay
-	Pill   *sidebutton.Pill
 	Button *gtk.Button
 
 	ctx context.Context
@@ -42,9 +40,6 @@ func NewAddRelayButton(ctx context.Context, done func(string)) *AddRelayButton {
 	b.Button.SetChild(icon)
 	b.Button.SetHasFrame(false)
 	b.Button.ConnectClicked(func() {
-		b.Pill.State = sidebutton.PillActive
-		b.Pill.Invalidate()
-
 		form := form_entry.New("Relay URL or Group Address")
 		form.FocusNextOnActivate()
 
@@ -86,11 +81,8 @@ func NewAddRelayButton(ctx context.Context, done func(string)) *AddRelayButton {
 		parent.ActivateAction("win.add-new", nil)
 	})
 
-	b.Pill = sidebutton.NewPill()
-
 	b.Overlay = gtk.NewOverlay()
 	b.Overlay.SetChild(b.Button)
-	b.Overlay.AddOverlay(b.Pill)
 
 	buttonCSS(b)
 	return &b

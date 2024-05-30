@@ -75,8 +75,7 @@ type Group struct {
 
 	*gtk.Box
 
-	unselect func()
-	gad      nip29.GroupAddress
+	gad nip29.GroupAddress
 }
 
 var groupCSS = cssutil.Applier("group-group", `
@@ -88,7 +87,6 @@ var groupCSS = cssutil.Applier("group-group", `
 func NewGroup(
 	ctx context.Context,
 	group *global.Group,
-	onSelected func(nip29.GroupAddress),
 ) *Group {
 	g := &Group{
 		ctx: ctx,
@@ -104,16 +102,10 @@ func NewGroup(
 	// indicator.SetHAlign(gtk.AlignEnd)
 	// indicator.SetVAlign(gtk.AlignCenter)
 
-	button := gtk.NewToggleButtonWithLabel(group.Name)
-	button.AddCSSClass("group-item")
-	button.SetHExpand(true)
-
-	button.ConnectToggled(func() {
-		onSelected(group.Address)
-	})
-	g.unselect = func() {
-		button.SetActive(false)
-	}
+	label := gtk.NewLabel(group.Name)
+	label.AddCSSClass("group-item")
+	label.SetHAlign(gtk.AlignBaseline)
+	label.SetHExpand(true)
 
 	groupCSS(g)
 
@@ -123,14 +115,15 @@ func NewGroup(
 		g.Box.Append(icon)
 	}
 
-	g.Box.Append(button)
+	g.Box.Append(label)
 	// g.Box.Append(indicator)
 
 	go func() {
 		for {
 			select {
 			case <-group.GroupUpdated:
-				fmt.Println(group.Address, "UPDATED")
+				button := g.Box.LastChild().(*gtk.Label)
+				button.SetText(group.Name)
 			case err := <-group.NewError:
 				fmt.Println(group.Address, "ERROR", err)
 			}

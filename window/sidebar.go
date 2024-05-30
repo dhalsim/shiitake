@@ -139,5 +139,5 @@ func (s *Sidebar) openRelay(relayURL string) {
 	s.Right.AddChild(chs)
 	s.Right.SetVisibleChild(chs)
 
-	chs.Child.GrabFocus()
+	chs.List.GrabFocus()
 }

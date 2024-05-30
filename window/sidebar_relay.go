@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"fiatjaf.com/shiitake/components/hoverpopover"
 	"fiatjaf.com/shiitake/global"
 	"fiatjaf.com/shiitake/utils"
 	"fiatjaf.com/shiitake/window/sidebutton"
@@ -39,13 +40,13 @@ func NewRelay(ctx context.Context, relay *global.Relay) *Relay {
 		parent.ActivateAction("win.open-relay", utils.NewRelayURLVariant(relay.URL))
 	})
 
-	// g.popover = hoverpopover.NewMarkupHoverPopover(g.Button, func(w *hoverpopover.MarkupHoverPopoverWidget) bool {
-	// 	w.AddCSSClass("relay-name-popover")
-	// 	w.SetPosition(gtk.PosRight)
-	// 	w.Label.AddCSSClass("relay-name")
-	// 	w.Label.SetText(g.name)
-	// 	return true
-	// })
+	hoverpopover.NewMarkupHoverPopover(g.Button, func(w *hoverpopover.MarkupHoverPopoverWidget) bool {
+		w.AddCSSClass("relay-name-popover")
+		w.SetPosition(gtk.PosRight)
+		w.Label.AddCSSClass("relay-name")
+		w.Label.SetText(g.name)
+		return true
+	})
 
 	relayCSS(g)
 
