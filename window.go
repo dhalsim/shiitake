@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 
+	"fiatjaf.com/shiitake/about"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/app"
 	"github.com/diamondburned/gotkit/app/prefs"
+	"github.com/diamondburned/gotkit/components/logui"
+	"github.com/diamondburned/gotkit/components/prefui"
 	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/nbd-wtf/go-nostr/nip29"
@@ -92,20 +95,21 @@ func NewWindow(ctx context.Context) *Window {
 	w.Stack.SetVisibleChild(plc)
 
 	gtkutil.AddActions(&w, map[string]func(){
-		// "set-online":     func() { w.setStatus(discord.OnlineStatus) },
-		// "set-idle":       func() { w.setStatus(discord.IdleStatus) },
-		// "set-dnd":        func() { w.setStatus(discord.DoNotDisturbStatus) },
-		// "set-invisible":  func() { w.setStatus(discord.InvisibleStatus) },
 		"reset-view": func() {
 			w.chat.chatView.switchToGroup(nip29.GroupAddress{})
 		},
 		"quick-switcher": func() {
 			w.chat.OpenQuickSwitcher()
 		},
+		"preferences": func() { prefui.ShowDialog(ctx) },
+		"about":       func() { about.New(ctx).Present() },
+		"logs":        func() { logui.ShowDefaultViewer(ctx) },
+		"quit":        func() { application.Quit() },
 	})
 
 	gtkutil.AddActionShortcuts(&w, map[string]string{
 		"<Ctrl>K": "win.quick-switcher",
+		"<Ctrl>Q": "win.quit",
 	})
 
 	// attempt login with stored credentials

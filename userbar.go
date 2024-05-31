@@ -67,10 +67,10 @@ func newUserBar(ctx context.Context) *userBar {
 				gtkutil.MenuItem("In_visible", "win.set-invisible"),
 			}),
 			gtkutil.MenuSeparator(""),
-			gtkutil.MenuItem("Preferences", "win.quick-switcher"),
-			gtkutil.MenuItem("About", "app.about"),
-			gtkutil.MenuItem("Logs", "app.logs"),
-			gtkutil.MenuItem("Quit", "app.quit"),
+			gtkutil.MenuItem("Preferences", "win.preferences"),
+			gtkutil.MenuItem("About", "win.about"),
+			gtkutil.MenuItem("Logs", "win.logs"),
+			gtkutil.MenuItem("Quit", "win.quit"),
 		})
 		p.ConnectHide(func() { b.menu.SetActive(false) })
 		gtkutil.PopupFinally(p)

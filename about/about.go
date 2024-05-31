@@ -18,7 +18,7 @@ func New(ctx context.Context) *adw.AboutWindow {
 	about := adw.NewAboutWindow()
 	about.SetTransientFor(app.GTKWindowFromContext(ctx))
 	about.SetModal(true)
-	about.SetApplicationName("Shiitabke")
+	about.SetApplicationName("Shiitake")
 	about.SetApplicationIcon("logo")
 	about.SetVersion("git") // TODO: version
 	about.SetWebsite("https://fiatjaf.com/shiitake")

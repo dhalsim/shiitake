@@ -10,8 +10,6 @@ import (
 	"github.com/diamondburned/gotkit/app"
 	"github.com/diamondburned/gotkit/app/locale"
 	"github.com/diamondburned/gotkit/app/prefs"
-	"github.com/diamondburned/gotkit/components/logui"
-	"github.com/diamondburned/gotkit/components/prefui"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 
 	"fiatjaf.com/shiitake/about"
@@ -57,15 +55,6 @@ var (
 func main() {
 	application = app.New(context.Background(), "com.fiatjaf.shiitake", "Shiitake")
 
-	application.AddJSONActions(map[string]interface{}{
-		"application.preferences": func() { prefui.ShowDialog(win.ctx) },
-		"application.about":       func() { about.New(win.ctx).Present() },
-		"application.logs":        func() { logui.ShowDefaultViewer(win.ctx) },
-		"application.quit":        func() { application.Quit() },
-	})
-	application.AddActionShortcuts(map[string]string{
-		"<Ctrl>Q": "application.quit",
-	})
 	application.ConnectActivate(func() {
 		ctx := application.Context()
 		adw.Init()
