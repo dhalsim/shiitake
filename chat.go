@@ -34,20 +34,20 @@ type chatPageView struct {
 }
 
 var chatPageCSS = cssutil.Applier("window-chatpage", `
-	.right-header {
-		border-radius: 0;
-		box-shadow: none;
-	}
-	.right-header .adaptive-sidebar-reveal-button {
-		margin: 0;
-	}
-	.right-header .adaptive-sidebar-reveal-button button {
-		margin-left: 8px;
-		margin-right: 4px;
-	}
-	.right-header-label {
-		font-weight: bold;
-	}
+.right-header {
+  border-radius: 0;
+  box-shadow: none;
+}
+.right-header .adaptive-sidebar-reveal-button {
+  margin: 0;
+}
+.right-header .adaptive-sidebar-reveal-button button {
+  margin-left: 8px;
+  margin-right: 4px;
+}
+.right-header-label {
+  font-weight: bold;
+}
 `)
 
 func NewChatPage(ctx context.Context, w *Window) *ChatPage {

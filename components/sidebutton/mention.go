@@ -17,24 +17,24 @@ type MentionsIndicator struct {
 }
 
 var mentionCSS = cssutil.Applier("sidebar-mention", `
-	.sidebar-mention {
-		background: none;
-	}
-	.sidebar-mention.sidebar-mention-active,
-	.sidebar-mention.sidebar-mention-active label {
-		border-radius: 100px;
-		background-color: @theme_bg_color;
-	}
-	.sidebar-mention.sidebar-mention-active label {
-		color: white;
-		background-color: @mentioned;
-		min-width:  12pt;
-		min-height: 12pt;
-		padding: 0;
-		margin: 2px;
-		font-size: 8pt;
-		font-weight: bold;
-	}
+.sidebar-mention {
+  background: none;
+}
+.sidebar-mention.sidebar-mention-active,
+.sidebar-mention.sidebar-mention-active label {
+  border-radius: 100px;
+  background-color: @theme_bg_color;
+}
+.sidebar-mention.sidebar-mention-active label {
+  color: white;
+  background-color: @mentioned;
+  min-width:  12pt;
+  min-height: 12pt;
+  padding: 0;
+  margin: 2px;
+  font-size: 8pt;
+  font-weight: bold;
+}
 `)
 
 // NewMentionsIndicator creates a new mention indicator.

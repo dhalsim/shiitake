@@ -22,10 +22,10 @@ type uploadingLabel struct {
 }
 
 var uploadingLabelCSS = cssutil.Applier("message-uploading-label", `
-	.message-uploading-label {
-		opacity: 0.75;
-		font-size: 0.8em;
-	}
+.message-uploading-label {
+  opacity: 0.75;
+  font-size: 0.8em;
+}
 `)
 
 func newUploadingLabel(ctx context.Context, count int) *uploadingLabel {

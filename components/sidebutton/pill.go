@@ -82,23 +82,23 @@ type Pill struct {
 }
 
 var stripCSS = cssutil.Applier("guilds-pill", `
-	@define-color mentioned rgb(240, 71, 71);
+@define-color mentioned rgb(240, 71, 71);
 
-	.guilds-pill {
-		padding: 0;
-		transition: 100ms linear;
-		border-radius: 0 99px 99px 0;
-		background-color: @theme_fg_color;
-	}
-	.guilds-pill.guilds-pill-active {
-		padding: 20px 3px;
-	}
-	.guilds-pill.guilds-pill-unread:not(.guilds-pill-opened):not(.guilds-pill-active) {
-		padding: 6px 3px;
-	}
-	.guilds-pill.guilds-pill-mentioned {
-		background-color: @mentioned;
-	}
+.guilds-pill {
+  padding: 0;
+  transition: 100ms linear;
+  border-radius: 0 99px 99px 0;
+  background-color: @theme_fg_color;
+}
+.guilds-pill.guilds-pill-active {
+  padding: 20px 3px;
+}
+.guilds-pill.guilds-pill-unread:not(.guilds-pill-opened):not(.guilds-pill-active) {
+  padding: 6px 3px;
+}
+.guilds-pill.guilds-pill-mentioned {
+  background-color: @mentioned;
+}
 `)
 
 func NewPill() *Pill {

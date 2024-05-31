@@ -33,12 +33,12 @@ type uploadFile struct {
 }
 
 var uploadTrayCSS = cssutil.Applier("composer-upload-tray", `
-	.composer-upload-tray {
-	}
-	.composer-upload-item > image {
-		margin-bottom: 1px;
-		margin-right:  6px;
-	}
+.composer-upload-tray {
+}
+.composer-upload-item > image {
+  margin-bottom: 1px;
+  margin-right:  6px;
+}
 `)
 
 // NewUploadTray creates a new UploadTray.

@@ -34,28 +34,28 @@ type GroupsView struct {
 }
 
 var sidebarViewCSS = cssutil.Applier("groups-view", `
-	.groups-viewtree {
-		background: none;
-	}
-	/* GTK is dumb. There's absolutely no way to get a ListItemWidget instance
-	 * to style it, so we'll just unstyle everything and use the child instead.
-	 */
-	.groups-viewtree > row {
-		margin: 0;
-		padding: 0;
-	}
-	.groups-header {
-		padding: 0 {$header_padding};
-		border-radius: 0;
-	}
-	.groups-view-scroll {
-		/* Space out the header, since it's in an overlay. */
-		margin-top: {$header_height};
-	}
-	.groups-name {
-		font-weight: 600;
-		font-size: 1.1em;
-	}
+.groups-viewtree {
+  background: none;
+}
+/* GTK is dumb. There's absolutely no way to get a ListItemWidget instance
+ * to style it, so we'll just unstyle everything and use the child instead.
+ */
+.groups-viewtree > row {
+  margin: 0;
+  padding: 0;
+}
+.groups-header {
+  padding: 0 {$header_padding};
+  border-radius: 0;
+}
+.groups-view-scroll {
+  /* Space out the header, since it's in an overlay. */
+  margin-top: {$header_height};
+}
+.groups-name {
+  font-weight: 600;
+  font-size: 1.1em;
+}
 `)
 
 func NewGroupsView(ctx context.Context, relayURL string) *GroupsView {
@@ -119,6 +119,7 @@ func NewGroupsView(ctx context.Context, relayURL string) *GroupsView {
 					lbr.SetName(g.gad.String())
 					lbr.SetChild(g)
 					v.List.Append(lbr)
+					win.OpenGroup(group.Address)
 				})
 			case gad := <-me.LeftGroup:
 				eachChild(v.List, func(lbr *gtk.ListBoxRow) bool {

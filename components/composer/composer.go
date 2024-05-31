@@ -112,26 +112,26 @@ type View struct {
 }
 
 var viewCSS = cssutil.Applier("composer-view", `
-	.composer-left-actions {
-		margin: 0 4px 0 11px;
-	}
-	.composer-left-actions > *:not(:first-child) {
-		margin-right: 4px;
-	}
-	.composer-right-actions button.toggle:checked {
-		background-color: alpha(@accent_color, 0.25);
-		color: @accent_color;
-	}
-	.composer-right-actions {
-		margin: 0 11px 0 0;
-	}
-	.composer-right-actions > *:not(:first-child) {
-		margin-left: 4px;
-	}
-	.composer-placeholder {
-		padding: 12px 2px;
-		color: alpha(@theme_fg_color, 0.65);
-	}
+.composer-left-actions {
+  margin: 0 4px 0 11px;
+}
+.composer-left-actions > *:not(:first-child) {
+  margin-right: 4px;
+}
+.composer-right-actions button.toggle:checked {
+  background-color: alpha(@accent_color, 0.25);
+  color: @accent_color;
+}
+.composer-right-actions {
+  margin: 0 11px 0 0;
+}
+.composer-right-actions > *:not(:first-child) {
+  margin-left: 4px;
+}
+.composer-placeholder {
+  padding: 12px 2px;
+  color: alpha(@theme_fg_color, 0.65);
+}
 `)
 
 const (

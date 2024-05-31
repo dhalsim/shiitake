@@ -57,17 +57,17 @@ type Input struct {
 }
 
 var inputCSS = cssutil.Applier("composer-input", `
-	.composer-input,
-	.composer-input text {
-		background-color: inherit;
-	}
-	.composer-input {
-		padding: 12px 2px;
-		margin-top: 0px;
-	}
-	.composer-input .autocomplete-row label {
-		margin: 0;
-	}
+.composer-input,
+.composer-input text {
+  background-color: inherit;
+}
+.composer-input {
+  padding: 12px 2px;
+  margin-top: 0px;
+}
+.composer-input .autocomplete-row label {
+  margin: 0;
+}
 `)
 
 var inputWYSIWYG = prefs.NewBool(true, prefs.PropMeta{

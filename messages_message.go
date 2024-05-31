@@ -25,13 +25,13 @@ import (
 )
 
 var blockedCSS = cssutil.Applier("message-blocked", `
-	.message-blocked {
-		transition-property: all;
-		transition-duration: 100ms;
-	}
-	.message-blocked:not(:hover) {
-		opacity: 0.35;
-	}
+.message-blocked {
+  transition-property: all;
+  transition-duration: 100ms;
+}
+.message-blocked:not(:hover) {
+  opacity: 0.35;
+}
 `)
 
 // message is a base that implements Message.
@@ -91,10 +91,10 @@ func menuItemIfOK(actions map[string]func(), label locale.Localized, action stri
 }
 
 var sourceCSS = cssutil.Applier("message-source", `
-	.message-source {
-		padding: 6px 4px;
-		font-family: monospace;
-	}
+.message-source {
+  padding: 6px 4px;
+  font-family: monospace;
+}
 `)
 
 // ShowEmojiChooser opens a Gtk.EmojiChooser popover.
@@ -175,17 +175,38 @@ type cozyMessage struct {
 }
 
 var cozyCSS = cssutil.Applier("message-cozy", `
-	.message-cozy {
-		margin-top: 2px;
-	}
-	.message-cozy-header {
-		min-height: 1.75em;
-		margin-top: 2px;
-		font-size: 0.95em;
-	}
-	.message-cozy-avatar {
-		padding: 0 8px;
-	}
+.message-cozy {
+  border-radius: 6px;
+  padding-bottom: 4px;
+  padding-top: 4px;
+  padding-right: 8px;
+  padding-left: 8px;
+  margin-top: 0;
+}
+.message-cozy-header {
+  margin-top: 0px;
+  min-height: 0;
+  font-size: 0.95em;
+}
+.message-cozy-avatar {
+  padding-right: 8px;
+}
+.msg-bg-0 { background-color: hsl(0.0, 66%, 89%); }
+.msg-bg-1 { background-color: hsl(22.5, 66%, 89%); }
+.msg-bg-2 { background-color: hsl(45.0, 66%, 89%); }
+.msg-bg-3 { background-color: hsl(67.5, 66%, 89%); }
+.msg-bg-4 { background-color: hsl(90.0, 66%, 89%); }
+.msg-bg-5 { background-color: hsl(112.5, 66%, 89%); }
+.msg-bg-6 { background-color: hsl(135.0, 66%, 89%); }
+.msg-bg-7 { background-color: hsl(157.5, 66%, 89%); }
+.msg-bg-8 { background-color: hsl(180.0, 66%, 89%); }
+.msg-bg-9 { background-color: hsl(202.5, 66%, 89%); }
+.msg-bg-a { background-color: hsl(225.0, 66%, 89%); }
+.msg-bg-b { background-color: hsl(247.5, 66%, 89%); }
+.msg-bg-c { background-color: hsl(270.0, 66%, 89%); }
+.msg-bg-d { background-color: hsl(292.5, 66%, 89%); }
+.msg-bg-e { background-color: hsl(315.0, 66%, 89%); }
+.msg-bg-f { background-color: hsl(337.5, 66%, 89%); }
 `)
 
 func NewCozyMessage(ctx context.Context, event *nostr.Event, v *MessagesView) *cozyMessage {
@@ -229,7 +250,7 @@ func NewCozyMessage(ctx context.Context, event *nostr.Event, v *MessagesView) *c
 
 	m.Avatar = onlineimage.NewAvatar(ctx, imgutil.HTTPProvider, 12)
 	m.Avatar.AddCSSClass("message-cozy-avatar")
-	m.Avatar.SetVAlign(gtk.AlignStart)
+	m.Avatar.SetVAlign(gtk.AlignCenter)
 	m.Avatar.EnableAnimation().OnHover()
 	m.Avatar.SetTooltipMarkup(tooltip)
 	m.Avatar.SetFromURL(user.Picture)
@@ -237,6 +258,12 @@ func NewCozyMessage(ctx context.Context, event *nostr.Event, v *MessagesView) *c
 	m.Box = gtk.NewBox(gtk.OrientationHorizontal, 0)
 	m.Box.Append(m.Avatar)
 	m.Box.Append(m.RightBox)
+	m.Box.AddCSSClass(fmt.Sprintf("msg-bg-%s", event.PubKey[63:64]))
+	align := gtk.AlignStart
+	if event.PubKey == v.loggedUser {
+		align = gtk.AlignEnd
+	}
+	m.Box.SetHAlign(align)
 
 	m.message.bind()
 

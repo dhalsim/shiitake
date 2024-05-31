@@ -20,9 +20,9 @@ type Relay struct {
 }
 
 var relayCSS = cssutil.Applier("relay-relay", `
-	.relay-name {
-		font-weight: bold;
-	}
+.relay-name {
+  font-weight: bold;
+}
 `)
 
 func NewRelay(ctx context.Context, relay *global.Relay) *Relay {

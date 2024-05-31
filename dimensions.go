@@ -7,9 +7,9 @@ import (
 )
 
 var _ = cssutil.WriteCSS(`
-	.titlebar {
-		min-height: {$header_height};
-	}
+.titlebar {
+  min-height: {$header_height};
+}
 `)
 
 const (

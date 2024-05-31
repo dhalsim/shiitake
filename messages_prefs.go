@@ -42,24 +42,24 @@ func init() {
 }
 
 var _ = cssutil.WriteCSS(`
-	.message-blockedusers-expander {
-		margin-top: 4px;
-	}
-	.message-blockedusers-expander expander {
-		min-width:  16px;
-		min-height: 16px;
-		padding: 4px;
-	}
-	.message-blockedusers {
-		font-size: 0.95em;
-		margin-left: 24px;
-	}
-	.message-blockedusers > *:not(:first-child) {
-		margin-top: 4px;
-	}
-	.message-blockedusers button {
-		padding: 4px 8px;
-	}
+.message-blockedusers-expander {
+  margin-top: 4px;
+}
+.message-blockedusers-expander expander {
+  min-width:  16px;
+  min-height: 16px;
+  padding: 4px;
+}
+.message-blockedusers {
+  font-size: 0.95em;
+  margin-left: 24px;
+}
+.message-blockedusers > *:not(:first-child) {
+  margin-top: 4px;
+}
+.message-blockedusers button {
+  padding: 4px 8px;
+}
 `)
 
 type blockedUsersPrefs struct{}

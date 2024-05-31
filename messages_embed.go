@@ -83,12 +83,12 @@ func resizeURL(directURL, proxyURL string, w, h int) string {
 }
 
 var stickerCSS = cssutil.Applier("message-sticker", `
-	.message-sticker {
-		border-radius: 0;
-	}
-	.message-sticker picture.thumbnail-embed-image {
-		background-color: transparent;
-	}
+.message-sticker {
+  border-radius: 0;
+}
+.message-sticker picture.thumbnail-embed-image {
+  background-color: transparent;
+}
 `)
 
 func newSticker(ctx context.Context, sticker *discord.StickerItem) gtk.Widgetter {
@@ -117,19 +117,19 @@ func newSticker(ctx context.Context, sticker *discord.StickerItem) gtk.Widgetter
 }
 
 var _ = cssutil.WriteCSS(`
-	.message-richframe:not(:first-child) {
-		margin-top: 4px;
-	}
+.message-richframe:not(:first-child) {
+  margin-top: 4px;
+}
 `)
 
 var messageAttachmentCSS = cssutil.Applier("message-attachment", `
-	.message-attachment-filename {
-		padding-left: 0.35em;
-		padding-right: 0.35em;
-	}
-	.message-attachment-filesize {
-		color: alpha(@theme_fg_color, 0.75);
-	}
+.message-attachment-filename {
+  padding-left: 0.35em;
+  padding-right: 0.35em;
+}
+.message-attachment-filesize {
+  color: alpha(@theme_fg_color, 0.75);
+}
 `)
 
 func newAttachment(ctx context.Context, attachment *discord.Attachment) gtk.Widgetter {
@@ -248,42 +248,42 @@ func mimeIcon(mimePrefix string) string {
 }
 
 var normalEmbedCSS = cssutil.Applier("message-normalembed", `
-	@define-color dissent_embed_background alpha(@theme_fg_color, 0.05);
+@define-color dissent_embed_background alpha(@theme_fg_color, 0.05);
 
-	.message-normalembed {
-		border: none;
-		border-radius: 8px;
-		padding: 10px;
-		background-color: @dissent_embed_background;
-	}
-	.message-normalembed-body > *:not(:last-child) {
-		margin-bottom: 0.5em;
-	}
-	.message-normalembed-body > .thumbnail-embed-bin {
-		margin-top: 0.5em;
-	}
-	.message-embed-author,
-	.message-embed-description {
-		font-size: 0.9em;
-	}
-	.message-embed-author-icon,
-	.message-embed-footer-icon {
-		margin-right: 0.5em;
-	}
-	.message-embed-footer {
-		opacity: 0.5;
-		font-size: 0.8em;
-	}
+.message-normalembed {
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  background-color: @dissent_embed_background;
+}
+.message-normalembed-body > *:not(:last-child) {
+  margin-bottom: 0.5em;
+}
+.message-normalembed-body > .thumbnail-embed-bin {
+  margin-top: 0.5em;
+}
+.message-embed-author,
+.message-embed-description {
+  font-size: 0.9em;
+}
+.message-embed-author-icon,
+.message-embed-footer-icon {
+  margin-right: 0.5em;
+}
+.message-embed-footer {
+  opacity: 0.5;
+  font-size: 0.8em;
+}
 `)
 
 const embedColorCSSf = `
-	.message-normalembed {
-		padding-left: 14px;
-		background: linear-gradient(to right,
-			%s 4px,
-			@dissent_embed_background 0px,
-			@dissent_embed_background 100%%
-		);
+.message-normalembed {
+  padding-left: 14px;
+  background: linear-gradient(to right,
+    %s 4px,
+    @dissent_embed_background 0px,
+    @dissent_embed_background 100%%
+  );
 	}
 `
 

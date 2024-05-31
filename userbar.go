@@ -5,7 +5,6 @@ import (
 	"regexp"
 
 	"fiatjaf.com/shiitake/global"
-	"github.com/diamondburned/arikawa/v3/discord"
 	"github.com/diamondburned/gotk4/pkg/core/glib"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
@@ -26,15 +25,15 @@ type userBar struct {
 }
 
 var userBarCSS = cssutil.Applier("user-bar", `
-	.user-bar-avatar {
-		padding: 6px;
-	}
-	.user-bar-menu {
-		margin: 0 6px;
-	}
+.user-bar-avatar {
+  padding: 6px;
+}
+.user-bar-menu {
+  margin: 0 6px;
+}
 `)
 
-func newUserBar(ctx context.Context, menuActions []gtkutil.PopoverMenuItem) *userBar {
+func newUserBar(ctx context.Context) *userBar {
 	b := userBar{ctx: ctx}
 	b.avatar = onlineimage.NewAvatar(ctx, imgutil.HTTPProvider, 14)
 	b.avatar.AddCSSClass("user-bar-avatar")
@@ -58,7 +57,21 @@ func newUserBar(ctx context.Context, menuActions []gtkutil.PopoverMenuItem) *use
 	b.menu.SetHasFrame(false)
 	b.menu.SetVAlign(gtk.AlignCenter)
 	b.menu.ConnectClicked(func() {
-		p := gtkutil.NewPopoverMenuCustom(b.menu, gtk.PosTop, menuActions)
+		p := gtkutil.NewPopoverMenuCustom(b.menu, gtk.PosTop, []gtkutil.PopoverMenuItem{
+			gtkutil.MenuItem("Quick Switcher", "win.quick-switcher"),
+			gtkutil.MenuSeparator("User Settings"),
+			gtkutil.Submenu("Set _Status", []gtkutil.PopoverMenuItem{
+				gtkutil.MenuItem("_Online", "win.set-online"),
+				gtkutil.MenuItem("_Idle", "win.set-idle"),
+				gtkutil.MenuItem("_Do Not Disturb", "win.set-dnd"),
+				gtkutil.MenuItem("In_visible", "win.set-invisible"),
+			}),
+			gtkutil.MenuSeparator(""),
+			gtkutil.MenuItem("Preferences", "win.quick-switcher"),
+			gtkutil.MenuItem("About", "app.about"),
+			gtkutil.MenuItem("Logs", "app.logs"),
+			gtkutil.MenuItem("Quit", "app.quit"),
+		})
 		p.ConnectHide(func() { b.menu.SetActive(false) })
 		gtkutil.PopupFinally(p)
 	})
@@ -122,42 +135,4 @@ func (b *userBar) invalidatePresence() {
 	// if presence != nil {
 	// 	b.updatePresence(presence)
 	// }
-}
-
-func statusIcon(status discord.Status) string {
-	switch status {
-	case discord.OnlineStatus:
-		return "user-available"
-	case discord.DoNotDisturbStatus:
-		return "user-busy"
-	case discord.IdleStatus:
-		return "user-idle"
-	case discord.InvisibleStatus:
-		return "user-invisible"
-	case discord.OfflineStatus:
-		return "user-offline"
-	case discord.UnknownStatus:
-		fallthrough
-	default:
-		return "user-status-pending"
-	}
-}
-
-func statusText(status discord.Status) string {
-	switch status {
-	case discord.OnlineStatus:
-		return "Online"
-	case discord.DoNotDisturbStatus:
-		return "Busy"
-	case discord.IdleStatus:
-		return "Idle"
-	case discord.InvisibleStatus:
-		return "Invisible"
-	case discord.OfflineStatus:
-		return "Offline"
-	case discord.UnknownStatus:
-		fallthrough
-	default:
-		return "Unknown"
-	}
 }

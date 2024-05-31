@@ -7,9 +7,9 @@ import (
 )
 
 var _ = cssutil.WriteCSS(`
-	.popover-label {
-		padding: 0 0.25em;
-	}
+.popover-label {
+  padding: 0 0.25em;
+}
 `)
 
 // MarkupHoverPopover is a struct that represents a hover popover

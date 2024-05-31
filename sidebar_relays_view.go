@@ -16,12 +16,12 @@ type RelaysView struct {
 }
 
 var relaysViewCSS = cssutil.Applier("relay-view", `
-	.relay-view {
-		margin: 4px 0;
-	}
-	.relay-view button:active:not(:hover) {
-		background: initial;
-	}
+.relay-view {
+  margin: 4px 0;
+}
+.relay-view button:active:not(:hover) {
+  background: initial;
+}
 `)
 
 func NewRelaysView(ctx context.Context) *RelaysView {

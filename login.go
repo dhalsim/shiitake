@@ -20,7 +20,6 @@ type LoginPage struct {
 	Body *gtk.Box
 
 	ctx context.Context
-	w   *Window
 
 	driver secret.Driver
 
@@ -33,7 +32,6 @@ var pageCSS = cssutil.Applier("login-page", ``)
 func NewLoginPage(ctx context.Context, w *Window) *LoginPage {
 	p := LoginPage{
 		ctx: ctx,
-		w:   w,
 	}
 
 	if keyring := secret.KeyringDriver(ctx); keyring.IsAvailable() {
@@ -104,8 +102,8 @@ func (p *LoginPage) TryLoginFromDriver() {
 			return func() {
 				log.Println("key-or-bunker not found from driver:", err)
 				// display login form
-				p.w.Stack.SetVisibleChild(p)
-				p.w.SetTitle("Login")
+				win.Stack.SetVisibleChild(p)
+				win.SetTitle("Login")
 			}
 		}
 
@@ -155,49 +153,49 @@ func (p *LoginPage) loginWithPassword(input string, password string) {
 	p.SetSensitive(true)
 
 	// switch to chat page
-	p.w.Stack.SetVisibleChild(p.w.chat)
-	p.w.chat.chatView.switchToGroup(nip29.GroupAddress{})
-	p.w.SetTitle("Chat")
+	win.Stack.SetVisibleChild(win.chat)
+	win.chat.chatView.switchToGroup(nip29.GroupAddress{})
+	win.SetTitle("Chat")
 }
 
 var loginFormCSS = cssutil.Applier("login-component", `
-	.login-component {
-		background: mix(@theme_bg_color, @theme_fg_color, 0.05);
-		border-radius: 12px;
-		min-width: 250px;
-		margin:  12px;
-		padding: 0;
-	}
-	.login-component > *:not(.osd) {
-		margin: 0 8px;
-	}
-	.login-component > *:nth-child(2) {
-		margin-top: 6px;
-	}
-	.login-component > *:first-child {
-		margin-top: 8px;
-	}
-	.login-component > *:not(:first-child) {
-		margin-bottom: 4px;
-	}
-	.login-component > *:last-child {
-		margin-bottom: 8px;
-	}
-	.login-component > notebook {
-		background: none;
-	}
-	.login-component .adaptive-errorlabel {
-		margin-bottom: 8px;
-	}
-	.login-button {
-		background-color: #7289DA;
-		color: #FFFFFF;
-	}
-	.login-with {
-		font-weight: bold;
-		margin-bottom: 2px;
-	}
-	.login-decrypt-button {
-		margin-left: 4px;
-	}
+.login-component {
+  background: mix(@theme_bg_color, @theme_fg_color, 0.05);
+  border-radius: 12px;
+  min-width: 250px;
+  margin:  12px;
+  padding: 0;
+}
+.login-component > *:not(.osd) {
+  margin: 0 8px;
+}
+.login-component > *:nth-child(2) {
+  margin-top: 6px;
+}
+.login-component > *:first-child {
+  margin-top: 8px;
+}
+.login-component > *:not(:first-child) {
+  margin-bottom: 4px;
+}
+.login-component > *:last-child {
+  margin-bottom: 8px;
+}
+.login-component > notebook {
+  background: none;
+}
+.login-component .adaptive-errorlabel {
+  margin-bottom: 8px;
+}
+.login-button {
+  background-color: #7289DA;
+  color: #FFFFFF;
+}
+.login-with {
+  font-weight: bold;
+  margin-bottom: 2px;
+}
+.login-decrypt-button {
+  margin-left: 4px;
+}
 `)

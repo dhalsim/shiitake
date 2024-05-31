@@ -43,7 +43,8 @@ type MessagesView struct {
 	currentGroup *global.Group
 	switchTo     func(gad nip29.GroupAddress)
 
-	msgs map[string]messageRow
+	loggedUser string
+	msgs       map[string]messageRow
 
 	state struct {
 		row      *gtk.ListBoxRow
@@ -55,58 +56,58 @@ type MessagesView struct {
 }
 
 var messagesViewCSS = cssutil.Applier("message-view", `
-	.message-list {
-		background: none;
-	}
-	.message-list > row {
-		transition: linear 150ms background-color;
-		box-shadow: none;
-		background: none;
-		background-image: none;
-		background-color: transparent;
-		padding: 0;
-		border: 2px solid transparent;
-	}
-	.message-list > row:focus,
-	.message-list > row:hover {
-		transition: none;
-	}
-	.message-list > row:focus {
-		background-color: alpha(@theme_fg_color, 0.125);
-	}
-	.message-list > row:hover {
-		background-color: alpha(@theme_fg_color, 0.075);
-	}
-	.message-list > row.message-replying {
-		background-color: alpha(@theme_selected_bg_color, 0.15);
-		border-color: alpha(@theme_selected_bg_color, 0.55);
-	}
-	.message-list > row.message-sending {
-		opacity: 0.65;
-	}
-	.message-list > row.message-first-prepended {
-		border-bottom: 1.5px dashed alpha(@theme_fg_color, 0.25);
-		padding-bottom: 2.5px;
-	}
-	.message-show-more {
-		background: none;
-		border-radius: 0;
-		font-size: 0.85em;
-		opacity: 0.65;
-	}
-	.message-show-more:hover {
-		background: alpha(@theme_fg_color, 0.075);
-	}
-	.messages-typing-indicator {
-		margin-top: -1em;
-	}
-	.messages-typing-box {
-		background-color: @theme_bg_color;
-	}
-	.message-list,
-	.message-scroll scrollbar.vertical {
-		margin-bottom: 1em;
-	}
+.message-list {
+  background: none;
+}
+.message-list > row {
+  transition: linear 150ms background-color;
+  box-shadow: none;
+  background: none;
+  background-image: none;
+  background-color: transparent;
+  padding: 0;
+  border: 2px solid transparent;
+}
+.message-list > row:focus,
+.message-list > row:hover {
+  transition: none;
+}
+.message-list > row:focus {
+  background-color: alpha(@theme_fg_color, 0.125);
+}
+.message-list > row:hover {
+  background-color: alpha(@theme_fg_color, 0.075);
+}
+.message-list > row.message-replying {
+  background-color: alpha(@theme_selected_bg_color, 0.15);
+  border-color: alpha(@theme_selected_bg_color, 0.55);
+}
+.message-list > row.message-sending {
+  opacity: 0.65;
+}
+.message-list > row.message-first-prepended {
+  border-bottom: 1.5px dashed alpha(@theme_fg_color, 0.25);
+  padding-bottom: 2.5px;
+}
+.message-show-more {
+  background: none;
+  border-radius: 0;
+  font-size: 0.85em;
+  opacity: 0.65;
+}
+.message-show-more:hover {
+  background: alpha(@theme_fg_color, 0.075);
+}
+.messages-typing-indicator {
+  margin-top: -1em;
+}
+.messages-typing-box {
+  background-color: @theme_bg_color;
+}
+.message-list,
+.message-scroll scrollbar.vertical {
+  margin-bottom: 1em;
+}
 `)
 
 const (
@@ -116,9 +117,9 @@ const (
 )
 
 func applyViewClamp(clamp *adw.Clamp) {
-	clamp.SetMaximumSize(messagesWidth.Value())
+	// clamp.SetMaximumSize(messagesWidth.Value())
 	// Set tightening threshold to 90% of the clamp's width.
-	clamp.SetTighteningThreshold(int(float64(messagesWidth.Value()) * 0.9))
+	// clamp.SetTighteningThreshold(int(float64(messagesWidth.Value()) * 0.9))
 }
 
 func NewMessagesView(ctx context.Context) *MessagesView {
@@ -289,7 +290,7 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 		gtkutil.ForwardTyping(list, v.Composer.Input)
 	}
 
-	v.LoadablePage.SetLoading()
+	// v.LoadablePage.SetLoading()
 
 	messagesViewCSS(v)
 	return v

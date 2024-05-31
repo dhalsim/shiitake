@@ -39,16 +39,16 @@ type contentReactions struct {
 }
 
 var reactionsCSS = cssutil.Applier("message-reactions", `
-	.message-reactions {
-		padding: 0;
-		margin-top: 4px;
-		background: none;
-	}
-	.message-reactions > flowboxchild {
-		margin: 4px 0;
-		margin-right: 6px;
-		padding: 0;
-	}
+.message-reactions {
+  padding: 0;
+  margin-top: 4px;
+  background: none;
+}
+.message-reactions > flowboxchild {
+  margin: 4px 0;
+  margin-right: 6px;
+  padding: 0;
+}
 `)
 
 func newContentReactions(ctx context.Context, parent *Content) *contentReactions {
@@ -213,22 +213,22 @@ type contentReaction struct {
 }
 
 var reactionCSS = cssutil.Applier("message-reaction", `
-	.message-reaction {
-		/* min-width: 4em; */
-		min-width: 0;
-		min-height: 0;
-		padding: 0;
-	}
-	.message-reaction > box {
-		margin: 6px;
-	}
-	.message-reaction-emoji-icon {
-		min-width:  22px;
-		min-height: 22px;
-	}
-	.message-reaction-emoji-unicode {
-		font-size: 18px;
-	}
+.message-reaction {
+  /* min-width: 4em; */
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+}
+.message-reaction > box {
+  margin: 6px;
+}
+.message-reaction-emoji-icon {
+  min-width:  22px;
+  min-height: 22px;
+}
+.message-reaction-emoji-unicode {
+  font-size: 18px;
+}
 `)
 
 func newContentReaction() *contentReaction {

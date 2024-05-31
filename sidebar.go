@@ -6,24 +6,23 @@ import (
 	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
 var sidebarCSS = cssutil.Applier("sidebar-sidebar", `
-	@define-color sidebar_bg mix(@borders, @theme_bg_color, 0.25);
+@define-color sidebar_bg mix(@borders, @theme_bg_color, 0.25);
 
-	windowcontrols.end:not(.empty) {
-		margin-right: 4px;
-	}
-	windowcontrols.start:not(.empty) {
-		margin: 4px;
-		margin-right: 0;
-	}
-	.sidebar-relayside {
-		background-color: @sidebar_bg;
-	}
+windowcontrols.end:not(.empty) {
+  margin-right: 4px;
+}
+windowcontrols.start:not(.empty) {
+  margin: 4px;
+  margin-right: 0;
+}
+.sidebar-relayside {
+  background-color: @sidebar_bg;
+}
 `)
 
 type Sidebar struct {
@@ -114,24 +113,8 @@ func NewSidebar(ctx context.Context) *Sidebar {
 		}
 	}
 
-	userBar := newUserBar(ctx, []gtkutil.PopoverMenuItem{
-		gtkutil.MenuItem("Quick Switcher", "win.quick-switcher"),
-		gtkutil.MenuSeparator("User Settings"),
-		gtkutil.Submenu("Set _Status", []gtkutil.PopoverMenuItem{
-			gtkutil.MenuItem("_Online", "win.set-online"),
-			gtkutil.MenuItem("_Idle", "win.set-idle"),
-			gtkutil.MenuItem("_Do Not Disturb", "win.set-dnd"),
-			gtkutil.MenuItem("In_visible", "win.set-invisible"),
-		}),
-		gtkutil.MenuSeparator(""),
-		gtkutil.MenuItem("_Preferences", "app.preferences"),
-		gtkutil.MenuItem("_About", "app.about"),
-		gtkutil.MenuItem("_Logs", "app.logs"),
-		gtkutil.MenuItem("_Quit", "app.quit"),
-	})
+	userBar := newUserBar(ctx)
 
-	// TODO: consider if we can merge this ToolbarView with the one in groups
-	// and direct.
 	rightWrap := adw.NewToolbarView()
 	rightWrap.AddBottomBar(userBar)
 	rightWrap.SetContent(groupsViewStack)

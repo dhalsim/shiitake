@@ -17,14 +17,20 @@ type AddRelayButton struct {
 }
 
 var buttonCSS = cssutil.Applier("sidebar-add-button-overlay", `
-	.sidebar-add-button {
-		padding: 4px 12px;
-		border-radius: 0;
-	}
-	.sidebar-add-button image {
-		padding-top: 4px;
-		padding-bottom: 2px;
-	}
+.sidebar-add-button {
+  padding: 4px 12px;
+  border-radius: 0;
+}
+.sidebar-add-button {
+  background: @theme_bg_color;
+}
+.sidebar-add-button:hover {
+  background: alpha(@theme_fg_color, 0.025);
+}
+.sidebar-add-button image {
+  padding-top: 4px;
+  padding-bottom: 2px;
+}
 `)
 
 func NewAddRelayButton(ctx context.Context, done func(string)) *AddRelayButton {
@@ -35,7 +41,7 @@ func NewAddRelayButton(ctx context.Context, done func(string)) *AddRelayButton {
 	icon.SetPixelSize(10)
 
 	b.Button = gtk.NewButton()
-	b.Button.AddCSSClass("sidebar-button")
+	b.Button.AddCSSClass("sidebar-add-button")
 	b.Button.SetTooltipText("Add New Group")
 	b.Button.SetChild(icon)
 	b.Button.SetHasFrame(false)

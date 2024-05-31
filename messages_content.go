@@ -34,31 +34,31 @@ type Content struct {
 }
 
 var contentCSS = cssutil.Applier("message-content-box", `
-	.message-content-box {
-		margin-right: 4px;
-	}
-	.message-content-box > *:not(:first-child) {
-		margin-top: 4px;
-	}
-	.message-content-box .thumbnail-embed {
-		border-width: 0;
-		border-radius: 8px; /* stolen from Discord mobile */
-	}
-	.message-header-blockquote {
-		margin-bottom: 0;
-	}
-	.message-header-blockquote > *,
-	.message-header-blockquote .mauthor-chip,
-	.message-reply-content link {
-		color: mix(@theme_bg_color, @theme_fg_color, 0.85);
-	}
-	.message-header-blockquote > * {
-		font-size: 0.9em;
-	}
-	.message-interaction-name {
-		margin-left: 0.25em;
-		font-family: monospace;
-	}
+.message-content-box {
+  margin-right: 4px;
+}
+.message-content-box > *:not(:first-child) {
+  margin-top: 4px;
+}
+.message-content-box .thumbnail-embed {
+  border-width: 0;
+  border-radius: 8px; /* stolen from Discord mobile */
+}
+.message-header-blockquote {
+  margin-bottom: 0;
+}
+.message-header-blockquote > *,
+.message-header-blockquote .mauthor-chip,
+.message-reply-content link {
+  color: mix(@theme_bg_color, @theme_fg_color, 0.85);
+}
+.message-header-blockquote > * {
+  font-size: 0.9em;
+}
+.message-interaction-name {
+  margin-left: 0.25em;
+  font-family: monospace;
+}
 `)
 
 // NewContent creates a new Content widget.
@@ -195,10 +195,10 @@ func (c *Content) setMenu() {
 }
 
 var systemContentCSS = cssutil.Applier("message-system-content", `
-	.message-system-content {
-		font-style: italic;
-		color: alpha(@theme_fg_color, 0.9);
-	}
+.message-system-content {
+  font-style: italic;
+  color: alpha(@theme_fg_color, 0.9);
+}
 `)
 
 func (c *Content) newReplyBox(m *nostr.Event) gtk.Widgetter {
@@ -335,10 +335,10 @@ func (c *Content) clear() {
 }
 
 var redactedContentCSS = cssutil.Applier("message-redacted-content", `
-	.message-redacted-content {
-		font-style: italic;
-		color: alpha(@theme_fg_color, 0.75);
-	}
+.message-redacted-content {
+  font-style: italic;
+  color: alpha(@theme_fg_color, 0.75);
+}
 `)
 
 // Redact clears the content widget.

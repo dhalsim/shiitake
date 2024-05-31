@@ -39,19 +39,19 @@ type qwEntry struct {
 }
 
 var qsCSS = cssutil.Applier("quickswitcher", `
-	.quickswitcher-search {
-		font-size: 1.35em;
-	}
-	.quickswitcher-search image {
-		min-width:  32px;
-		min-height: 32px;
-	}
-	.quickswitcher-searchbar > revealer > box {
-		padding: 12px;
-	}
-	.quickswitcher-list {
-		font-size: 1.15em;
-	}
+.quickswitcher-search {
+  font-size: 1.35em;
+}
+.quickswitcher-search image {
+  min-width:  32px;
+  min-height: 32px;
+}
+.quickswitcher-searchbar > revealer > box {
+  padding: 12px;
+}
+.quickswitcher-list {
+  font-size: 1.15em;
+}
 `)
 
 func NewQuickSwitcher(ctx context.Context) *QuickSwitcher {
@@ -264,12 +264,12 @@ func ShowQuickSwitcherDialog(ctx context.Context) {
 }
 
 var qwDialogCSS = cssutil.Applier("quickswitcher-dialog", `
-	.quickswitcher-dialog .quickswitcher-list {
-		margin: 8px;
-	}
-	.quickswitcher-dialog .quickswitcher-search {
-		margin: 8px 0;
-	}
+.quickswitcher-dialog .quickswitcher-list {
+  margin: 8px;
+}
+.quickswitcher-dialog .quickswitcher-search {
+  margin: 8px 0;
+}
 `)
 
 func NewQuickSwitcherDialog(ctx context.Context) *QuickSwitcherDialog {
@@ -378,27 +378,27 @@ const (
 )
 
 var qwGroupCSS = cssutil.Applier("quickswitcher-group", `
-	.quickswitcher-group-icon {
-		margin: 2px 12px;
-		margin-right: 1px;
-		min-width:  {$inline_emoji_size};
-		min-height: {$inline_emoji_size};
-	}
-	.quickswitcher-group-hash {
-		padding-left: 1px; /* account for the NSFW mark */
-		margin-right: 7px;
-	}
-	.quickswitcher-group-image {
-		margin-left: 8px;
-		margin-right: 12px;
-	}
-	.quickswitcher-group-relayname {
-		font-size: 0.9em;
-		color: alpha(@theme_fg_color, 0.75);
-		margin: 4px;
-		margin-left: 18px;
-		margin-bottom: calc(4px - 0.1em);
-	}
+.quickswitcher-group-icon {
+  margin: 2px 12px;
+  margin-right: 1px;
+  min-width:  {$inline_emoji_size};
+  min-height: {$inline_emoji_size};
+}
+.quickswitcher-group-hash {
+  padding-left: 1px; /* account for the NSFW mark */
+  margin-right: 7px;
+}
+.quickswitcher-group-image {
+  margin-left: 8px;
+  margin-right: 12px;
+}
+.quickswitcher-group-relayname {
+  font-size: 0.9em;
+  color: alpha(@theme_fg_color, 0.75);
+  margin: 4px;
+  margin-left: 18px;
+  margin-bottom: calc(4px - 0.1em);
+}
 `)
 
 func (it qwGroupItem) Row(ctx context.Context) *gtk.ListBoxRow {
@@ -449,11 +449,11 @@ func newRelayItem(url string) qwRelayItem {
 func (it qwRelayItem) String() string { return it.url }
 
 var qwRelayCSS = cssutil.Applier("quickswitcher-relay", `
-	.quickswitcher-relay-icon {
-		margin: 2px 8px;
-		min-width:  {$inline_emoji_size};
-		min-height: {$inline_emoji_size};
-	}
+.quickswitcher-relay-icon {
+  margin: 2px 8px;
+  min-width:  {$inline_emoji_size};
+  min-height: {$inline_emoji_size};
+}
 `)
 
 func (it qwRelayItem) Row(ctx context.Context) *gtk.ListBoxRow {

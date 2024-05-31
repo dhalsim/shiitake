@@ -35,16 +35,16 @@ func SetPreferDarkTheme(prefer bool) {
 }
 
 var _ = cssutil.WriteCSS(`
-	.titlebar {
-		background-color: @headerbar_bg_color;
-	}
+.titlebar {
+  background-color: @headerbar_bg_color;
+}
 
-	window.devel .titlebar {
-		background-image: cross-fade(
-			5% -gtk-recolor(url("resource:/org/gnome/Adwaita/styles/assets/devel-symbolic.svg")),
-			image(transparent));
-		background-repeat: repeat-x;
-	}
+window.devel .titlebar {
+  background-image: cross-fade(
+    5% -gtk-recolor(url("resource:/org/gnome/Adwaita/styles/assets/devel-symbolic.svg")),
+    image(transparent));
+  background-repeat: repeat-x;
+}
 `)
 
 // Window is the main gtkcord window.
@@ -66,6 +66,8 @@ func NewWindow(ctx context.Context) *Window {
 	win.SetDefaultSize(800, 600)
 
 	appWindow := app.WrapWindow(application, &win.ApplicationWindow)
+	appWindow.SetResizable(true)
+	appWindow.SetTitle("shiitake")
 	ctx = app.WithWindow(ctx, appWindow)
 
 	w := Window{
@@ -156,13 +158,13 @@ func (w *Window) SetTitle(title string) {
 // }
 
 var emptyHeaderCSS = cssutil.Applier("empty-header", `
-	.empty-header {
-		min-height: 0;
-		min-width: 0;
-		padding: 0;
-		margin: 0;
-		border: 0;
-	}
+.empty-header {
+  min-height: 0;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
 `)
 
 func newEmptyHeader() *gtk.Box {

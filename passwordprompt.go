@@ -15,13 +15,13 @@ var inputLabelAttrs = textutil.Attrs(
 )
 
 var passwordCSS = cssutil.Applier("secretdialog-password", `
-	.secretdialog-password {
-		margin: 6px 0;
-		margin-top: 6px;
-	}
-	.secretdialog-password label {
-		margin-left: .5em;
-	}
+.secretdialog-password {
+  margin: 6px 0;
+  margin-top: 6px;
+}
+.secretdialog-password label {
+  margin-left: .5em;
+}
 `)
 
 // promptPassword opens a password prompt modal.
