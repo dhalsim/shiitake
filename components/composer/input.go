@@ -10,7 +10,6 @@ import (
 
 	"github.com/diamondburned/arikawa/v3/discord"
 	"github.com/diamondburned/chatkit/components/autocomplete"
-	"github.com/diamondburned/chatkit/md/mdrender"
 	"github.com/diamondburned/gotk4/pkg/core/gioutil"
 	"github.com/diamondburned/gotk4/pkg/core/glib"
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
@@ -70,12 +69,6 @@ var inputCSS = cssutil.Applier("composer-input", `
 }
 `)
 
-var inputWYSIWYG = prefs.NewBool(true, prefs.PropMeta{
-	Name:        "Rich Preview",
-	Section:     "Composer",
-	Description: "Enable a semi-WYSIWYG feature that decorates the input Markdown text.",
-})
-
 // inputStateKey is the app state that stores the last input message.
 var inputStateKey = app.NewStateKey[string]("input-state")
 
@@ -121,10 +114,6 @@ func NewInput(ctx context.Context, ctrl InputController, gad nip29.GroupAddress)
 
 	i.Buffer = i.TextView.Buffer()
 	i.Buffer.ConnectChanged(func() {
-		if inputWYSIWYG.Value() {
-			mdrender.RenderWYSIWYG(ctx, i.Buffer)
-		}
-
 		i.ac.Autocomplete()
 
 		start, end := i.Buffer.Bounds()

@@ -16,23 +16,18 @@ import (
 	"libdb.so/ctxt"
 )
 
-var useDiscordColorScheme = prefs.NewBool(true, prefs.PropMeta{
-	Name:        "Use Discord's color preference",
-	Section:     "Discord",
-	Description: "Whether or not to use Discord's dark/light mode preference.",
+var forceDarkTheme = prefs.NewBool(true, prefs.PropMeta{
+	Name:        "Use dark theme",
+	Description: "Whether or not to use dark mode even if your system is set to light.",
+	Section:     "Theme",
 })
 
-// SetPreferDarkTheme sets whether or not GTK should use a dark theme.
-func SetPreferDarkTheme(prefer bool) {
-	if !useDiscordColorScheme.Value() {
-		return
-	}
-
+func applyThemeChoice() {
+	prefer := forceDarkTheme.Value()
 	scheme := adw.ColorSchemePreferLight
 	if prefer {
 		scheme = adw.ColorSchemePreferDark
 	}
-
 	adwStyles := adw.StyleManagerGetDefault()
 	adwStyles.SetColorScheme(scheme)
 }
@@ -114,6 +109,8 @@ func NewWindow(ctx context.Context) *Window {
 
 	// attempt login with stored credentials
 	login.TryLoginFromDriver()
+
+	forceDarkTheme.Subscribe(applyThemeChoice)
 
 	return &w
 }

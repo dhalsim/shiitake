@@ -524,11 +524,6 @@ func (v *MessagesView) deleteMessage(list *gtk.ListBox, id string) {
 		return
 	}
 
-	if redactMessages.Value() && msg.message != nil {
-		msg.message.Content.Redact()
-		return
-	}
-
 	list.Remove(msg)
 	delete(v.msgs, id)
 }
@@ -777,14 +772,7 @@ func (v *MessagesView) stopEditingOrReplying() {
 	}
 }
 
-// Delete deletes the message with the given ID. It may prompt the user to
-// confirm the deletion.
 func (v *MessagesView) Delete(id string) {
-	if !askBeforeDelete.Value() {
-		v.delete(id)
-		return
-	}
-
 	username := "?" // juuust in case
 
 	row, ok := v.msgs[id]

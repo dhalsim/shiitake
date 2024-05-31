@@ -18,19 +18,12 @@ import (
 	"github.com/diamondburned/gotk4/pkg/pango"
 	"github.com/diamondburned/gotkit/app"
 	"github.com/diamondburned/gotkit/app/locale"
-	"github.com/diamondburned/gotkit/app/prefs"
 	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/diamondburned/gotkit/gtkutil/mediautil"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip29"
 )
-
-var showAllEmojis = prefs.NewBool(true, prefs.PropMeta{
-	Name:        "Show All Emojis",
-	Section:     "Composer",
-	Description: "Show (and autocomplete) all emojis even if the user doesn't have Nitro.",
-})
 
 // File contains the filename and a callback to open the file that's called
 // asynchronously.
