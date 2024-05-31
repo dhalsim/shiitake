@@ -2,35 +2,34 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"strings"
 
 	"fiatjaf.com/shiitake/components/form_entry"
-	"fiatjaf.com/shiitake/components/loading"
 	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/adaptive"
 	"github.com/diamondburned/chatkit/kits/secret"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
+	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
-// LoginPage is the page containing the login forms.
 type LoginPage struct {
 	*gtk.Box
-	Header *gtk.HeaderBar
-	Login  *LoginComponent
-
-	driver secret.Driver
+	Body *gtk.Box
 
 	ctx context.Context
 	w   *Window
+
+	driver secret.Driver
+
+	KeyOrBunker *form_entry.FormEntry
+	ErrorRev    *gtk.Revealer
 }
 
 var pageCSS = cssutil.Applier("login-page", ``)
 
-// NewLoginPage creates a new LoginPage.
 func NewLoginPage(ctx context.Context, w *Window) *LoginPage {
 	p := LoginPage{
 		ctx: ctx,
@@ -43,38 +42,125 @@ func NewLoginPage(ctx context.Context, w *Window) *LoginPage {
 		p.driver = secret.PlainFileDriver()
 	}
 
-	p.Header = gtk.NewHeaderBar()
-	p.Header.AddCSSClass("login-page-header")
-	p.Header.SetShowTitleButtons(true)
+	header := gtk.NewHeaderBar()
+	header.AddCSSClass("login-page-header")
+	header.SetShowTitleButtons(true)
 
-	p.Login = NewLoginComponent(ctx, &p)
-	p.Login.SetVExpand(true)
-	p.Login.SetHExpand(true)
-	p.Login.TryLoginFromDriver()
+	loginWith := gtk.NewLabel("Login with nsec or ncryptsec:")
+	loginWith.AddCSSClass("login-with")
+	loginWith.SetXAlign(0)
+
+	submit := gtk.NewButtonWithLabel("Log In")
+	submit.AddCSSClass("suggested-action")
+	submit.AddCSSClass("login-button")
+	submit.SetHExpand(true)
+	submit.ConnectClicked(func() {
+		p.loginWithInput(p.KeyOrBunker.Entry.Text())
+	})
+
+	p.KeyOrBunker = form_entry.New("nsec, ncryptsec or bunker")
+	p.KeyOrBunker.FocusNextOnActivate()
+	p.KeyOrBunker.Entry.SetInputPurpose(gtk.InputPurposeEmail)
+	p.KeyOrBunker.ConnectActivate(func() {
+		submit.Activate()
+	})
+
+	p.ErrorRev = gtk.NewRevealer()
+	p.ErrorRev.SetTransitionType(gtk.RevealerTransitionTypeSlideDown)
+	p.ErrorRev.SetRevealChild(false)
+
+	buttonBox := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	buttonBox.Append(submit)
+
+	form := gtk.NewBox(gtk.OrientationVertical, 0)
+	form.Append(loginWith)
+	form.Append(p.KeyOrBunker)
+	form.Append(p.ErrorRev)
+	form.Append(buttonBox)
+	loginFormCSS(form)
+
+	p.Body = gtk.NewBox(gtk.OrientationVertical, 0)
+	p.Body.AddCSSClass("login-component-outer")
+	p.Body.SetHAlign(gtk.AlignCenter)
+	p.Body.SetVAlign(gtk.AlignCenter)
+	p.Body.SetVExpand(true)
+	p.Body.SetHExpand(true)
+	p.Body.SetSensitive(true)
+	p.Body.Show()
+	p.Body.Append(form)
 
 	p.Box = gtk.NewBox(gtk.OrientationVertical, 0)
-	p.Box.Append(p.Header)
-	p.Box.Append(p.Login)
+	p.Box.Append(header)
+	p.Box.Append(p.Body)
 	pageCSS(p)
 
 	return &p
 }
 
-type LoginComponent struct {
-	*gtk.Box
-	Inner *gtk.Box
+func (p *LoginPage) TryLoginFromDriver() {
+	gtkutil.Async(p.ctx, func() func() {
+		b, err := p.driver.Get("key-or-bunker")
+		if err != nil {
+			return func() {
+				log.Println("key-or-bunker not found from driver:", err)
+				// display login form
+				p.w.Stack.SetVisibleChild(p)
+				p.w.SetTitle("Login")
+			}
+		}
 
-	Loading     *loading.PulsatingBar
-	KeyOrBunker *form_entry.FormEntry
-	Bottom      *gtk.Box
-	ErrorRev    *gtk.Revealer
-	Submit      *gtk.Button
-
-	ctx  context.Context
-	page *LoginPage
+		return func() {
+			value := string(b)
+			p.loginWithInput(value)
+		}
+	})
 }
 
-var componentCSS = cssutil.Applier("login-component", `
+func (p *LoginPage) ShowError(err error) {
+	errLabel := adaptive.NewErrorLabel(err)
+	p.ErrorRev.SetChild(errLabel)
+	p.ErrorRev.SetRevealChild(true)
+}
+
+func (p *LoginPage) hideError() {
+	p.ErrorRev.SetRevealChild(false)
+}
+
+func (p *LoginPage) loginWithInput(input string) {
+	log.Printf("using '%s'\n", input)
+	if strings.HasPrefix(input, "ncryptsec1") {
+		promptPassword(p.ctx, func(ok bool, password string) {
+			p.loginWithPassword(input, password)
+		})
+	} else {
+		p.loginWithPassword(input, "")
+	}
+}
+
+func (p *LoginPage) loginWithPassword(input string, password string) {
+	// set busy
+	p.Body.SetSensitive(false)
+
+	err := global.Init(p.ctx, input, password)
+	if err != nil {
+		p.Body.SetSensitive(true)
+		log.Println("error initializing signer", err)
+		return
+	}
+
+	// here we have a signer, so we can store our input value
+	p.driver.Set("key-or-bunker", []byte(input))
+
+	// set done
+	p.SetSensitive(true)
+
+	// switch to chat page
+	p.w.Stack.SetVisibleChild(p.w.chat)
+	p.w.chat.chatView.switchToGroup(nip29.GroupAddress{})
+	p.w.SetTitle("Chat")
+}
+
+var loginFormCSS = cssutil.Applier("login-component", `
 	.login-component {
 		background: mix(@theme_bg_color, @theme_fg_color, 0.05);
 		border-radius: 12px;
@@ -115,131 +201,3 @@ var componentCSS = cssutil.Applier("login-component", `
 		margin-left: 4px;
 	}
 `)
-
-func NewLoginComponent(ctx context.Context, p *LoginPage) *LoginComponent {
-	c := LoginComponent{
-		ctx:  ctx,
-		page: p,
-	}
-
-	c.Loading = loading.NewPulsatingBar(loading.PulseFast | loading.PulseBarOSD)
-
-	loginWith := gtk.NewLabel("Login with nsec or ncryptsec:")
-	loginWith.AddCSSClass("login-with")
-	loginWith.SetXAlign(0)
-
-	c.KeyOrBunker = form_entry.New("nsec, ncryptsec or bunker")
-	c.KeyOrBunker.FocusNextOnActivate()
-	c.KeyOrBunker.Entry.SetInputPurpose(gtk.InputPurposeEmail)
-	c.KeyOrBunker.ConnectActivate(c.ForceSubmit)
-
-	c.ErrorRev = gtk.NewRevealer()
-	c.ErrorRev.SetTransitionType(gtk.RevealerTransitionTypeSlideDown)
-	c.ErrorRev.SetRevealChild(false)
-
-	c.Submit = gtk.NewButtonWithLabel("Log In")
-	c.Submit.AddCSSClass("suggested-action")
-	c.Submit.AddCSSClass("login-button")
-	c.Submit.SetHExpand(true)
-	c.Submit.ConnectClicked(c.handleSubmit)
-
-	buttonBox := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	buttonBox.Append(c.Submit)
-
-	c.Inner = gtk.NewBox(gtk.OrientationVertical, 0)
-	c.Inner.Append(loginWith)
-	c.Inner.Append(c.KeyOrBunker)
-	c.Inner.Append(c.ErrorRev)
-	c.Inner.Append(buttonBox)
-	componentCSS(c.Inner)
-
-	c.Box = gtk.NewBox(gtk.OrientationVertical, 0)
-	c.Box.AddCSSClass("login-component-outer")
-	c.Box.SetHAlign(gtk.AlignCenter)
-	c.Box.SetVAlign(gtk.AlignCenter)
-	c.Box.Append(c.Loading)
-	c.Box.Append(c.Inner)
-
-	return &c
-}
-
-func (c *LoginComponent) ShowError(err error) {
-	errLabel := adaptive.NewErrorLabel(err)
-	c.ErrorRev.SetChild(errLabel)
-	c.ErrorRev.SetRevealChild(true)
-}
-
-func (c *LoginComponent) HideError() {
-	c.ErrorRev.SetRevealChild(false)
-}
-
-func (c *LoginComponent) ForceSubmit() {
-	c.Submit.Activate()
-}
-
-// TryLoginFromDriver loads a secret from the keyring or filesystem and tries to login with it
-func (c *LoginComponent) TryLoginFromDriver() {
-	fmt.Println("loading")
-	c.Loading.Show()
-	c.SetSensitive(false)
-
-	done := func() {
-		fmt.Println("not loading")
-		c.Loading.Hide()
-		c.SetSensitive(true)
-	}
-
-	gtkutil.Async(c.ctx, func() func() {
-		b, err := c.page.driver.Get("key-or-bunker")
-		if err != nil {
-			log.Println("key-or-bunker not found from driver:", err)
-			return done
-		}
-
-		value := string(b)
-		c.loginWithInput(value)
-
-		return func() {
-			done()
-		}
-	})
-}
-
-func (c *LoginComponent) handleSubmit() {
-	c.loginWithInput(c.KeyOrBunker.Entry.Text())
-}
-
-func (c *LoginComponent) loginWithInput(input string) {
-	log.Printf("using '%s'\n", input)
-	if strings.HasPrefix(input, "ncryptsec1") {
-		promptPassword(c.ctx, func(ok bool, password string) {
-			c.loginWithPassword(input, password)
-		})
-	} else {
-		c.loginWithPassword(input, "")
-	}
-}
-
-func (c *LoginComponent) loginWithPassword(input string, password string) {
-	// set busy
-	c.SetSensitive(false)
-	c.Loading.Show()
-
-	err := global.Init(c.ctx, input, password)
-	if err != nil {
-		c.SetSensitive(true)
-		c.Loading.Hide()
-		log.Println("error initializing signer", err)
-		return
-	}
-
-	// here we have a signer, so we can store our input value
-	c.page.driver.Set("key-or-bunker", []byte(input))
-
-	// set done
-	c.SetSensitive(true)
-	c.Loading.Hide()
-
-	// trigger app start
-	c.page.w.OnLogin()
-}

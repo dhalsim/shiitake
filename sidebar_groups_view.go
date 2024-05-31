@@ -113,15 +113,19 @@ func NewGroupsView(ctx context.Context, relayURL string) *GroupsView {
 		for {
 			select {
 			case group := <-me.JoinedGroup:
-				g := NewGroup(ctx, group)
-				lbr := gtk.NewListBoxRow()
-				lbr.SetName(g.gad.String())
-				lbr.SetChild(g)
-				v.List.Append(lbr)
+				glib.IdleAdd(func() {
+					g := NewGroup(ctx, group)
+					lbr := gtk.NewListBoxRow()
+					lbr.SetName(g.gad.String())
+					lbr.SetChild(g)
+					v.List.Append(lbr)
+				})
 			case gad := <-me.LeftGroup:
 				eachChild(v.List, func(lbr *gtk.ListBoxRow) bool {
 					if lbr.Name() == gad.String() {
-						v.List.Remove(lbr)
+						glib.IdleAdd(func() {
+							v.List.Remove(lbr)
+						})
 						return true // stop
 					}
 					return false // continue

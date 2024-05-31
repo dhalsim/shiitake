@@ -6,6 +6,7 @@ import (
 
 	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/arikawa/v3/discord"
+	"github.com/diamondburned/gotk4/pkg/core/glib"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
 	"github.com/diamondburned/gotkit/components/onlineimage"
@@ -72,21 +73,22 @@ func newUserBar(ctx context.Context, menuActions []gtkutil.PopoverMenuItem) *use
 	anim := b.avatar.EnableAnimation()
 	anim.ConnectMotion(b)
 
-	me := global.GetMe(ctx)
-	resetMetadata := func() {
-		// if v, _ := strconv.Atoi(me.Discriminator); v != 0 {
-		// 	tag += `<span size="smaller">` + "#" + me.Discriminator + "</span>"
-		// }
-
-		b.avatar.SetInitials(me.ShortName())
-		b.avatar.SetFromURL(me.Picture)
-		b.name.SetMarkup(me.ShortName())
-		b.name.SetTooltipMarkup(me.ShortName())
-	}
-
-	resetMetadata()
-
 	go func() {
+		me := global.GetMe(ctx)
+		resetMetadata := func() {
+			glib.IdleAdd(func() {
+				// if v, _ := strconv.Atoi(me.Discriminator); v != 0 {
+				// 	tag += `<span size="smaller">` + "#" + me.Discriminator + "</span>"
+				// }
+
+				b.avatar.SetInitials(me.ShortName())
+				b.avatar.SetFromURL(me.Picture)
+				b.name.SetMarkup(me.ShortName())
+				b.name.SetTooltipMarkup(me.ShortName())
+			})
+		}
+		resetMetadata()
+
 		for range me.MetadataUpdated {
 			resetMetadata()
 		}

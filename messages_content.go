@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/chatkit/components/author"
@@ -83,7 +82,6 @@ func NewContent(ctx context.Context, event *nostr.Event, v *MessagesView) *Conte
 	msg.SetWrap(true)
 	msg.SetWrapMode(pango.WrapWordChar)
 	msg.ConnectActivateLink(func(uri string) bool {
-		fmt.Println("clicked", uri)
 		return true
 	})
 	systemContentCSS(msg)

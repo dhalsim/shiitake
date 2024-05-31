@@ -58,9 +58,9 @@ func main() {
 	application = app.New(context.Background(), "com.fiatjaf.shiitake", "Shiitake")
 
 	application.AddJSONActions(map[string]interface{}{
-		"application.preferences": func() { prefui.ShowDialog(win.Context()) },
-		"application.about":       func() { about.New(win.Context()).Present() },
-		"application.logs":        func() { logui.ShowDefaultViewer(win.Context()) },
+		"application.preferences": func() { prefui.ShowDialog(win.ctx) },
+		"application.about":       func() { about.New(win.ctx).Present() },
+		"application.logs":        func() { logui.ShowDefaultViewer(win.ctx) },
 		"application.quit":        func() { application.Quit() },
 	})
 	application.AddActionShortcuts(map[string]string{

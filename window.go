@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"sync"
 
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -55,20 +54,18 @@ type Window struct {
 	ctx context.Context
 
 	Stack *gtk.Stack
-	Login *LoginPage
-	Chat  *ChatPage
 
-	readyOnce sync.Once
+	chat *ChatPage
 }
 
 func NewWindow(ctx context.Context) *Window {
-	appInstance := app.FromContext(ctx)
+	application := app.FromContext(ctx)
 
-	win := adw.NewApplicationWindow(appInstance.Application)
+	win := adw.NewApplicationWindow(application.Application)
 	win.SetSizeRequest(320, 320)
 	win.SetDefaultSize(800, 600)
 
-	appWindow := app.WrapWindow(appInstance, &win.ApplicationWindow)
+	appWindow := app.WrapWindow(application, &win.ApplicationWindow)
 	ctx = app.WithWindow(ctx, appWindow)
 
 	w := Window{
@@ -78,117 +75,73 @@ func NewWindow(ctx context.Context) *Window {
 	}
 	w.ctx = ctxt.With(w.ctx, &w)
 
-	w.Login = NewLoginPage(ctx, &w)
+	login := NewLoginPage(ctx, &w)
+	w.chat = NewChatPage(w.ctx, &w)
+	plc := newEmptyMessagePlaceholder()
 
 	w.Stack = gtk.NewStack()
 	w.Stack.SetTransitionType(gtk.StackTransitionTypeCrossfade)
-	w.Stack.AddChild(w.Login)
-	w.Stack.SetVisibleChild(w.Login)
+	w.Stack.AddChild(login)
+	w.Stack.AddChild(w.chat)
+	w.Stack.AddChild(plc)
 	win.SetContent(w.Stack)
 
-	w.SwitchToLoginPage()
-	return &w
-}
+	// show placeholder
+	w.Stack.SetVisibleChild(plc)
 
-func (w *Window) Context() context.Context {
-	return w.ctx
-}
-
-func (w *Window) OnLogin() {
-	w.readyOnce.Do(func() {
-		w.initChatPage()
-		w.initActions()
-	})
-	w.SwitchToChatPage()
-}
-
-func (w *Window) initChatPage() {
-	w.Chat = NewChatPage(w.ctx, w)
-	w.Stack.AddChild(w.Chat)
-}
-
-// It's not happy with how this requires a check for ChatPage, but it makes
-// sense why these actions are bounded to Window and not ChatPage. Maybe?
-// This requires long and hard thinking, which is simply too much for its
-// brain.
-func (w *Window) initActions() {
-	gtkutil.AddActions(w, map[string]func(){
+	gtkutil.AddActions(&w, map[string]func(){
 		// "set-online":     func() { w.setStatus(discord.OnlineStatus) },
 		// "set-idle":       func() { w.setStatus(discord.IdleStatus) },
 		// "set-dnd":        func() { w.setStatus(discord.DoNotDisturbStatus) },
 		// "set-invisible":  func() { w.setStatus(discord.InvisibleStatus) },
 		"reset-view": func() {
-			w.useChatPage(
-				func(cp *ChatPage) {
-					cp.chatView.switchToGroup(nip29.GroupAddress{})
-				})
+			w.chat.chatView.switchToGroup(nip29.GroupAddress{})
 		},
-		"quick-switcher": func() { w.useChatPage((*ChatPage).OpenQuickSwitcher) },
+		"quick-switcher": func() {
+			w.chat.OpenQuickSwitcher()
+		},
 	})
 
-	gtkutil.AddActionShortcuts(w, map[string]string{
+	gtkutil.AddActionShortcuts(&w, map[string]string{
 		"<Ctrl>K": "win.quick-switcher",
 	})
+
+	// attempt login with stored credentials
+	login.TryLoginFromDriver()
+
+	return &w
 }
 
 func (w *Window) OpenGroup(gad nip29.GroupAddress) {
-	w.useChatPage(func(p *ChatPage) {
-		eachChild(p.Sidebar.CurrentGroupsView.List, func(lbr *gtk.ListBoxRow) bool {
-			if lbr.Name() == gad.String() {
-				if p.Sidebar.CurrentGroupsView.List.SelectedRow() != lbr {
-					p.Sidebar.CurrentGroupsView.List.SelectRow(lbr)
-				}
-				return true
+	eachChild(w.chat.Sidebar.CurrentGroupsView.List, func(lbr *gtk.ListBoxRow) bool {
+		if lbr.Name() == gad.String() {
+			if w.chat.Sidebar.CurrentGroupsView.List.SelectedRow() != lbr {
+				w.chat.Sidebar.CurrentGroupsView.List.SelectRow(lbr)
 			}
-			return false
-		})
-		p.chatView.switchToGroup(gad)
+			return true
+		}
+		return false
 	})
+	w.chat.chatView.switchToGroup(gad)
 }
 
 func (w *Window) OpenRelay(url string) {
-	w.useChatPage(func(p *ChatPage) {
-		eachChild(p.Sidebar.RelaysView.Widget, func(lbr *gtk.ListBoxRow) bool {
-			if lbr.Name() == url {
-				if p.Sidebar.RelaysView.Widget.SelectedRow() != lbr {
-					p.Sidebar.RelaysView.Widget.SelectRow(lbr)
-				}
-				return true
+	eachChild(w.chat.Sidebar.RelaysView.Widget, func(lbr *gtk.ListBoxRow) bool {
+		if lbr.Name() == url {
+			if w.chat.Sidebar.RelaysView.Widget.SelectedRow() != lbr {
+				w.chat.Sidebar.RelaysView.Widget.SelectRow(lbr)
 			}
-			return false
-		})
-
-		p.Sidebar.openRelay(url)
-		p.chatView.switchToGroup(nip29.GroupAddress{})
+			return true
+		}
+		return false
 	})
+
+	w.chat.Sidebar.openRelay(url)
+	w.chat.chatView.switchToGroup(nip29.GroupAddress{})
 }
 
-func (w *Window) SwitchToChatPage() {
-	w.Stack.SetVisibleChild(w.Chat)
-	w.Chat.chatView.switchToGroup(nip29.GroupAddress{})
-	w.SetTitle("")
-}
-
-func (w *Window) SwitchToLoginPage() {
-	w.Stack.SetVisibleChild(w.Login)
-	w.SetTitle("Login")
-}
-
-// SetTitle sets the window title.
 func (w *Window) SetTitle(title string) {
 	w.ApplicationWindow.SetTitle(app.FromContext(w.ctx).SuffixedTitle(title))
-}
-
-func (w *Window) showQuickSwitcher() {
-	w.useChatPage(func(*ChatPage) {
-		ShowQuickSwitcherDialog(w.ctx)
-	})
-}
-
-func (w *Window) useChatPage(f func(*ChatPage)) {
-	if w.Chat != nil {
-		f(w.Chat)
-	}
 }
 
 // func (w *Window) setStatus(status discord.Status) {

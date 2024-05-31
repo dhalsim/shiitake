@@ -110,6 +110,7 @@ func NewChatPage(ctx context.Context, w *Window) *ChatPage {
 	// ))
 
 	chatPageCSS(p)
+
 	return &p
 }
 

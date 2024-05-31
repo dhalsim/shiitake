@@ -22,6 +22,8 @@ func Init(ctx context.Context, keyOrBunker string, password string) error {
 		return err
 	}
 
+	close(initialized)
+
 	return nil
 }
 
@@ -42,11 +44,15 @@ type User struct {
 }
 
 var (
+	initialized = make(chan struct{})
+
 	me     *Me
 	meLock sync.Mutex
 )
 
 func GetMe(ctx context.Context) *Me {
+	<-initialized
+
 	meLock.Lock()
 	defer meLock.Unlock()
 
