@@ -219,10 +219,12 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 			loadMore.SetHExpand(true)
 			loadMore.SetSensitive(true)
 			loadMore.ConnectClicked(v.loadMore)
+			loadMore.Hide()
 
 			clampBox := gtk.NewBox(gtk.OrientationVertical, 0)
 			clampBox.SetHExpand(true)
 			clampBox.SetVExpand(true)
+			clampBox.SetVAlign(gtk.AlignEnd)
 			clampBox.Append(loadMore)
 			clampBox.Append(list)
 
@@ -255,12 +257,42 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 			vp := scrollW.Viewport()
 			vp.SetScrollToFocus(true)
 
+			upsertMessage := func(event *nostr.Event, pos int) {
+				id := event.ID
+				if _, ok := v.msgs[id]; ok {
+					return
+				}
+
+				cmessage := NewCozyMessage(v.ctx, event, v)
+				row := gtk.NewListBoxRow()
+				row.AddCSSClass("message-row")
+				row.SetName(id)
+				row.SetChild(cmessage)
+				msgRow := messageRow{
+					ListBoxRow: row,
+					message:    cmessage,
+					event:      event,
+				}
+
+				v.msgs[id] = msgRow
+
+				list.Insert(row, pos)
+				list.Display().Flush()
+				list.SetFocusChild(row)
+			}
+
+			showingLoadMoreAlready := false
+
 			// insert previously loaded messages
 			gtkutil.Async(v.ctx, func() func() {
 				<-group.EOSE
 
 				for _, evt := range group.Messages {
-					v.upsertMessage(list, evt, -1)
+					upsertMessage(evt, -1)
+				}
+
+				if scroll.AllocatedHeight() < int(vp.VAdjustment().Upper()) {
+					loadMore.Show()
 				}
 
 				return func() {
@@ -272,7 +304,13 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 			go func() {
 				for evt := range group.NewMessage {
 					glib.IdleAdd(func() {
-						v.upsertMessage(list, evt, -1)
+						upsertMessage(evt, -1)
+
+						if !showingLoadMoreAlready &&
+							scroll.AllocatedHeight() < int(vp.VAdjustment().Upper()) {
+							showingLoadMoreAlready = true
+							loadMore.Show()
+						}
 					})
 				}
 			}()
@@ -498,30 +536,6 @@ func (v *MessagesView) loadMore() {
 			// 	}
 		}
 	})
-}
-
-func (v *MessagesView) upsertMessage(list *gtk.ListBox, event *nostr.Event, pos int) {
-	id := event.ID
-	if _, ok := v.msgs[id]; ok {
-		return
-	}
-
-	cmessage := NewCozyMessage(v.ctx, event, v)
-	row := gtk.NewListBoxRow()
-	row.AddCSSClass("message-row")
-	row.SetName(id)
-	row.SetChild(cmessage)
-	msgRow := messageRow{
-		ListBoxRow: row,
-		message:    cmessage,
-		event:      event,
-	}
-
-	v.msgs[id] = msgRow
-
-	list.Insert(row, pos)
-	list.Display().Flush()
-	list.SetFocusChild(row)
 }
 
 func (v *MessagesView) deleteMessage(list *gtk.ListBox, id string) {
