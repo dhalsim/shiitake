@@ -89,8 +89,14 @@ func NewWindow(ctx context.Context) *Window {
 		},
 		"preferences": func() { prefui.ShowDialog(ctx) },
 		"about":       func() { about.New(ctx).Present() },
-		"logs":        func() { logui.ShowDefaultViewer(ctx) },
-		"quit":        func() { application.Quit() },
+		"logs": func() {
+			viewer := logui.NewDefaultViewer(ctx)
+			viewer.SetHideOnClose(false)
+			viewer.SetDestroyWithParent(true)
+			viewer.SetDefaultSize(850, -1)
+			viewer.Show()
+		},
+		"quit": func() { application.Quit() },
 	})
 
 	gtkutil.AddActionShortcuts(&w, map[string]string{

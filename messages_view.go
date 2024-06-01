@@ -213,7 +213,7 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 
 			loadMore := gtk.NewButton()
 			loadMore.AddCSSClass("message-show-more")
-			loadMore.SetLabel(locale.Get("Show More"))
+			loadMore.SetLabel("Show More")
 			loadMore.SetHExpand(true)
 			loadMore.SetSensitive(true)
 			loadMore.ConnectClicked(v.loadMore)
@@ -631,6 +631,14 @@ func (v *MessagesView) AddReaction(id string, emoji discord.APIEmoji) {
 	// 	}
 	// 	return nil
 	// })
+}
+
+func (v *MessagesView) ErrorToast(msg string) {
+	toast := adw.NewToast(msg)
+	toast.SetTimeout(5)
+	toast.SetButtonLabel("Logs")
+	toast.SetActionName("win.logs")
+	v.ToastOverlay.AddToast(toast)
 }
 
 func (v *MessagesView) Toast(msg string) {

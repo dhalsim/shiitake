@@ -194,7 +194,7 @@ func (g Group) SendChatMessage(ctx context.Context, text string, replyTo string)
 	}
 
 	if err := relay.Publish(ctx, evt); err != nil {
-		return fmt.Errorf("publish failed: %w", err)
+		return fmt.Errorf("publish to %s failed: %w", g.Address, err)
 	}
 
 	return nil

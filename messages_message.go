@@ -126,7 +126,7 @@ func (msg *message) ShowSource() {
 	buf := gtk.NewTextBuffer(nil)
 
 	if raw, err := json.MarshalIndent(msg.Event, "", "\t"); err != nil {
-		buf.SetText("Error marshaing JSON: " + err.Error())
+		buf.SetText("Error marshaling JSON: " + err.Error())
 	} else {
 		buf.SetText(string(raw))
 		hl.Highlight(msg.Content.ctx, buf.StartIter(), buf.EndIter(), "json")

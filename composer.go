@@ -345,7 +345,7 @@ func (v *ComposerView) publish() {
 	err := v.ctrl.currentGroup.SendChatMessage(v.ctx, text, v.replyingTo)
 	if err != nil {
 		slog.Warn(err.Error())
-		v.ctrl.Toast(strings.Replace(err.Error(), " msg: ", " ", 1))
+		v.ctrl.ErrorToast(strings.Replace(err.Error(), " msg: ", " ", 1))
 		return
 	}
 
