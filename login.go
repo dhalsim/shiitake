@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"log/slog"
 	"strings"
 
 	"fiatjaf.com/shiitake/components/form_entry"
@@ -141,7 +142,7 @@ func (p *LoginPage) loginWithPassword(input string, password string) {
 	err := global.Init(p.ctx, input, password)
 	if err != nil {
 		p.Body.SetSensitive(true)
-		log.Println("error initializing signer", err)
+		slog.Error("error initializing signer", err)
 		return
 	}
 

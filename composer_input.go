@@ -1,10 +1,9 @@
-package composer
+package main
 
 import (
 	"context"
 	"io"
 	"mime"
-	"strings"
 	"sync"
 	"time"
 
@@ -32,18 +31,6 @@ var persistInput = prefs.NewBool(true, prefs.PropMeta{
 		"If disabled, the input is only persisted for the current session on memory.",
 })
 
-// InputController is the parent controller that Input controls.
-type InputController interface {
-	// Send sends or edits everything in the current message buffer state.
-	Send()
-	// Escape is called when the Escape key is pressed. It is meant to stop any
-	// ongoing action and return true, or false if no action.
-	Escape() bool
-	// PasteClipboardFile is called everytime the user pastes a file from their
-	// clipboard. The file is usually (but not always) an image.
-	PasteClipboardFile(File)
-}
-
 // Input is the text field of the composer.
 type Input struct {
 	*gtk.TextView
@@ -51,7 +38,7 @@ type Input struct {
 	ac     *autocomplete.Autocompleter
 
 	ctx  context.Context
-	ctrl InputController
+	ctrl *ComposerView
 	gad  nip29.GroupAddress
 }
 
@@ -74,7 +61,7 @@ var inputStateKey = app.NewStateKey[string]("input-state")
 
 var inputStateMemory sync.Map // map[string]string
 
-func NewInput(ctx context.Context, ctrl InputController, gad nip29.GroupAddress) *Input {
+func NewInput(ctx context.Context, ctrl *ComposerView, gad nip29.GroupAddress) *Input {
 	i := Input{
 		ctx:  ctx,
 		ctrl: ctrl,
@@ -167,36 +154,24 @@ var sendOnEnter = prefs.NewBool(true, prefs.PropMeta{
 	Description: "Send the message when the user hits the Enter key. Disable this for mobile.",
 })
 
-func (i *Input) onKey(val, _ uint, state gdk.ModifierType) bool {
+func (i *Input) onKey(val, _ uint, mod gdk.ModifierType) bool {
 	switch val {
-	case gdk.KEY_Return:
+	case gdk.KEY_Return, gdk.KEY_KP_Enter:
 		if i.ac.Select() {
 			return true
 		}
 
-		// TODO: find a better way to do this. goldmark won't try to
-		// parse an incomplete codeblock (I think), but the changed
-		// signal will be fired after this signal.
-		//
-		// Perhaps we could use the FindChar method to avoid allocating
-		// a new string (twice) on each keypress.
-		head := i.Buffer.StartIter()
-		tail := i.Buffer.IterAtMark(i.Buffer.GetInsert())
-		uinput := i.Buffer.Text(head, tail, false)
-
-		// Check if the number of triple backticks is odd. If it is, then we're
-		// in one.
-		withinCodeblock := strings.Count(uinput, "```")%2 != 0
-
-		// Enter (without holding Shift) sends the message.
-		if sendOnEnter.Value() && !state.Has(gdk.ShiftMask) && !withinCodeblock {
-			i.ctrl.Send()
+		if sendOnEnter.Value() && !mod.Has(gdk.ShiftMask) {
+			i.ctrl.publish()
 			return true
 		}
 	case gdk.KEY_Tab:
 		return i.ac.Select()
 	case gdk.KEY_Escape:
-		return i.ctrl.Escape()
+		if i.ctrl.replyingTo != "" {
+			i.ctrl.StopReplying()
+			return true
+		}
 	case gdk.KEY_Up:
 		if i.ac.MoveUp() {
 			return true
@@ -266,7 +241,9 @@ func (i *Input) readClipboard() {
 				file.Name += exts[0]
 			}
 
-			return func() { i.ctrl.PasteClipboardFile(file) }
+			return func() {
+				i.ctrl.UploadTray.AddFile(file)
+			}
 		})
 	})
 }

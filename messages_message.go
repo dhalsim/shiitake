@@ -166,9 +166,7 @@ func (msg *message) ShowSource() {
 // cozyMessage is a large cozy message with an avatar.
 type cozyMessage struct {
 	*gtk.Box
-	Avatar   *onlineimage.Avatar
-	RightBox *gtk.Box
-	TopLabel *gtk.Label
+	Avatar *onlineimage.Avatar
 
 	message
 	tooltip string // markup
@@ -252,29 +250,29 @@ func NewCozyMessage(ctx context.Context, event *nostr.Event, v *MessagesView) *c
 
 	// TODO: query tooltip
 
-	m.TopLabel = gtk.NewLabel("")
-	m.TopLabel.AddCSSClass("message-cozy-header")
-	m.TopLabel.SetXAlign(0)
-	m.TopLabel.SetEllipsize(pango.EllipsizeEnd)
-	m.TopLabel.SetSingleLineMode(true)
-	m.TopLabel.SetMarkup(markup)
-	m.TopLabel.SetTooltipMarkup(tooltip)
+	topLabel := gtk.NewLabel("")
+	topLabel.AddCSSClass("message-cozy-header")
+	topLabel.SetXAlign(0)
+	topLabel.SetEllipsize(pango.EllipsizeEnd)
+	topLabel.SetSingleLineMode(true)
+	topLabel.SetMarkup(markup)
+	topLabel.SetTooltipMarkup(tooltip)
 
-	m.RightBox = gtk.NewBox(gtk.OrientationVertical, 0)
-	m.RightBox.SetHExpand(true)
-	m.RightBox.Append(m.TopLabel)
-	m.RightBox.Append(m.message.Content)
+	rightBox := gtk.NewBox(gtk.OrientationVertical, 0)
+	rightBox.SetHExpand(true)
+	rightBox.Append(topLabel)
+	rightBox.Append(m.message.Content)
 
-	m.Avatar = onlineimage.NewAvatar(ctx, imgutil.HTTPProvider, 12)
-	m.Avatar.AddCSSClass("message-cozy-avatar")
-	m.Avatar.SetVAlign(gtk.AlignCenter)
-	m.Avatar.EnableAnimation().OnHover()
-	m.Avatar.SetTooltipMarkup(tooltip)
-	m.Avatar.SetFromURL(user.Picture)
+	avatar := onlineimage.NewAvatar(ctx, imgutil.HTTPProvider, 12)
+	avatar.AddCSSClass("message-cozy-avatar")
+	avatar.SetVAlign(gtk.AlignCenter)
+	avatar.EnableAnimation().OnHover()
+	avatar.SetTooltipMarkup(tooltip)
+	avatar.SetFromURL(user.Picture)
 
 	m.Box = gtk.NewBox(gtk.OrientationHorizontal, 0)
-	m.Box.Append(m.Avatar)
-	m.Box.Append(m.RightBox)
+	m.Box.Append(avatar)
+	m.Box.Append(rightBox)
 	m.Box.AddCSSClass(fmt.Sprintf("msg-bg-%s", event.PubKey[63:64]))
 	align := gtk.AlignStart
 	if event.PubKey == v.loggedUser {
@@ -286,15 +284,4 @@ func NewCozyMessage(ctx context.Context, event *nostr.Event, v *MessagesView) *c
 
 	cozyCSS(m)
 	return m
-}
-
-func (m *cozyMessage) UpdateMember(member string) {
-	if m.message.Event == nil {
-		return
-	}
-
-	// m.updateAuthor(&gateway.MessageCreateEvent{
-	// 	Message: *m.message.Event,
-	// 	Member:  member,
-	// })
 }

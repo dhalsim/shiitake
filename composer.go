@@ -1,16 +1,15 @@
-package composer
+package main
 
 import (
 	"context"
+	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"os"
 	"strings"
-	"time"
 	"unicode"
 
-	"github.com/diamondburned/arikawa/v3/discord"
-	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
+	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/gotk4/pkg/core/gioutil"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -22,7 +21,6 @@ import (
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/diamondburned/gotkit/gtkutil/mediautil"
 	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
 // File contains the filename and a callback to open the file that's called
@@ -34,58 +32,16 @@ type File struct {
 	Open func() (io.ReadCloser, error)
 }
 
-// SendingMessage is the message created to be sent.
-type SendingMessage struct {
-	Content      string
-	Files        []File
-	ReplyingTo   string
-	ReplyMention bool
-}
-
-// Controller is the parent Controller for a View.
-type Controller interface {
-	SendMessage(SendingMessage)
-	StopEditing()
-	StopReplying()
-	AddReaction(string, discord.APIEmoji)
-	AddToast(*adw.Toast)
-}
-
-type typer struct {
-	Markup string
-	UserID discord.UserID
-	Time   discord.UnixTimestamp
-}
-
-func findTyper(typers []typer, userID discord.UserID) *typer {
-	for i, t := range typers {
-		if t.UserID == userID {
-			return &typers[i]
-		}
-	}
-	return nil
-}
-
-const typerTimeout = 10 * time.Second
-
-type replyingState uint8
-
-const (
-	notReplying replyingState = iota
-	replyingMention
-	replyingNoMention
-)
-
-type View struct {
+type ComposerView struct {
 	*gtk.Box
 	Input        *Input
 	Placeholder  *gtk.Label
 	UploadTray   *UploadTray
 	EmojiChooser *gtk.EmojiChooser
 
-	ctx  context.Context
-	ctrl Controller
-	gad  nip29.GroupAddress
+	ctx   context.Context
+	ctrl  *MessagesView
+	group *global.Group
 
 	rightBox    *gtk.Box
 	emojiButton *gtk.MenuButton
@@ -94,14 +50,8 @@ type View struct {
 	leftBox      *gtk.Box
 	uploadButton *gtk.Button
 
-	chooser *gtk.FileChooserNative
-
-	SwitchTo func(nip29.GroupAddress)
-
-	state struct {
-		id       string
-		replying replyingState
-	}
+	chooser    *gtk.FileChooserNative
+	replyingTo string
 }
 
 var viewCSS = cssutil.Applier("composer-view", `
@@ -135,17 +85,14 @@ const (
 	uploadIcon = "list-add-symbolic"
 )
 
-func NewView(ctx context.Context, ctrl Controller, gad nip29.GroupAddress) *View {
-	v := &View{
-		ctx:  ctx,
-		ctrl: ctrl,
-		gad:  gad,
+func NewComposerView(ctx context.Context, messagesView *MessagesView, group *global.Group) *ComposerView {
+	v := &ComposerView{
+		ctx:   ctx,
+		ctrl:  messagesView,
+		group: group,
 	}
 
-	v.Input = NewInput(ctx, inputControllerView{v}, gad)
-	v.SwitchTo = func(gad nip29.GroupAddress) {
-		v.gad = gad
-	}
+	v.Input = NewInput(ctx, v, group.Address)
 
 	scroll := gtk.NewScrolledWindow()
 	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
@@ -212,7 +159,7 @@ func NewView(ctx context.Context, ctrl Controller, gad nip29.GroupAddress) *View
 	v.sendButton.SetVAlign(gtk.AlignCenter)
 	v.sendButton.SetTooltipText("Send Message")
 	v.sendButton.SetHasFrame(false)
-	v.sendButton.ConnectClicked(v.send)
+	v.sendButton.ConnectClicked(v.publish)
 
 	v.rightBox = gtk.NewBox(gtk.OrientationHorizontal, 0)
 	v.rightBox.AddCSSClass("composer-right-actions")
@@ -234,7 +181,7 @@ func NewView(ctx context.Context, ctrl Controller, gad nip29.GroupAddress) *View
 
 // SetPlaceholder sets the composer's placeholder. The default is used if an
 // empty string is given.
-func (v *View) SetPlaceholderMarkup(markup string) {
+func (v *ComposerView) SetPlaceholderMarkup(markup string) {
 	if markup == "" {
 		v.ResetPlaceholder()
 		return
@@ -243,8 +190,8 @@ func (v *View) SetPlaceholderMarkup(markup string) {
 	v.Placeholder.SetMarkup(markup)
 }
 
-func (v *View) ResetPlaceholder() {
-	v.Placeholder.SetText("Message " + v.gad.String()) // + gtkcord.ChannelNameFromID(v.ctx, v.chID))
+func (v *ComposerView) ResetPlaceholder() {
+	v.Placeholder.SetText("Message " + v.group.Address.String()) // + gtkcord.ChannelNameFromID(v.ctx, v.chID))
 }
 
 // actionButton is a button that is used in the composer bar.
@@ -289,7 +236,7 @@ type actions struct {
 }
 
 // setAction sets the action of the button in the composer.
-func (v *View) setActions(actions actions) {
+func (v *ComposerView) setActions(actions actions) {
 	gtkutil.RemoveChildren(v.leftBox)
 	gtkutil.RemoveChildren(v.rightBox)
 
@@ -301,14 +248,14 @@ func (v *View) setActions(actions actions) {
 	}
 }
 
-func (v *View) resetAction() {
+func (v *ComposerView) resetAction() {
 	v.setActions(actions{
 		left:  []actionButton{existingActionButton{v.uploadButton}},
 		right: []actionButton{existingActionButton{v.emojiButton}, existingActionButton{v.sendButton}},
 	})
 }
 
-func (v *View) upload() {
+func (v *ComposerView) upload() {
 	// From GTK's documentation:
 	//   Note that unlike GtkDialog, GtkNativeDialog objects are not toplevel
 	//   widgets, and GTK does not keep them alive. It is your responsibility to
@@ -331,7 +278,7 @@ func (v *View) upload() {
 	v.chooser.Show()
 }
 
-func (v *View) addFiles(list gio.ListModeller) {
+func (v *ComposerView) addFiles(list gio.ListModeller) {
 	go func() {
 		var i uint
 		for v.ctx.Err() == nil {
@@ -369,14 +316,14 @@ func (v *View) addFiles(list gio.ListModeller) {
 	}()
 }
 
-func (v *View) peekContent() (string, []File) {
+func (v *ComposerView) peekContent() (string, []File) {
 	start, end := v.Input.Buffer.Bounds()
 	text := v.Input.Buffer.Text(start, end, false)
 	files := v.UploadTray.Files()
 	return text, files
 }
 
-func (v *View) commitContent() (string, []File) {
+func (v *ComposerView) commitContent() (string, []File) {
 	start, end := v.Input.Buffer.Bounds()
 	text := v.Input.Buffer.Text(start, end, false)
 	v.Input.Buffer.Delete(start, end)
@@ -384,64 +331,25 @@ func (v *View) commitContent() (string, []File) {
 	return text, files
 }
 
-func (v *View) insertEmoji(emoji string) {
+func (v *ComposerView) insertEmoji(emoji string) {
 	endIter := v.Input.Buffer.EndIter()
 	v.Input.Buffer.Insert(endIter, emoji)
 }
 
-func (v *View) send() {
+func (v *ComposerView) publish() {
 	text, files := v.commitContent()
 	if text == "" && len(files) == 0 {
 		return
 	}
 
-	if len(files) == 0 && textBufferIsReaction(text) {
-		// state := gtkcord.FromContext(v.ctx).Online()
-
-		var targetMessageID string
-		if v.state.replying != notReplying {
-			targetMessageID = v.state.id
-		} else {
-			// msgs, _ := state.Cabinet.Messages(v.chID)
-			msgs := make([]*nostr.Event, 0)
-			if len(msgs) > 0 {
-				targetMessageID = msgs[0].ID
-			}
-		}
-
-		text = strings.TrimPrefix(text, "+")
-		text = strings.TrimSpace(text)
-		text = strings.Trim(text, "<>")
-
-		// state := gtkcord.FromContext(v.ctx).Online()
-		emoji := discord.APIEmoji(text)
-		log.Println("reacting", targetMessageID, emoji, v.gad)
-		go func() {
-			// if err := state.React(chID, targetMessageID, emoji); err != nil {
-			// 	slog.Error(
-			// 		"cannot react to message",
-			// 		"channel", chID,
-			// 		"message", targetMessageID,
-			// 		"emoji", emoji,
-			// 		"err", err)
-			// 	app.Error(v.ctx, errors.Wrap(err, "cannot react to message"))
-			// }
-		}()
-
-		v.ctrl.StopReplying()
+	err := v.ctrl.currentGroup.SendChatMessage(v.ctx, text, v.replyingTo)
+	if err != nil {
+		slog.Warn(err.Error())
+		v.ctrl.Toast(strings.Replace(err.Error(), " msg: ", " ", 1))
 		return
 	}
 
-	v.ctrl.SendMessage(SendingMessage{
-		Content:      text,
-		Files:        files,
-		ReplyingTo:   v.state.id,
-		ReplyMention: v.state.replying == replyingMention,
-	})
-
-	if v.state.replying != notReplying {
-		v.ctrl.StopReplying()
-	}
+	v.ctrl.stopEditingOrReplying()
 }
 
 // textBufferIsReaction returns whether the text buffer is for adding a reaction.
@@ -453,83 +361,51 @@ func textBufferIsReaction(buffer string) bool {
 
 // StartReplyingTo starts replying to the given message. Visually, there is no
 // difference except for the send button being different.
-func (v *View) StartReplyingTo(msg *nostr.Event) {
-	v.restart()
-
-	v.state.id = msg.ID
-	v.state.replying = replyingMention
-
+func (v *ComposerView) StartReplyingTo(msg *nostr.Event) {
+	v.ctrl.stopEditingOrReplying()
+	v.replyingTo = msg.ID
 	v.AddCSSClass("composer-replying")
 
-	// state := gtkcord.FromContext(v.ctx)
-	// v.SetPlaceholderMarkup(fmt.Sprintf(
-	// 	"Replying to %s",
-	// 	state.AuthorMarkup(&gateway.MessageCreateEvent{Message: *msg}),
-	// ))
+	v.SetPlaceholderMarkup(fmt.Sprintf(
+		"Replying to %s",
+		msg.ID,
+	))
 
-	mentionToggle := gtk.NewToggleButton()
-	mentionToggle.AddCSSClass("composer-mention-toggle")
-	mentionToggle.SetIconName("online-symbolic")
-	mentionToggle.SetHasFrame(false)
-	mentionToggle.SetActive(true)
-	mentionToggle.SetHAlign(gtk.AlignCenter)
-	mentionToggle.SetVAlign(gtk.AlignCenter)
-	mentionToggle.ConnectToggled(func() {
-		if mentionToggle.Active() {
-			v.state.replying = replyingMention
-		} else {
-			v.state.replying = replyingNoMention
-		}
-	})
+	// mentionToggle := gtk.NewToggleButton()
+	// mentionToggle.AddCSSClass("composer-mention-toggle")
+	// mentionToggle.SetIconName("online-symbolic")
+	// mentionToggle.SetHasFrame(false)
+	// mentionToggle.SetActive(true)
+	// mentionToggle.SetHAlign(gtk.AlignCenter)
+	// mentionToggle.SetVAlign(gtk.AlignCenter)
+	// mentionToggle.ConnectToggled(func() {
+	// 	if mentionToggle.Active() {
+	// 		v.state.replying = replyingMention
+	// 	} else {
+	// 		v.state.replying = replyingNoMention
+	// 	}
+	// })
 
-	v.setActions(actions{
-		left: []actionButton{
-			existingActionButton{v.uploadButton},
-		},
-		right: []actionButton{
-			existingActionButton{v.emojiButton},
-			existingActionButton{mentionToggle},
-			actionButtonData{
-				Name: "Reply",
-				Icon: replyIcon,
-				Func: v.send,
-			},
-		},
-	})
+	// v.setActions(actions{
+	// 	left: []actionButton{
+	// 		existingActionButton{v.uploadButton},
+	// 	},
+	// 	right: []actionButton{
+	// 		existingActionButton{v.emojiButton},
+	// 		existingActionButton{mentionToggle},
+	// 		actionButtonData{
+	// 			Name: "Reply",
+	// 			Icon: replyIcon,
+	// 			Func: v.publish,
+	// 		},
+	// 	},
+	// })
 }
 
-// StopReplying undoes the start call.
-func (v *View) StopReplying() {
-	if v.state.replying == 0 {
-		return
-	}
-
-	v.state.id = ""
-	v.state.replying = 0
-
+func (v *ComposerView) StopReplying() {
+	v.ctrl.stopEditingOrReplying()
+	v.replyingTo = ""
 	v.SetPlaceholderMarkup("")
 	v.RemoveCSSClass("composer-replying")
 	v.resetAction()
-}
-
-func (v *View) restart() bool {
-	state := v.state
-
-	if v.state.replying != notReplying {
-		v.ctrl.StopReplying()
-	}
-
-	return state.replying != notReplying
-}
-
-// inputControllerView implements InputController.
-type inputControllerView struct {
-	*View
-}
-
-func (v inputControllerView) Send()        { v.send() }
-func (v inputControllerView) Escape() bool { return v.restart() }
-
-func (v inputControllerView) PasteClipboardFile(file File) {
-	v.UploadTray.AddFile(file)
 }

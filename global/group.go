@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"slices"
 	"sync"
 
@@ -81,7 +82,7 @@ func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
 			select {
 			case evt, ok := <-sub.Events:
 				if !ok {
-					log.Printf("subscription to %s closed", group.Address)
+					slog.Warn("subscription closed", "group", group.Address)
 					return
 				}
 
@@ -170,7 +171,7 @@ func LeaveGroup(ctx context.Context, gad nip29.GroupAddress) {
 	}
 }
 
-func (g Group) SendChatMessage(ctx context.Context, text string) {
+func (g Group) SendChatMessage(ctx context.Context, text string, replyTo string) error {
 	evt := nostr.Event{
 		Kind: 9,
 		Tags: nostr.Tags{
@@ -179,62 +180,22 @@ func (g Group) SendChatMessage(ctx context.Context, text string) {
 		CreatedAt: nostr.Now(),
 		Content:   text,
 	}
+	if replyTo != "" {
+		evt.Tags = append(evt.Tags, nostr.Tag{"e", replyTo})
+	}
+
 	if err := sys.Signer.SignEvent(&evt); err != nil {
-		panic(err)
+		return fmt.Errorf("failed to sign: %w", err)
 	}
 
 	relay, err := sys.Pool.EnsureRelay(g.Address.Relay)
 	if err != nil {
-		log.Printf("failed to connect to relay '%s': %s\n", g.Address.Relay, err)
-		return
+		return fmt.Errorf("connection to '%s' failed: %w", g.Address.Relay, err)
 	}
 
 	if err := relay.Publish(ctx, evt); err != nil {
-		log.Println("failed to publish message: ", err)
-		return
-	}
-}
-
-func (g Group) SubscribeToMessages(ctx context.Context) {
-	relay, err := sys.Pool.EnsureRelay(g.Address.Relay)
-	if err != nil {
-		log.Printf("failed to connect to relay '%s': %s\n", g.Address.Relay, err)
-		return
+		return fmt.Errorf("publish failed: %w", err)
 	}
 
-	sub, err := relay.Subscribe(ctx, nostr.Filters{
-		{
-			Kinds: []int{9},
-			Tags: nostr.TagMap{
-				"h": []string{g.Address.ID},
-			},
-			Limit: 500,
-		},
-	})
-	if err != nil {
-		log.Printf("failed to subscribe to group %s: %s\n", g.Address, err)
-		return
-	}
-
-	{
-		stored := make([]*nostr.Event, 0, 500)
-		for {
-			select {
-			case evt := <-sub.Events:
-				// send stored messages in a big batch first
-				stored = append(stored, evt)
-			case <-sub.EndOfStoredEvents:
-				// reverse and send
-				n := len(stored)
-				log.Println("received stored", n)
-				goto continuous
-			}
-		}
-	}
-
-continuous:
-	// after we got an eose we will just send messages as they come one by one
-	for evt := range sub.Events {
-		log.Println(evt)
-	}
+	return nil
 }

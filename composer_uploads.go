@@ -1,4 +1,4 @@
-package composer
+package main
 
 import (
 	"fmt"
@@ -53,7 +53,18 @@ func NewUploadTray() *UploadTray {
 func (t *UploadTray) AddFile(file File) {
 	f := uploadFile{file: file}
 
-	f.icon = gtk.NewImageFromIconName(mimeIcon(file.Type))
+	iconName := "text-x-generic-symbolic"
+	switch strings.SplitN(file.Type, "/", 2)[0] {
+	case "image":
+		iconName = "image-x-generic-symbolic"
+	case "video":
+		iconName = "video-x-generic-symbolic"
+	case "audio":
+		iconName = "audio-x-generic-symbolic"
+	default:
+		iconName = "text-x-generic-symbolic"
+	}
+	f.icon = gtk.NewImageFromIconName(iconName)
 
 	f.name = gtk.NewLabel(file.Name)
 	f.name.SetEllipsize(pango.EllipsizeMiddle)
@@ -83,23 +94,6 @@ func (t *UploadTray) AddFile(file File) {
 	t.files = append(t.files, f)
 
 	f.del.ConnectClicked(t.bindDelete(f))
-}
-
-func mimeIcon(mime string) string {
-	if mime == "" {
-		return "text-x-generic-symbolic"
-	}
-
-	switch strings.SplitN(mime, "/", 2)[0] {
-	case "image":
-		return "image-x-generic-symbolic"
-	case "video":
-		return "video-x-generic-symbolic"
-	case "audio":
-		return "audio-x-generic-symbolic"
-	default:
-		return "text-x-generic-symbolic"
-	}
 }
 
 func (t *UploadTray) bindDelete(this uploadFile) func() {

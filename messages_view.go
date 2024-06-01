@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
+	"strings"
 
-	"fiatjaf.com/shiitake/components/composer"
 	"fiatjaf.com/shiitake/components/icon_placeholder"
 	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/adaptive"
@@ -19,8 +20,8 @@ import (
 	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/nbd-wtf/go-nostr"
+	"github.com/nbd-wtf/go-nostr/nip19"
 	"github.com/nbd-wtf/go-nostr/nip29"
-	"golang.org/x/exp/slog"
 )
 
 type messageRow struct {
@@ -35,7 +36,7 @@ type MessagesView struct {
 
 	ToastOverlay *adw.ToastOverlay
 	LoadMore     *gtk.Button
-	Composer     *composer.View
+	Composer     *ComposerView
 
 	listStack *gtk.Stack
 
@@ -126,10 +127,7 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 
 	plc := icon_placeholder.New("chat-bubbles-empty-symbolic")
 
-	v.Composer = composer.NewView(ctx, v, nip29.GroupAddress{})
-
 	composerOverlay := gtk.NewOverlay()
-	composerOverlay.SetChild(v.Composer)
 
 	outerBox := gtk.NewBox(gtk.OrientationVertical, 0)
 	outerBox.SetHExpand(true)
@@ -196,7 +194,7 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 		if scrollI := v.listStack.ChildByName(gad.String()); scrollI != nil {
 			scroll, _ = scrollI.(*gtk.ScrolledWindow)
 
-			// this is a fragile process that depends on the internal structure of autoscroll.Window
+			// fragile: this is depends on the internal structure of autoscroll.Window
 			switch child := scroll.Child().(type) {
 			case *gtk.Box:
 				list = child.LastChild().(*gtk.ListBox)
@@ -322,8 +320,8 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 		// make it visible
 		v.listStack.SetVisibleChild(scroll)
 
-		// recreate composer and forward typing
-		v.Composer = composer.NewView(ctx, v, gad)
+		// create composer and forward typing
+		v.Composer = NewComposerView(ctx, v, group)
 		composerOverlay.SetChild(v.Composer)
 		gtkutil.ForwardTyping(list, v.Composer.Input)
 	}
@@ -332,8 +330,10 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 
 	go func() {
 		<-global.GetMe(ctx).ListLoaded
-		v.ToastOverlay.SetChild(plc)
-		v.LoadablePage.SetChild(v.ToastOverlay)
+		glib.IdleAdd(func() {
+			v.ToastOverlay.SetChild(plc)
+			v.LoadablePage.SetChild(v.ToastOverlay)
+		})
 	}()
 
 	messagesViewCSS(v)
@@ -539,52 +539,36 @@ func (v *MessagesView) loadMore() {
 }
 
 func (v *MessagesView) deleteMessage(list *gtk.ListBox, id string) {
-	msg, ok := v.msgs[id]
-	if !ok {
-		return
-	}
-
-	list.Remove(msg)
-	delete(v.msgs, id)
-}
-
-func (v *MessagesView) lastMessage(list *gtk.ListBox) (messageRow, bool) {
-	row, _ := list.LastChild().(*gtk.ListBoxRow)
-	if row != nil {
-		msg, ok := v.msgs[row.Name()]
-		return msg, ok
-	}
-
-	return messageRow{}, false
-}
-
-func (v *MessagesView) lastUserMessage() *cozyMessage {
-	me := global.GetMe(v.ctx)
-	var res *cozyMessage
-
-	list := v.visibleList()
-	if list == nil {
-		return nil
-	}
-
 	eachChild(list, func(lbr *gtk.ListBoxRow) bool {
-		if msg, ok := v.msgs[lbr.Name()]; ok && msg.event.PubKey == me.PubKey {
-			res = msg.message
+		if lbr.Name() == id {
+			list.Remove(lbr)
 			return true
 		}
 		return false
 	})
-
-	return res
+	delete(v.msgs, id)
 }
 
-func (v *MessagesView) updateMember(pubkey string) {
-	for _, msg := range v.msgs {
-		if msg.event.PubKey != pubkey {
-			continue
+func (v *MessagesView) updateMember(list *gtk.ListBox, pubkey string) {
+	eachChild(list, func(lbr *gtk.ListBoxRow) bool {
+		fmt.Println("updating member", pubkey)
+
+		// fragile: this depends on the hierarchy of components: message > rightBox > topLabel
+		label := lbr.Child().(*gtk.Box).LastChild().(*gtk.Box).FirstChild().(*gtk.Label)
+		// fragile: this depends on the string given to the tooltip
+		npub := strings.Split(strings.Split(label.TooltipMarkup(), "(")[1], ")")[0]
+		_, data, _ := nip19.Decode(npub)
+		if pubkey == data.(string) {
+			// replace avatar
+			// avatar := lbr.Child().(*gtk.Box).FirstChild()
+			// lbr.Child().(*gtk.Box).InsertBefore(newAvatar, avatar)
+			// lbr.Child().(*gtk.Box).Remove(avatar)
+
+			// replace toplabel
+			// TODO
 		}
-		msg.message.UpdateMember(pubkey)
-	}
+		return false
+	})
 }
 
 func (v *MessagesView) updateMessageReactions(id string) {
@@ -609,107 +593,6 @@ func (v *MessagesView) messageIDFromRow(row *gtk.ListBoxRow) string {
 	}
 
 	return row.Name()
-}
-
-// SendMessage implements composer.Controller.
-func (v *MessagesView) SendMessage(msg composer.SendingMessage) {
-	// state := gtkcord.FromContext(v.ctx)
-
-	// me, _ := state.Cabinet.Me()
-	// if me == nil {
-	// 	// Risk of leaking Files is too high. Just explode. This realistically
-	// 	// never happens anyway.
-	// 	panic("missing state.Cabinet.Me")
-	// }
-
-	// info := messageInfo{
-	// 	author:    newMessageAuthor(me),
-	// 	timestamp: discord.Timestamp(time.Now()),
-	// }
-
-	// var flags upsertFlags
-	// if v.shouldBeCollapsed(info) {
-	// 	flags |= upsertFlagCollapsed
-	// }
-
-	// key := messageKeyLocal()
-	// row := v.upsertMessage(key, info, flags)
-
-	// m := nostr.Event{
-	// 	ChannelID: v.chID,
-	// 	GuildID:   v.guildID,
-	// 	Content:   msg.Content,
-	// 	Timestamp: discord.NowTimestamp(),
-	// 	Author:    *me,
-	// }
-
-	// if msg.ReplyingTo.IsValid() {
-	// 	m.Reference = &nostr.EventReference{
-	// 		ChannelID: v.chID,
-	// 		GuildID:   v.guildID,
-	// 		MessageID: msg.ReplyingTo,
-	// 	}
-	// }
-
-	// gtk.BaseWidget(row).AddCSSClass("message-sending")
-	// row.Update(&gateway.MessageCreateEvent{Message: m})
-
-	// uploading := newUploadingLabel(v.ctx, len(msg.Files))
-	// uploading.SetVisible(len(msg.Files) > 0)
-
-	// content := row.Content()
-	// content.Update(&m, uploading)
-
-	// // Use the Background context so things keep getting updated when we switch
-	// // away.
-	// gtkutil.Async(context.Background(), func() func() {
-	// 	sendData := api.SendMessageData{
-	// 		Content:   m.Content,
-	// 		Reference: m.Reference,
-	// 		Nonce:     key.Nonce(),
-	// 		AllowedMentions: &api.AllowedMentions{
-	// 			RepliedUser: &msg.ReplyMention,
-	// 			Parse: []api.AllowedMentionType{
-	// 				api.AllowUserMention,
-	// 				api.AllowRoleMention,
-	// 				api.AllowEveryoneMention,
-	// 			},
-	// 		},
-	// 	}
-
-	// 	// Ensure that we open ALL files and defer-close them. Otherwise, we'll
-	// 	// leak files.
-	// 	for _, file := range msg.Files {
-	// 		f, err := file.Open()
-	// 		if err != nil {
-	// 			glib.IdleAdd(func() { uploading.AppendError(err) })
-	// 			continue
-	// 		}
-
-	// 		// This defer executes once we return (like all defers do).
-	// 		defer f.Close()
-
-	// 		sendData.Files = append(sendData.Files, sendpart.File{
-	// 			Name:   file.Name,
-	// 			Reader: wrappedReader{f, uploading},
-	// 		})
-	// 	}
-
-	// 	state := state.Online()
-	// 	_, err := state.SendMessageComplex(m.ChannelID, sendData)
-
-	// 	return func() {
-	// 		gtk.BaseWidget(row).RemoveCSSClass("message-sending")
-
-	// 		if err != nil {
-	// 			uploading.AppendError(err)
-	// 		}
-
-	// 		// We'll let the gateway echo back our own event that's identified
-	// 		// using the nonce.
-	// 		uploading.SetVisible(uploading.HasErrored())
-	// 	}
-	// })
 }
 
 // ScrollToMessage scrolls to the message with the given ID.
@@ -750,8 +633,9 @@ func (v *MessagesView) AddReaction(id string, emoji discord.APIEmoji) {
 	// })
 }
 
-// AddToast adds a toast to the message view.
-func (v *MessagesView) AddToast(toast *adw.Toast) {
+func (v *MessagesView) Toast(msg string) {
+	toast := adw.NewToast(msg)
+	toast.SetTimeout(5)
 	v.ToastOverlay.AddToast(toast)
 }
 
@@ -769,16 +653,6 @@ func (v *MessagesView) ReplyTo(id string) {
 
 	msg.AddCSSClass("message-replying")
 	v.Composer.StartReplyingTo(msg.message.Event)
-}
-
-// StopEditing implements composer.Controller.
-func (v *MessagesView) StopEditing() {
-	v.stopEditingOrReplying()
-}
-
-// StopReplying implements composer.Controller.
-func (v *MessagesView) StopReplying() {
-	v.stopEditingOrReplying()
 }
 
 func (v *MessagesView) stopEditingOrReplying() {

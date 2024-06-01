@@ -1,4 +1,4 @@
-package composer
+package main
 
 import (
 	"context"
