@@ -5,7 +5,6 @@ import (
 
 	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/chatkit/components/author"
-	"github.com/diamondburned/chatkit/md/mdrender"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
@@ -17,7 +16,6 @@ import (
 	"github.com/diamondburned/ningen/v3/discordmd"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip29"
-	"github.com/yuin/goldmark/ast"
 )
 
 // Content is the message content widget.
@@ -363,41 +361,9 @@ func (c *Content) SetReactions(reactions []string) {
 	c.react.SetReactions(reactions)
 }
 
-var renderers = []mdrender.OptionFunc{
-	mdrender.WithRenderer(discordmd.KindEmoji, renderEmoji),
-	mdrender.WithRenderer(discordmd.KindInline, renderInline),
-	mdrender.WithRenderer(discordmd.KindMention, renderMention),
-}
-
 var inlineEmojiTag = textutil.TextTag{
 	"rise":     -5 * pango.SCALE,
 	"rise-set": true,
-}
-
-func renderEmoji(r *mdrender.Renderer, n ast.Node) ast.WalkStatus {
-	// emoji := n.(*discordmd.Emoji)
-	// text := r.State.TextBlock()
-
-	// picture := onlineimage.NewPicture(r.State.Context(), imgutil.HTTPProvider)
-	// picture.EnableAnimation().OnHover()
-	// picture.SetKeepAspectRatio(true)
-	// picture.SetTooltipText(emoji.Name)
-	// picture.SetURL(gtkcord.EmojiURL(emoji.ID, emoji.GIF))
-
-	// var inlineImage *md.InlineImage
-	// makeInlineImage := func(size int) {
-	// 	inlineImage = md.InsertCustomImageWidget(text.TextView, text.Buffer.CreateChildAnchor(text.Iter), picture)
-	// 	inlineImage.SetSizeRequest(size, size)
-	// }
-
-	// if emoji.Large {
-	// 	makeInlineImage(gtkcord.LargeEmojiSize)
-	// } else {
-	// 	tag := inlineEmojiTag.FromTable(text.Buffer.TagTable(), "inline-emoji")
-	// 	text.TagBounded(tag, func() { makeInlineImage(gtkcord.InlineEmojiSize) })
-	// }
-
-	return ast.WalkContinue
 }
 
 var htmlTagMap = map[discordmd.Attribute]string{
@@ -408,63 +374,8 @@ var htmlTagMap = map[discordmd.Attribute]string{
 	discordmd.AttrMonospace:     "code",
 }
 
-func renderInline(r *mdrender.Renderer, n ast.Node) ast.WalkStatus {
-	text := r.State.TextBlock()
-	startIx := text.Iter.Offset()
-
-	// Render everything inside. We'll wrap the whole region with tags.
-	r.RenderChildren(n)
-
-	start := text.Buffer.IterAtOffset(startIx)
-	end := text.Iter
-
-	inline := n.(*discordmd.Inline)
-
-	for tag, htmltag := range htmlTagMap {
-		if inline.Attr.Has(tag) {
-			text.Buffer.ApplyTag(text.Tag(htmltag), start, end)
-		}
-	}
-
-	return ast.WalkSkipChildren
-}
-
 // rgba(111, 120, 219, 0.3)
 const defaultMentionColor = "#6F78DB"
-
-func mentionTag(r *mdrender.Renderer, color string) *gtk.TextTag {
-	tag := textutil.TextTag{"background": color + "76"}
-	return tag.FromTable(r.State.TagTable(), tag.Hash())
-}
-
-func renderMention(r *mdrender.Renderer, n ast.Node) ast.WalkStatus {
-	// mention := n.(*discordmd.Mention)
-
-	// text := r.State.TextBlock()
-
-	// switch {
-	// case mention.Channel != nil:
-	// 	text.TagBounded(mentionTag(r, defaultMentionColor), func() {
-	// 		text.Insert(" #" + mention.Channel.Name + " ")
-	// 	})
-
-	// case mention.GuildRole != nil:
-	// 	roleColor := defaultMentionColor
-	// 	if mention.GuildRole.Color != discord.NullColor {
-	// 		roleColor = mention.GuildRole.Color.String()
-	// 	}
-
-	// 	text.TagBounded(mentionTag(r, roleColor), func() {
-	// 		text.Insert(" @" + mention.GuildRole.Name + " ")
-	// 	})
-
-	// case mention.GuildUser != nil:
-	// 	chip := newAuthorChip(r.State.Context(), mention.Message.GuildID, mention.GuildUser)
-	// 	chip.InsertText(text.TextView, text.Iter)
-	// }
-
-	return ast.WalkContinue
-}
 
 func newAuthorChip(ctx context.Context, guildID string, user global.User) *author.Chip {
 	name := user.ShortName()

@@ -6,11 +6,13 @@ import (
 	"io/fs"
 
 	"github.com/diamondburned/adaptive"
+	"github.com/diamondburned/chatkit/md/hl"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotkit/app"
 	"github.com/diamondburned/gotkit/app/locale"
 	"github.com/diamondburned/gotkit/app/prefs"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
+	"github.com/diamondburned/gotkit/gtkutil/textutil"
 
 	"fiatjaf.com/shiitake/about"
 	_ "fiatjaf.com/shiitake/icons"
@@ -71,8 +73,17 @@ func main() {
 		prefs.AsyncLoadSaved(ctx, func(err error) {
 			if err != nil {
 				app.Error(ctx, err)
+				return
 			}
+
+			// choose values and hide extraneous options from libraries from our menu
+			prefs.Hide(hl.Style)
+			hl.Style.Publish("nord")
+			prefs.Hide(textutil.TabWidth)
+			textutil.TabWidth.Publish(2)
 		})
 	})
+
+	// run gtk application
 	application.RunMain()
 }

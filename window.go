@@ -18,7 +18,7 @@ import (
 )
 
 var forceDarkTheme = prefs.NewBool(true, prefs.PropMeta{
-	Name:        "Use dark theme",
+	Name:        "Use Dark Theme",
 	Description: "Whether or not to use dark mode even if your system is set to light.",
 	Section:     "Theme",
 })

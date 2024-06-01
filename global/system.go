@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	path, _ = homedir.Expand("~/.local/shiitake/cachedb")
+	path, _ = homedir.Expand("~/.local/share/shiitake/cachedb")
 	bb      = &badger.BadgerBackend{Path: path}
 	_       = bb.Init()
 	sys     = sdk.System(sdk.WithStore(bb))

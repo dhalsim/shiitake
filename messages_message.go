@@ -118,7 +118,7 @@ func (msg *message) ShowSource() {
 	d.SetTitle(locale.Get("View Source"))
 	d.SetTransientFor(app.GTKWindowFromContext(msg.Content.ctx))
 	d.SetModal(true)
-	d.SetDefaultSize(500, 300)
+	d.SetDefaultSize(730, 400)
 
 	h := adw.NewHeaderBar()
 	h.SetCenteringPolicy(adw.CenteringPolicyStrict)
