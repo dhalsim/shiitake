@@ -80,8 +80,6 @@ func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
 		for {
 			select {
 			case evt, ok := <-sub.Events:
-				fmt.Println("event", evt)
-
 				if !ok {
 					log.Printf("subscription to %s closed", group.Address)
 					return

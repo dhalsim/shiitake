@@ -35,7 +35,6 @@ type MessagesView struct {
 
 	ToastOverlay *adw.ToastOverlay
 	LoadMore     *gtk.Button
-	Scroll       *autoscroll.Window
 	Composer     *composer.View
 
 	listStack *gtk.Stack
@@ -116,12 +115,6 @@ const (
 	idealMaxCount = 50 // ideally keep this many messages in the view
 )
 
-func applyViewClamp(clamp *adw.Clamp) {
-	// clamp.SetMaximumSize(messagesWidth.Value())
-	// Set tightening threshold to 90% of the clamp's width.
-	// clamp.SetTighteningThreshold(int(float64(messagesWidth.Value()) * 0.9))
-}
-
 func NewMessagesView(ctx context.Context) *MessagesView {
 	v := &MessagesView{
 		msgs: make(map[string]messageRow),
@@ -133,69 +126,16 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 
 	plc := icon_placeholder.New("chat-bubbles-empty-symbolic")
 
-	v.LoadMore = gtk.NewButton()
-	v.LoadMore.AddCSSClass("message-show-more")
-	v.LoadMore.SetLabel(locale.Get("Show More"))
-	v.LoadMore.SetHExpand(true)
-	v.LoadMore.SetSensitive(true)
-	v.LoadMore.ConnectClicked(v.loadMore)
-
-	clampBox := gtk.NewBox(gtk.OrientationVertical, 0)
-	clampBox.SetHExpand(true)
-	clampBox.SetVExpand(true)
-	clampBox.Append(v.LoadMore)
-	clampBox.Append(v.listStack)
-
-	// Require 2 clamps, one inside the scroll view and another outside the
-	// scroll view. This way, the scrollbars will be on the far right rather
-	// than being stuck in the middle.
-	clampScroll := adw.NewClamp()
-	clampScroll.SetChild(clampBox)
-	applyViewClamp(clampScroll)
-
-	v.Scroll = autoscroll.NewWindow()
-	v.Scroll.AddCSSClass("message-scroll")
-	v.Scroll.SetVExpand(true)
-	v.Scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
-	v.Scroll.SetPropagateNaturalWidth(true)
-	v.Scroll.SetPropagateNaturalHeight(true)
-	v.Scroll.SetChild(clampScroll)
-
-	v.Scroll.OnBottomed(v.onScrollBottomed)
-
-	scrollAdjustment := v.Scroll.VAdjustment()
-	scrollAdjustment.ConnectValueChanged(func() {
-		// Replicate adw.ToolbarView's behavior: if the user scrolls up, then
-		// show a small drop shadow at the bottom of the view. We're not using
-		// the actual widget, because it adds a WindowHandle at the bottom,
-		// which breaks double-clicking.
-		value := scrollAdjustment.Value()
-		upper := scrollAdjustment.Upper()
-		psize := scrollAdjustment.PageSize()
-		if value < upper-psize {
-			v.Scroll.AddCSSClass("undershoot-bottom")
-		} else {
-			v.Scroll.RemoveCSSClass("undershoot-bottom")
-		}
-	})
-
-	vp := v.Scroll.Viewport()
-	vp.SetScrollToFocus(true)
-
 	v.Composer = composer.NewView(ctx, v, nip29.GroupAddress{})
 
 	composerOverlay := gtk.NewOverlay()
 	composerOverlay.SetChild(v.Composer)
 
-	composerClamp := adw.NewClamp()
-	composerClamp.SetChild(composerOverlay)
-	applyViewClamp(composerClamp)
-
 	outerBox := gtk.NewBox(gtk.OrientationVertical, 0)
 	outerBox.SetHExpand(true)
 	outerBox.SetVExpand(true)
-	outerBox.Append(v.Scroll)
-	outerBox.Append(composerClamp)
+	outerBox.Append(v.listStack)
+	outerBox.Append(composerOverlay)
 
 	v.ToastOverlay = adw.NewToastOverlay()
 	v.ToastOverlay.SetChild(outerBox)
@@ -227,6 +167,7 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 		if current.Equals(gad) {
 			return
 		}
+		current = gad
 
 		if !gad.IsValid() {
 			// empty, switch to placeholder
@@ -234,7 +175,6 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 			return
 		}
 
-		current = gad
 		// otherwise we have something,
 		// so switch back to the main thing which is outerBox
 		v.ToastOverlay.SetChild(outerBox)
@@ -249,18 +189,71 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 		group := global.GetGroup(ctx, gad)
 		v.currentGroup = group
 
-		// get existing list
-		listI := v.listStack.ChildByName(gad.String())
+		// get existing group messages view (scroll) and list
+		var scroll *gtk.ScrolledWindow
 		var list *gtk.ListBox
-		if listI != nil {
-			list, _ = listI.(*gtk.ListBox)
+
+		if scrollI := v.listStack.ChildByName(gad.String()); scrollI != nil {
+			scroll, _ = scrollI.(*gtk.ScrolledWindow)
+
+			// this is a fragile process that depends on the internal structure of autoscroll.Window
+			switch child := scroll.Child().(type) {
+			case *gtk.Box:
+				list = child.LastChild().(*gtk.ListBox)
+			case *gtk.Viewport:
+				list = child.Child().(*gtk.Box).LastChild().(*gtk.ListBox)
+			default:
+				panic("unexpected type")
+			}
+
 		} else {
 			// create list if we haven't done that before
 			// TODO: we need a context here or something so the subscription is canceled if this group is removed
 			list = gtk.NewListBox()
 			list.AddCSSClass("message-list")
 			list.SetSelectionMode(gtk.SelectionNone)
-			list.SetAdjustment(v.Scroll.VAdjustment())
+
+			loadMore := gtk.NewButton()
+			loadMore.AddCSSClass("message-show-more")
+			loadMore.SetLabel(locale.Get("Show More"))
+			loadMore.SetHExpand(true)
+			loadMore.SetSensitive(true)
+			loadMore.ConnectClicked(v.loadMore)
+
+			clampBox := gtk.NewBox(gtk.OrientationVertical, 0)
+			clampBox.SetHExpand(true)
+			clampBox.SetVExpand(true)
+			clampBox.Append(loadMore)
+			clampBox.Append(list)
+
+			scrollW := autoscroll.NewWindow()
+			scrollW.AddCSSClass("message-scroll")
+			scrollW.SetVExpand(true)
+			scrollW.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+			scrollW.SetPropagateNaturalWidth(true)
+			scrollW.SetPropagateNaturalHeight(true)
+			scrollW.SetChild(clampBox)
+			scrollW.OnBottomed(v.onScrollBottomed)
+			scroll = scrollW.ScrolledWindow
+
+			scrollAdjustment := scroll.VAdjustment()
+			scrollAdjustment.ConnectValueChanged(func() {
+				// Replicate adw.ToolbarView's behavior: if the user scrolls up, then
+				// show a small drop shadow at the bottom of the view. We're not using
+				// the actual widget, because it adds a WindowHandle at the bottom,
+				// which breaks double-clicking.
+				value := scrollAdjustment.Value()
+				upper := scrollAdjustment.Upper()
+				psize := scrollAdjustment.PageSize()
+				if value < upper-psize {
+					scroll.AddCSSClass("undershoot-bottom")
+				} else {
+					scroll.RemoveCSSClass("undershoot-bottom")
+				}
+			})
+
+			vp := scrollW.Viewport()
+			vp.SetScrollToFocus(true)
 
 			// insert previously loaded messages
 			gtkutil.Async(v.ctx, func() func() {
@@ -271,7 +264,7 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 				}
 
 				return func() {
-					v.Scroll.ScrollToBottom()
+					scrollW.ScrollToBottom()
 				}
 			})
 
@@ -285,11 +278,11 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 			}()
 
 			// insert in the stack
-			v.listStack.AddNamed(list, gad.String())
+			v.listStack.AddNamed(scroll, gad.String())
 		}
 
 		// make it visible
-		v.listStack.SetVisibleChild(list)
+		v.listStack.SetVisibleChild(scroll)
 
 		// recreate composer and forward typing
 		v.Composer = composer.NewView(ctx, v, gad)
