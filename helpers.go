@@ -1,6 +1,10 @@
 package main
 
-import "github.com/diamondburned/gotk4/pkg/gtk/v4"
+import (
+	"strings"
+
+	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+)
 
 func eachChild(list *gtk.ListBox, fn func(*gtk.ListBoxRow) bool) {
 	row, _ := list.LastChild().(*gtk.ListBoxRow)
@@ -24,4 +28,12 @@ func getChild(list *gtk.ListBox, fn func(*gtk.ListBoxRow) bool) *gtk.ListBoxRow 
 		return false
 	})
 	return row
+}
+
+func trimProtocol(relay string) string {
+	relay = strings.TrimPrefix(relay, "wss://")
+	relay = strings.TrimPrefix(relay, "ws://")
+	relay = strings.TrimPrefix(relay, "wss:/") // Some browsers replace upfront '//' with '/'
+	relay = strings.TrimPrefix(relay, "ws:/")  // Some browsers replace upfront '//' with '/'
+	return relay
 }

@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"strings"
 
+	"fiatjaf.com/shiitake/components/sidebutton"
 	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
@@ -37,7 +39,7 @@ func NewRelaysView(ctx context.Context) *RelaysView {
 		for {
 			select {
 			case relay := <-me.JoinedRelay:
-				g := NewRelay(v.ctx, relay)
+				g := NewRelayButton(v.ctx, relay)
 				v.Widget.Prepend(g)
 			case url := <-me.LeftRelay:
 				row := getChild(v.Widget, func(lbr *gtk.ListBoxRow) bool { return url == lbr.Name() })
@@ -48,53 +50,37 @@ func NewRelaysView(ctx context.Context) *RelaysView {
 		}
 	}()
 
-	// cancellable := gtkutil.WithVisibility(ctx, v)
-
-	// state := gtkcord.FromContext(ctx)
-	// state.BindHandler(cancellable, func(ev gateway.Event) {
-	// 	switch ev := ev.(type) {
-	// 	case *gateway.ReadyEvent, *gateway.ResumedEvent:
-	// 		// Recreate the whole list in case we have some new info.
-	// 		v.Invalidate()
-
-	// 	case *read.UpdateEvent:
-	// 		if relay := v.Relay(ev.RelayID); relay != nil {
-	// 			relay.InvalidateUnread()
-	// 		}
-	// 	case *gateway.GroupCreateEvent:
-	// 		if ev.RelayID.IsValid() {
-	// 			if relay := v.Relay(ev.RelayID); relay != nil {
-	// 				relay.InvalidateUnread()
-	// 			}
-	// 		}
-	// 	case *gateway.RelayCreateEvent:
-	// 		if relay := v.Relay(ev.ID); relay != nil {
-	// 			relay.Update(&ev.Relay)
-	// 		} else {
-	// 			v.AddRelay(&ev.Relay)
-	// 		}
-	// 	case *gateway.RelayUpdateEvent:
-	// 		if relay := v.Relay(ev.ID); relay != nil {
-	// 			relay.Invalidate()
-	// 		}
-	// 	case *gateway.RelayDeleteEvent:
-	// 		if ev.Unavailable {
-	// 			if relay := v.Relay(ev.ID); relay != nil {
-	// 				relay.SetUnavailable()
-
-	// 				parent := gtk.BaseWidget(relay.Parent())
-	// 				parent.ActivateAction("win.reset-view", nil)
-	// 				return
-	// 			}
-	// 		}
-
-	// 		relay := v.RemoveRelay(ev.ID)
-	// 		if relay != nil && relay.IsSelected() {
-	// 			parent := gtk.BaseWidget(relay.Parent())
-	// 			parent.ActivateAction("win.reset-view", nil)
-	// 		}
-	// 	}
-	// })
-
 	return &v
+}
+
+type RelayButton struct {
+	*sidebutton.Button
+	ctx  context.Context
+	url  string
+	name string
+}
+
+func NewRelayButton(ctx context.Context, relay *global.Relay) *RelayButton {
+	g := &RelayButton{
+		ctx:  ctx,
+		url:  relay.URL,
+		name: relay.Name,
+	}
+
+	g.name = relay.URL
+
+	g.Button = sidebutton.NewButton(ctx, func() {
+		win.OpenRelay(relay.URL)
+	})
+
+	g.SetTooltipMarkup(trimProtocol(relay.URL))
+
+	g.SetSensitive(true)
+	initials := strings.Join(strings.Split(strings.Split(relay.URL, "://")[1], "."), " ")
+	g.Icon.SetInitials(initials)
+	if relay.Image != "" {
+		g.Icon.SetFromURL(relay.Image)
+	}
+
+	return g
 }

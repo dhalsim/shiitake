@@ -458,7 +458,7 @@ var qwRelayCSS = cssutil.Applier("quickswitcher-relay", `
 
 func (it qwRelayItem) Row(ctx context.Context) *gtk.ListBoxRow {
 	row := gtk.NewListBoxRow()
-	relayCSS(row)
+	qwRelayCSS(row)
 
 	// icon := onlineimage.NewAvatar(ctx, imgutil.HTTPProvider, gtkcord.InlineEmojiSize)
 	// icon.AddCSSClass("quickswitcher-relay-icon")

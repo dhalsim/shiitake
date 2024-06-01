@@ -207,6 +207,23 @@ var cozyCSS = cssutil.Applier("message-cozy", `
 .msg-bg-d { background-color: hsl(292.5, 66%, 89%); }
 .msg-bg-e { background-color: hsl(315.0, 66%, 89%); }
 .msg-bg-f { background-color: hsl(337.5, 66%, 89%); }
+
+.dark .msg-bg-0 { background-color: hsl(0.0, 50%, 21%); }
+.dark .msg-bg-1 { background-color: hsl(22.5, 50%, 21%); }
+.dark .msg-bg-2 { background-color: hsl(45.0, 50%, 21%); }
+.dark .msg-bg-3 { background-color: hsl(67.5, 50%, 21%); }
+.dark .msg-bg-4 { background-color: hsl(90.0, 50%, 21%); }
+.dark .msg-bg-5 { background-color: hsl(112.5, 50%, 21%); }
+.dark .msg-bg-6 { background-color: hsl(135.0, 50%, 21%); }
+.dark .msg-bg-7 { background-color: hsl(157.5, 50%, 21%); }
+.dark .msg-bg-8 { background-color: hsl(180.0, 50%, 21%); }
+.dark .msg-bg-9 { background-color: hsl(202.5, 50%, 21%); }
+.dark .msg-bg-a { background-color: hsl(225.0, 50%, 21%); }
+.dark .msg-bg-b { background-color: hsl(247.5, 50%, 21%); }
+.dark .msg-bg-c { background-color: hsl(270.0, 50%, 21%); }
+.dark .msg-bg-d { background-color: hsl(292.5, 50%, 21%); }
+.dark .msg-bg-e { background-color: hsl(315.0, 50%, 21%); }
+.dark .msg-bg-f { background-color: hsl(337.5, 50%, 21%); }
 `)
 
 func NewCozyMessage(ctx context.Context, event *nostr.Event, v *MessagesView) *cozyMessage {

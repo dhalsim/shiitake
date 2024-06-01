@@ -34,12 +34,6 @@ func NewLoginPage(ctx context.Context, w *Window) *LoginPage {
 		ctx: ctx,
 	}
 
-	if keyring := secret.KeyringDriver(ctx); keyring.IsAvailable() {
-		p.driver = keyring
-	} else {
-		p.driver = secret.PlainFileDriver()
-	}
-
 	header := gtk.NewHeaderBar()
 	header.AddCSSClass("login-page-header")
 	header.SetShowTitleButtons(true)
@@ -95,8 +89,13 @@ func NewLoginPage(ctx context.Context, w *Window) *LoginPage {
 	return &p
 }
 
-func (p *LoginPage) TryLoginFromDriver() {
+func (p *LoginPage) TryLoginFromDriver(ctx context.Context) {
 	gtkutil.Async(p.ctx, func() func() {
+		if keyring := secret.KeyringDriver(ctx); keyring != nil && keyring.IsAvailable() {
+			p.driver = keyring
+		} else {
+			p.driver = secret.PlainFileDriver()
+		}
 		b, err := p.driver.Get("key-or-bunker")
 		if err != nil {
 			return func() {
@@ -154,7 +153,7 @@ func (p *LoginPage) loginWithPassword(input string, password string) {
 
 	// switch to chat page
 	win.Stack.SetVisibleChild(win.chat)
-	win.chat.chatView.switchToGroup(nip29.GroupAddress{})
+	win.chat.messagesView.switchTo(nip29.GroupAddress{})
 	win.SetTitle("Chat")
 }
 

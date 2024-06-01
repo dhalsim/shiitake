@@ -7,12 +7,19 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fiatjaf/eventstore/badger"
+	"github.com/mitchellh/go-homedir"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip29"
 	sdk "github.com/nbd-wtf/nostr-sdk"
 )
 
-var sys = sdk.System()
+var (
+	path, _ = homedir.Expand("~/.local/shiitake/cachedb")
+	bb      = &badger.BadgerBackend{Path: path}
+	_       = bb.Init()
+	sys     = sdk.System(sdk.WithStore(bb))
+)
 
 func Init(ctx context.Context, keyOrBunker string, password string) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
@@ -32,6 +39,7 @@ type Me struct {
 
 	lastList *nostr.Event
 
+	ListLoaded      chan struct{}
 	MetadataUpdated chan struct{}
 	JoinedRelay     chan *Relay
 	JoinedGroup     chan *Group
@@ -65,6 +73,7 @@ func GetMe(ctx context.Context) *Me {
 	me = &Me{
 		User: GetUser(ctx, pubkey),
 
+		ListLoaded:      make(chan struct{}),
 		MetadataUpdated: make(chan struct{}),
 		JoinedRelay:     make(chan *Relay, 20),
 		JoinedGroup:     make(chan *Group, 20),
@@ -89,6 +98,7 @@ func GetMe(ctx context.Context) *Me {
 				continue
 			}
 			me.User.ProfileMetadata = meta
+			sys.StoreRelay.Publish(bg, *ie.Event)
 			me.MetadataUpdated <- struct{}{}
 		}
 	}()
@@ -100,18 +110,13 @@ func GetMe(ctx context.Context) *Me {
 		// the relay list is just derived from the groups list in a pseudo-hierarchy
 		currentRelays := make([]string, 0, 20)
 
-		for ie := range sys.Pool.SubMany(bg, sys.FetchOutboxRelays(bg, me.PubKey), nostr.Filters{
-			{
-				Kinds:   []int{10009},
-				Authors: []string{me.PubKey},
-			},
-		}) {
-			if me.lastList != nil && me.lastList.CreatedAt > ie.CreatedAt {
+		processIncomingGroupListEvent := func(evt *nostr.Event) {
+			if me.lastList != nil && me.lastList.CreatedAt > evt.CreatedAt {
 				// this event is older than the last one we have, ignore
-				continue
+				return
 			}
 
-			me.lastList = ie.Event
+			me.lastList = evt
 			// every time a new list arrives we have to decide what groups were added and what groups were removed
 			// and also modify the list of current groups
 
@@ -124,7 +129,7 @@ func GetMe(ctx context.Context) *Me {
 			copy(removedRelays, currentRelays)
 
 			// then we go through the tags to see which groups were added and which ones were kept
-			for _, tag := range ie.Tags {
+			for _, tag := range evt.Tags {
 				if len(tag) >= 2 && tag[0] == "group" {
 					gad := nip29.GroupAddress{ID: tag[1], Relay: tag[2]}
 
@@ -196,6 +201,22 @@ func GetMe(ctx context.Context) *Me {
 				}
 				me.LeftGroup <- gad // notify UI
 			}
+		}
+
+		res, _ := sys.StoreRelay.QuerySync(bg, nostr.Filter{Kinds: []int{10009}, Authors: []string{me.PubKey}})
+		if len(res) != 0 {
+			processIncomingGroupListEvent(res[0])
+		}
+		close(me.ListLoaded)
+
+		for ie := range sys.Pool.SubMany(bg, sys.FetchOutboxRelays(bg, me.PubKey), nostr.Filters{
+			{
+				Kinds:   []int{10009},
+				Authors: []string{me.PubKey},
+			},
+		}) {
+			processIncomingGroupListEvent(ie.Event)
+			sys.StoreRelay.Publish(bg, *ie.Event)
 		}
 	}()
 

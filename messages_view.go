@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"fiatjaf.com/shiitake/components/composer"
+	"fiatjaf.com/shiitake/components/icon_placeholder"
 	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/adaptive"
 	"github.com/diamondburned/arikawa/v3/discord"
@@ -31,7 +32,6 @@ type messageRow struct {
 // MessagesView is a message view widget.
 type MessagesView struct {
 	*adaptive.LoadablePage
-	focused gtk.Widgetter
 
 	ToastOverlay *adw.ToastOverlay
 	LoadMore     *gtk.Button
@@ -131,6 +131,8 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 	v.listStack = gtk.NewStack()
 	v.listStack.SetTransitionType(gtk.StackTransitionTypeCrossfade)
 
+	plc := icon_placeholder.New("chat-bubbles-empty-symbolic")
+
 	v.LoadMore = gtk.NewButton()
 	v.LoadMore.AddCSSClass("message-show-more")
 	v.LoadMore.SetLabel(locale.Get("Show More"))
@@ -167,15 +169,13 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 		// show a small drop shadow at the bottom of the view. We're not using
 		// the actual widget, because it adds a WindowHandle at the bottom,
 		// which breaks double-clicking.
-		const undershootClass = "undershoot-bottom"
-
 		value := scrollAdjustment.Value()
 		upper := scrollAdjustment.Upper()
 		psize := scrollAdjustment.PageSize()
 		if value < upper-psize {
-			v.Scroll.AddCSSClass(undershootClass)
+			v.Scroll.AddCSSClass("undershoot-bottom")
 		} else {
-			v.Scroll.RemoveCSSClass(undershootClass)
+			v.Scroll.RemoveCSSClass("undershoot-bottom")
 		}
 	})
 
@@ -200,12 +200,9 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 	v.ToastOverlay = adw.NewToastOverlay()
 	v.ToastOverlay.SetChild(outerBox)
 
-	// This becomes the outermost widget.
-	v.focused = v.ToastOverlay
-
 	v.LoadablePage = adaptive.NewLoadablePage()
 	v.LoadablePage.SetTransitionDuration(125)
-	v.LoadablePage.SetChild(v.focused)
+	v.LoadablePage.SetChild(v.ToastOverlay)
 
 	// If the window gains focus, try to carefully mark the channel as read.
 	var windowSignal glib.SignalHandle
@@ -230,6 +227,17 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 		if current.Equals(gad) {
 			return
 		}
+
+		if !gad.IsValid() {
+			// empty, switch to placeholder
+			v.ToastOverlay.SetChild(plc)
+			return
+		}
+
+		current = gad
+		// otherwise we have something,
+		// so switch back to the main thing which is outerBox
+		v.ToastOverlay.SetChild(outerBox)
 
 		gtkutil.NotifyProperty(v.Parent(), "transition-running", func() bool {
 			if !v.Stack.TransitionRunning() {
@@ -263,7 +271,6 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 				}
 
 				return func() {
-					v.LoadablePage.SetChild(v.focused)
 					v.Scroll.ScrollToBottom()
 				}
 			})
@@ -290,7 +297,13 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 		gtkutil.ForwardTyping(list, v.Composer.Input)
 	}
 
-	// v.LoadablePage.SetLoading()
+	v.LoadablePage.SetLoading()
+
+	go func() {
+		<-global.GetMe(ctx).ListLoaded
+		v.ToastOverlay.SetChild(plc)
+		v.LoadablePage.SetChild(v.ToastOverlay)
+	}()
 
 	messagesViewCSS(v)
 	return v

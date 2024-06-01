@@ -5,7 +5,6 @@ import (
 
 	"fiatjaf.com/shiitake/components/backbutton"
 	"fiatjaf.com/shiitake/global"
-	"github.com/diamondburned/adaptive"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
@@ -18,7 +17,7 @@ type ChatPage struct {
 	*adw.OverlaySplitView
 	Sidebar *Sidebar
 
-	chatView      *ChatView
+	messagesView  *MessagesView
 	quickswitcher *QuickSwitcherDialog
 
 	// lastButtons keeps tracks of the header buttons of the previous view.
@@ -58,7 +57,7 @@ func NewChatPage(ctx context.Context, w *Window) *ChatPage {
 	p.quickswitcher = NewQuickSwitcherDialog(ctx)
 	p.quickswitcher.SetHideOnClose(true) // so we can reopen it later
 
-	p.chatView = NewChatView(ctx)
+	p.messagesView = NewMessagesView(ctx)
 
 	p.Sidebar = NewSidebar(ctx)
 	p.Sidebar.SetHAlign(gtk.AlignStart)
@@ -88,7 +87,7 @@ func NewChatPage(ctx context.Context, w *Window) *ChatPage {
 	p.OverlaySplitView = adw.NewOverlaySplitView()
 	p.OverlaySplitView.SetSidebar(p.Sidebar)
 	p.OverlaySplitView.SetSidebarPosition(gtk.PackStart)
-	p.OverlaySplitView.SetContent(p.chatView)
+	p.OverlaySplitView.SetContent(p.messagesView)
 	p.OverlaySplitView.SetEnableHideGesture(true)
 	p.OverlaySplitView.SetEnableShowGesture(true)
 	p.OverlaySplitView.SetMinSidebarWidth(200)
@@ -110,7 +109,6 @@ func NewChatPage(ctx context.Context, w *Window) *ChatPage {
 	// ))
 
 	chatPageCSS(p)
-
 	return &p
 }
 
@@ -179,57 +177,4 @@ func (p *ChatPage) updateWindowTitle() {
 
 	// win, _ := ctxt.From[*Window](p.ctx)
 	// win.SetTitle(title)
-}
-
-type ChatView struct {
-	*gtk.Stack
-	placeholder gtk.Widgetter
-	messageView *MessagesView
-	ctx         context.Context
-}
-
-func NewChatView(ctx context.Context) *ChatView {
-	var t ChatView
-	t.ctx = ctx
-	t.placeholder = newEmptyMessagePlaceholder()
-
-	t.Stack = gtk.NewStack()
-	t.Stack.AddCSSClass("window-message-page")
-	t.Stack.SetTransitionType(gtk.StackTransitionTypeCrossfade)
-	t.Stack.AddChild(t.placeholder)
-	t.Stack.SetVisibleChild(t.placeholder)
-
-	t.messageView = NewMessagesView(ctx)
-	t.Stack.AddChild(t.messageView)
-	t.Stack.SetVisibleChild(t.messageView)
-
-	return &t
-}
-
-func (t *ChatView) Current() nip29.GroupAddress {
-	if t.messageView.currentGroup == nil {
-		return nip29.GroupAddress{}
-	}
-	return t.messageView.currentGroup.Address
-}
-
-func (t *ChatView) switchToGroup(gad nip29.GroupAddress) bool {
-	if t.Current().Equals(gad) {
-		return false
-	}
-
-	t.messageView.switchTo(gad)
-
-	gtk.BaseWidget(t.messageView).GrabFocus()
-
-	return true
-}
-
-func newEmptyMessagePlaceholder() gtk.Widgetter {
-	status := adaptive.NewStatusPage()
-	status.SetIconName("chat-bubbles-empty-symbolic")
-	status.Icon.SetOpacity(0.45)
-	status.Icon.SetIconSize(gtk.IconSizeLarge)
-
-	return status
 }

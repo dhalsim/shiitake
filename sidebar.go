@@ -31,8 +31,6 @@ type Sidebar struct {
 	RelaysView        *RelaysView
 	CurrentGroupsView *GroupsView
 
-	placeholder gtk.Widgetter
-
 	ctx context.Context
 
 	openRelay func(relayURL string)
@@ -79,17 +77,20 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	left.Append(leftCtrl)
 	left.Append(leftScroll)
 
-	s.placeholder = gtk.NewWindowHandle()
+	windowHandle := gtk.NewWindowHandle()
+	windowHandle.SetChild(gtk.NewLabel(""))
 
 	groupsViewStack := gtk.NewStack()
 	groupsViewStack.SetSizeRequest(groupsWidth, -1)
 	groupsViewStack.SetVExpand(true)
 	groupsViewStack.SetHExpand(true)
-	groupsViewStack.AddChild(s.placeholder)
-	groupsViewStack.SetVisibleChild(s.placeholder)
+	groupsViewStack.AddChild(windowHandle)
+	groupsViewStack.SetVisibleChild(windowHandle)
 	groupsViewStack.SetTransitionType(gtk.StackTransitionTypeCrossfade)
 
 	s.openRelay = func(relayURL string) {
+		windowHandle.Child().(*gtk.Label).SetText(trimProtocol(relayURL))
+
 		if s.CurrentGroupsView != nil && s.CurrentGroupsView.RelayURL == relayURL {
 			// we're already there.
 			return

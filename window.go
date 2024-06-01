@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"fiatjaf.com/shiitake/about"
+	"fiatjaf.com/shiitake/components/icon_placeholder"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/app"
@@ -21,16 +22,6 @@ var forceDarkTheme = prefs.NewBool(true, prefs.PropMeta{
 	Description: "Whether or not to use dark mode even if your system is set to light.",
 	Section:     "Theme",
 })
-
-func applyThemeChoice() {
-	prefer := forceDarkTheme.Value()
-	scheme := adw.ColorSchemePreferLight
-	if prefer {
-		scheme = adw.ColorSchemePreferDark
-	}
-	adwStyles := adw.StyleManagerGetDefault()
-	adwStyles.SetColorScheme(scheme)
-}
 
 var _ = cssutil.WriteCSS(`
 .titlebar {
@@ -77,7 +68,7 @@ func NewWindow(ctx context.Context) *Window {
 
 	login := NewLoginPage(ctx, &w)
 	w.chat = NewChatPage(w.ctx, &w)
-	plc := newEmptyMessagePlaceholder()
+	plc := icon_placeholder.New("chat-bubbles-empty-symbolic")
 
 	w.Stack = gtk.NewStack()
 	w.Stack.SetTransitionType(gtk.StackTransitionTypeCrossfade)
@@ -91,7 +82,7 @@ func NewWindow(ctx context.Context) *Window {
 
 	gtkutil.AddActions(&w, map[string]func(){
 		"reset-view": func() {
-			w.chat.chatView.switchToGroup(nip29.GroupAddress{})
+			w.chat.messagesView.switchTo(nip29.GroupAddress{})
 		},
 		"quick-switcher": func() {
 			w.chat.OpenQuickSwitcher()
@@ -108,9 +99,25 @@ func NewWindow(ctx context.Context) *Window {
 	})
 
 	// attempt login with stored credentials
-	login.TryLoginFromDriver()
+	login.TryLoginFromDriver(ctx)
 
-	forceDarkTheme.Subscribe(applyThemeChoice)
+	styleManager := adw.StyleManagerGetDefault()
+	baseScheme := styleManager.ColorScheme()
+	forceDarkTheme.Subscribe(
+		func() {
+			preferDark := forceDarkTheme.Value()
+			if preferDark {
+				styleManager.SetColorScheme(adw.ColorSchemePreferDark)
+			} else {
+				styleManager.SetColorScheme(baseScheme)
+			}
+			if styleManager.Dark() {
+				w.AddCSSClass("dark")
+			} else {
+				w.RemoveCSSClass("dark")
+			}
+		},
+	)
 
 	return &w
 }
@@ -125,7 +132,7 @@ func (w *Window) OpenGroup(gad nip29.GroupAddress) {
 		}
 		return false
 	})
-	w.chat.chatView.switchToGroup(gad)
+	w.chat.messagesView.switchTo(gad)
 }
 
 func (w *Window) OpenRelay(url string) {
@@ -140,7 +147,7 @@ func (w *Window) OpenRelay(url string) {
 	})
 
 	w.chat.Sidebar.openRelay(url)
-	w.chat.chatView.switchToGroup(nip29.GroupAddress{})
+	w.chat.messagesView.switchTo(nip29.GroupAddress{})
 }
 
 func (w *Window) SetTitle(title string) {
