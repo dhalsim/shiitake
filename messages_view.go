@@ -136,6 +136,7 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 	outerBox.Append(composerOverlay)
 
 	v.ToastOverlay = adw.NewToastOverlay()
+	v.ToastOverlay.SetChild(outerBox)
 
 	v.LoadablePage = adaptive.NewLoadablePage()
 	v.LoadablePage.SetTransitionDuration(125)
@@ -174,7 +175,9 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 
 		// otherwise we have something,
 		// so switch back to the main thing which is outerBox
-		v.ToastOverlay.SetChild(outerBox)
+		if v.ToastOverlay.Child() != outerBox {
+			v.ToastOverlay.SetChild(outerBox)
+		}
 
 		gtkutil.NotifyProperty(v.Parent(), "transition-running", func() bool {
 			if !v.Stack.TransitionRunning() {

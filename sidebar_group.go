@@ -4,11 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"fiatjaf.com/nostr-gtk/components/avatar"
 	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/diamondburned/gotkit/components/onlineimage"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
-	"github.com/diamondburned/gotkit/gtkutil/imgutil"
 	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
@@ -103,7 +102,7 @@ func NewGroup(ctx context.Context, group *global.Group) *Group {
 	groupCSS(g)
 
 	if group.Picture != "" {
-		icon := onlineimage.NewAvatar(ctx, imgutil.HTTPProvider, 12)
+		icon := avatar.New(ctx, 12, group.Address.String())
 		icon.SetFromURL(group.Picture)
 		g.Box.Append(icon)
 	}

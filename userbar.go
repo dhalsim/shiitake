@@ -4,19 +4,18 @@ import (
 	"context"
 	"regexp"
 
+	"fiatjaf.com/nostr-gtk/components/avatar"
 	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/gotk4/pkg/core/glib"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
-	"github.com/diamondburned/gotkit/components/onlineimage"
 	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
-	"github.com/diamondburned/gotkit/gtkutil/imgutil"
 )
 
 type userBar struct {
 	*gtk.Box
-	avatar *onlineimage.Avatar
+	avatar *avatar.Avatar
 	name   *gtk.Label
 	status *gtk.Image
 	menu   *gtk.ToggleButton
@@ -35,7 +34,7 @@ var userBarCSS = cssutil.Applier("user-bar", `
 
 func newUserBar(ctx context.Context) *userBar {
 	b := userBar{ctx: ctx}
-	b.avatar = onlineimage.NewAvatar(ctx, imgutil.HTTPProvider, 14)
+	b.avatar = avatar.New(ctx, 20, "")
 	b.avatar.AddCSSClass("user-bar-avatar")
 
 	b.name = gtk.NewLabel("")
@@ -83,18 +82,20 @@ func newUserBar(ctx context.Context) *userBar {
 	b.Box.Append(b.menu)
 	userBarCSS(b)
 
-	anim := b.avatar.EnableAnimation()
-	anim.ConnectMotion(b)
+	// anim := b.avatar.EnableAnimation()
+	// anim.ConnectMotion(b)
 
 	go func() {
 		me := global.GetMe(ctx)
+		b.avatar.SetText(me.PubKey)
+		b.avatar.SetShowInitials(true)
+
 		resetMetadata := func() {
 			glib.IdleAdd(func() {
 				// if v, _ := strconv.Atoi(me.Discriminator); v != 0 {
 				// 	tag += `<span size="smaller">` + "#" + me.Discriminator + "</span>"
 				// }
 
-				b.avatar.SetInitials(me.ShortName())
 				b.avatar.SetFromURL(me.Picture)
 				b.name.SetMarkup(me.ShortName())
 				b.name.SetTooltipMarkup(me.ShortName())

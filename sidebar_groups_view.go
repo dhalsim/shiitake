@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -173,19 +172,4 @@ func (v *GroupsListView) remove(this nip29.GroupAddress) {
 			break
 		}
 	}
-}
-
-func gadFromListItem(item *gtk.ListItem) nip29.GroupAddress {
-	return gadFromItem(item.Item())
-}
-
-func gadFromItem(item *glib.Object) nip29.GroupAddress {
-	str := item.Cast().(*gtk.StringObject)
-
-	gad, err := nip29.ParseGroupAddress(str.String())
-	if err != nil {
-		panic(fmt.Sprintf("gadFromListItem: failed to parse gad: %v", err))
-	}
-
-	return gad
 }

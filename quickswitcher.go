@@ -460,7 +460,7 @@ func (it qwRelayItem) Row(ctx context.Context) *gtk.ListBoxRow {
 	row := gtk.NewListBoxRow()
 	qwRelayCSS(row)
 
-	// icon := onlineimage.NewAvatar(ctx, imgutil.HTTPProvider, gtkcord.InlineEmojiSize)
+	// icon := avatar.New(ctx, imgutil.HTTPProvider, gtkcord.InlineEmojiSize)
 	// icon.AddCSSClass("quickswitcher-relay-icon")
 	// icon.SetInitials(it.Name)
 	// icon.SetFromURL(it.IconURL())

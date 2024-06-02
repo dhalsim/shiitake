@@ -76,8 +76,9 @@ func NewRelayButton(ctx context.Context, relay *global.Relay) *RelayButton {
 	g.SetTooltipMarkup(trimProtocol(relay.URL))
 
 	g.SetSensitive(true)
-	initials := strings.Join(strings.Split(strings.Split(relay.URL, "://")[1], "."), " ")
-	g.Icon.SetInitials(initials)
+	initials := strings.Join(strings.Split(strings.Split(relay.URL, "://")[1], ".")[0:2], " ")
+	g.Icon.SetText(initials)
+	g.Icon.SetShowInitials(true)
 	if relay.Image != "" {
 		g.Icon.SetFromURL(relay.Image)
 	}

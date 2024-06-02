@@ -37,3 +37,9 @@ func trimProtocol(relay string) string {
 	relay = strings.TrimPrefix(relay, "ws:/")  // Some browsers replace upfront '//' with '/'
 	return relay
 }
+
+func fixNatWrap(label *gtk.Label) {
+	if err := gtk.CheckVersion(4, 6, 0); err == "" {
+		label.SetObjectProperty("natural-wrap-mode", 1) // NaturalWrapNone
+	}
+}

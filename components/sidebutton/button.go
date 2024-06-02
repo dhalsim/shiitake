@@ -3,10 +3,9 @@ package sidebutton
 import (
 	"context"
 
+	"fiatjaf.com/nostr-gtk/components/avatar"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/diamondburned/gotkit/components/onlineimage"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
-	"github.com/diamondburned/gotkit/gtkutil/imgutil"
 	"github.com/diamondburned/ningen/v3"
 )
 
@@ -16,7 +15,7 @@ type Button struct {
 	Button *gtk.Button
 
 	IconOverlay *gtk.Overlay
-	Icon        *onlineimage.Avatar
+	Icon        *avatar.Avatar
 	Mentions    *MentionsIndicator
 
 	Pill *Pill
@@ -71,7 +70,7 @@ func NewButton(ctx context.Context, open func()) *Button {
 		ctx: ctx,
 	}
 
-	g.Icon = onlineimage.NewAvatar(ctx, imgutil.HTTPProvider, 12)
+	g.Icon = avatar.New(ctx, 16, "")
 	g.Mentions = NewMentionsIndicator()
 
 	g.IconOverlay = gtk.NewOverlay()
@@ -88,8 +87,8 @@ func NewButton(ctx context.Context, open func()) *Button {
 		open()
 	})
 
-	iconAnimation := g.Icon.EnableAnimation()
-	iconAnimation.ConnectMotion(g.Button)
+	// iconAnimation := g.Icon.EnableAnimation()
+	// iconAnimation.ConnectMotion(g.Button)
 
 	g.Pill = NewPill()
 

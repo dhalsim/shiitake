@@ -12,10 +12,8 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/app/locale"
-	"github.com/diamondburned/gotkit/components/onlineimage"
 	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
-	"github.com/diamondburned/gotkit/gtkutil/imgutil"
 	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
@@ -278,12 +276,12 @@ func (r *contentReaction) SetReaction(ctx context.Context, flowBox *gtk.FlowBox,
 	// r.client = gtkcord.FromContext(ctx).Online()
 
 	if strings.HasPrefix(reaction.Emoji, ":") {
-		emoji := onlineimage.NewPicture(ctx, imgutil.HTTPProvider)
-		emoji.AddCSSClass("message-reaction-emoji")
-		emoji.AddCSSClass("message-reaction-emoji-custom")
-		emoji.SetSizeRequest(13, 13)
-		emoji.SetKeepAspectRatio(true)
-		emoji.SetURL(reaction.Emoji)
+		// emoji := avatar.New(ctx, imgutil.HTTPProvider)
+		// emoji.AddCSSClass("message-reaction-emoji")
+		// emoji.AddCSSClass("message-reaction-emoji-custom")
+		// emoji.SetSizeRequest(13, 13)
+		// emoji.SetKeepAspectRatio(true)
+		// emoji.SetURL(reaction.Emoji)
 
 		// TODO: get this working:
 		// Currently, it just jitters in size. The button itself can still be
@@ -293,7 +291,7 @@ func (r *contentReaction) SetReaction(ctx context.Context, flowBox *gtk.FlowBox,
 		// anim := emoji.EnableAnimation()
 		// anim.ConnectMotion(r)
 
-		r.iconBin.SetChild(emoji)
+		// r.iconBin.SetChild(emoji)
 	} else {
 		label := gtk.NewLabel(reaction.Emoji)
 		label.AddCSSClass("message-reaction-emoji")

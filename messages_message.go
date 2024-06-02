@@ -7,6 +7,7 @@ import (
 	"html"
 	"time"
 
+	"fiatjaf.com/nostr-gtk/components/avatar"
 	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/arikawa/v3/discord"
 	"github.com/diamondburned/chatkit/md/hl"
@@ -16,10 +17,8 @@ import (
 	"github.com/diamondburned/gotk4/pkg/pango"
 	"github.com/diamondburned/gotkit/app"
 	"github.com/diamondburned/gotkit/app/locale"
-	"github.com/diamondburned/gotkit/components/onlineimage"
 	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/cssutil"
-	"github.com/diamondburned/gotkit/gtkutil/imgutil"
 	"github.com/diamondburned/gotkit/gtkutil/textutil"
 	"github.com/nbd-wtf/go-nostr"
 )
@@ -166,7 +165,7 @@ func (msg *message) ShowSource() {
 // cozyMessage is a large cozy message with an avatar.
 type cozyMessage struct {
 	*gtk.Box
-	Avatar *onlineimage.Avatar
+	Avatar *avatar.Avatar
 
 	message
 	tooltip string // markup
@@ -263,10 +262,10 @@ func NewCozyMessage(ctx context.Context, event *nostr.Event, v *MessagesView) *c
 	rightBox.Append(topLabel)
 	rightBox.Append(m.message.Content)
 
-	avatar := onlineimage.NewAvatar(ctx, imgutil.HTTPProvider, 12)
+	avatar := avatar.New(ctx, 18, event.PubKey)
 	avatar.AddCSSClass("message-cozy-avatar")
 	avatar.SetVAlign(gtk.AlignCenter)
-	avatar.EnableAnimation().OnHover()
+	// avatar.EnableAnimation().OnHover()
 	avatar.SetTooltipMarkup(tooltip)
 	avatar.SetFromURL(user.Picture)
 
