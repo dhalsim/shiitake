@@ -44,7 +44,7 @@ type Window struct {
 
 	Stack *gtk.Stack
 
-	chat *ChatPage
+	main *MainView
 }
 
 func NewWindow(ctx context.Context) *Window {
@@ -67,13 +67,13 @@ func NewWindow(ctx context.Context) *Window {
 	w.ctx = ctxt.With(w.ctx, &w)
 
 	login := NewLoginPage(ctx, &w)
-	w.chat = NewChatPage(w.ctx, &w)
+	w.main = NewMainView(w.ctx, &w)
 	plc := icon_placeholder.New("chat-bubbles-empty-symbolic")
 
 	w.Stack = gtk.NewStack()
 	w.Stack.SetTransitionType(gtk.StackTransitionTypeCrossfade)
 	w.Stack.AddChild(login)
-	w.Stack.AddChild(w.chat)
+	w.Stack.AddChild(w.main)
 	w.Stack.AddChild(plc)
 	win.SetContent(w.Stack)
 
@@ -82,10 +82,10 @@ func NewWindow(ctx context.Context) *Window {
 
 	gtkutil.AddActions(&w, map[string]func(){
 		"reset-view": func() {
-			w.chat.messagesView.switchTo(nip29.GroupAddress{})
+			w.main.messagesView.switchTo(nip29.GroupAddress{})
 		},
 		"quick-switcher": func() {
-			w.chat.OpenQuickSwitcher()
+			w.main.OpenQuickSwitcher()
 		},
 		"preferences": func() { prefui.ShowDialog(ctx) },
 		"about":       func() { about.New(ctx).Present() },
@@ -129,31 +129,31 @@ func NewWindow(ctx context.Context) *Window {
 }
 
 func (w *Window) OpenGroup(gad nip29.GroupAddress) {
-	eachChild(w.chat.Sidebar.CurrentGroupsView.List, func(lbr *gtk.ListBoxRow) bool {
+	eachChild(w.main.Sidebar.CurrentGroupsView.List, func(lbr *gtk.ListBoxRow) bool {
 		if lbr.Name() == gad.String() {
-			if w.chat.Sidebar.CurrentGroupsView.List.SelectedRow() != lbr {
-				w.chat.Sidebar.CurrentGroupsView.List.SelectRow(lbr)
+			if w.main.Sidebar.CurrentGroupsView.List.SelectedRow() != lbr {
+				w.main.Sidebar.CurrentGroupsView.List.SelectRow(lbr)
 			}
 			return true
 		}
 		return false
 	})
-	w.chat.messagesView.switchTo(gad)
+	w.main.messagesView.switchTo(gad)
 }
 
 func (w *Window) OpenRelay(url string) {
-	eachChild(w.chat.Sidebar.RelaysView.Widget, func(lbr *gtk.ListBoxRow) bool {
+	eachChild(w.main.Sidebar.RelaysView.Widget, func(lbr *gtk.ListBoxRow) bool {
 		if lbr.Name() == url {
-			if w.chat.Sidebar.RelaysView.Widget.SelectedRow() != lbr {
-				w.chat.Sidebar.RelaysView.Widget.SelectRow(lbr)
+			if w.main.Sidebar.RelaysView.Widget.SelectedRow() != lbr {
+				w.main.Sidebar.RelaysView.Widget.SelectRow(lbr)
 			}
 			return true
 		}
 		return false
 	})
 
-	w.chat.Sidebar.openRelay(url)
-	w.chat.messagesView.switchTo(nip29.GroupAddress{})
+	w.main.Sidebar.openRelay(url)
+	w.main.messagesView.switchTo(nip29.GroupAddress{})
 }
 
 func (w *Window) SetTitle(title string) {

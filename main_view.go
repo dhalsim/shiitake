@@ -13,7 +13,7 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
-type ChatPage struct {
+type MainView struct {
 	*adw.OverlaySplitView
 	Sidebar *Sidebar
 
@@ -27,12 +27,7 @@ type ChatPage struct {
 	ctx context.Context
 }
 
-type chatPageView struct {
-	body          gtk.Widgetter
-	headerButtons []gtk.Widgetter
-}
-
-var chatPageCSS = cssutil.Applier("window-chatpage", `
+var mainViewCSS = cssutil.Applier("window-chatpage", `
 .right-header {
   border-radius: 0;
   box-shadow: none;
@@ -49,8 +44,8 @@ var chatPageCSS = cssutil.Applier("window-chatpage", `
 }
 `)
 
-func NewChatPage(ctx context.Context, w *Window) *ChatPage {
-	p := ChatPage{
+func NewMainView(ctx context.Context, w *Window) *MainView {
+	p := MainView{
 		ctx: ctx,
 	}
 
@@ -90,9 +85,9 @@ func NewChatPage(ctx context.Context, w *Window) *ChatPage {
 	p.OverlaySplitView.SetContent(p.messagesView)
 	p.OverlaySplitView.SetEnableHideGesture(true)
 	p.OverlaySplitView.SetEnableShowGesture(true)
-	p.OverlaySplitView.SetMinSidebarWidth(200)
+	p.OverlaySplitView.SetMinSidebarWidth(100)
 	p.OverlaySplitView.SetMaxSidebarWidth(300)
-	p.OverlaySplitView.SetSidebarWidthFraction(0.5)
+	p.OverlaySplitView.SetSidebarWidthFraction(0.3)
 
 	back.ConnectSplitView(p.OverlaySplitView)
 
@@ -108,11 +103,11 @@ func NewChatPage(ctx context.Context, w *Window) *ChatPage {
 	// 	func(*read.UpdateEvent) { p.updateWindowTitle() },
 	// ))
 
-	chatPageCSS(p)
+	mainViewCSS(p)
 	return &p
 }
 
-func (p *ChatPage) AskJoinGroup() {
+func (p *MainView) AskJoinGroup() {
 	entry := gtk.NewEntry()
 	entry.SetInputPurpose(gtk.InputPurposeFreeForm)
 	entry.SetVisibility(false)
@@ -164,9 +159,9 @@ func (p *ChatPage) AskJoinGroup() {
 }
 
 // OpenQuickSwitcher opens the Quick Switcher dialog.
-func (p *ChatPage) OpenQuickSwitcher() { p.quickswitcher.Show() }
+func (p *MainView) OpenQuickSwitcher() { p.quickswitcher.Show() }
 
-func (p *ChatPage) updateWindowTitle() {
+func (p *MainView) updateWindowTitle() {
 	// state := gtkcord.FromContext(p.ctx)
 
 	// // Add a ping indicator if the user has pings.

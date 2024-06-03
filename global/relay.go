@@ -2,22 +2,41 @@ package global
 
 import (
 	"context"
+	"sync"
 
 	neturl "net/url"
 
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip11"
+	"github.com/puzpuzpuz/xsync/v3"
 )
+
+var relays = xsync.NewMapOf[string, *Relay]()
 
 type Relay struct {
 	URL   string
 	Image string
 	Name  string
+
+	GroupsList   []*Group
+	GroupsLoaded chan struct{}
 }
 
-func loadRelay(ctx context.Context, url string) *Relay {
+var getRelayMutex sync.Mutex
+
+func LoadRelay(ctx context.Context, url string) *Relay {
+	getRelayMutex.Lock()
+	defer getRelayMutex.Unlock()
+
+	url = nostr.NormalizeURL(url)
+
+	if relay, ok := relays.Load(url); ok {
+		return relay
+	}
+
 	relay := &Relay{
-		URL: nostr.NormalizeURL(url),
+		URL:          url,
+		GroupsLoaded: make(chan struct{}),
 	}
 
 	info, _ := nip11.Fetch(ctx, url)

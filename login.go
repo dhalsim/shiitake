@@ -153,8 +153,8 @@ func (p *LoginPage) loginWithPassword(input string, password string) {
 	p.SetSensitive(true)
 
 	// switch to chat page
-	win.Stack.SetVisibleChild(win.chat)
-	win.chat.messagesView.switchTo(nip29.GroupAddress{})
+	win.Stack.SetVisibleChild(win.main)
+	win.main.messagesView.switchTo(nip29.GroupAddress{})
 	win.SetTitle("Chat")
 }
 

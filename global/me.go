@@ -119,7 +119,7 @@ func GetMe(ctx context.Context) *Me {
 							// is it also a new relay?
 							if !slices.Contains(currentRelays, gad.Relay) {
 								currentRelays = append(currentRelays, gad.Relay)
-								relay := loadRelay(ctx, gad.Relay)
+								relay := LoadRelay(ctx, gad.Relay)
 								log.Printf("new relay: %s", gad.Relay)
 								me.JoinedRelay <- relay
 							}

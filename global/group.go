@@ -110,6 +110,13 @@ func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
 				})
 				eosed = true
 				close(group.EOSE)
+			case <-ctx.Done():
+				// when we leave a group or when we were just browsing it and leave, we close the subscription
+				// and remove it from our list of cached groups
+				getGroupMutex.Lock()
+				groups.Delete(gad.String())
+				getGroupMutex.Unlock()
+				return
 			}
 		}
 	}()
