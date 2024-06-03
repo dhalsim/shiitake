@@ -7,7 +7,6 @@ import (
 	"fiatjaf.com/shiitake/components/sidebutton"
 	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 )
 
 // View contains a list of relays and folders.
@@ -17,22 +16,12 @@ type RelaysView struct {
 	ctx context.Context
 }
 
-var relaysViewCSS = cssutil.Applier("relay-view", `
-.relay-view {
-  margin: 4px 0;
-}
-.relay-view button:active:not(:hover) {
-  background: initial;
-}
-`)
-
 func NewRelaysView(ctx context.Context) *RelaysView {
 	v := RelaysView{
 		ctx: ctx,
 	}
 
 	v.Widget = gtk.NewListBox()
-	relaysViewCSS(v.Widget)
 
 	go func() {
 		me := global.GetMe(ctx)

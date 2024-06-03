@@ -17,7 +17,6 @@ import (
 	"github.com/diamondburned/gotkit/app"
 	"github.com/diamondburned/gotkit/app/prefs"
 	"github.com/diamondburned/gotkit/gtkutil"
-	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/diamondburned/gotkit/gtkutil/textutil"
 	"github.com/diamondburned/gotkit/utils/osutil"
 	"github.com/nbd-wtf/go-nostr/nip29"
@@ -42,20 +41,6 @@ type Input struct {
 	gad  nip29.GroupAddress
 }
 
-var inputCSS = cssutil.Applier("composer-input", `
-.composer-input,
-.composer-input text {
-  background-color: inherit;
-}
-.composer-input {
-  padding: 12px 2px;
-  margin-top: 0px;
-}
-.composer-input .autocomplete-row label {
-  margin: 0;
-}
-`)
-
 // inputStateKey is the app state that stores the last input message.
 var inputStateKey = app.NewStateKey[string]("input-state")
 
@@ -79,7 +64,6 @@ func NewInput(ctx context.Context, ctrl *ComposerView, gad nip29.GroupAddress) *
 		gtk.InputHintUppercaseSentences,
 	)
 	textutil.SetTabSize(i.TextView)
-	inputCSS(i)
 
 	i.TextView.ConnectPasteClipboard(i.readClipboard)
 

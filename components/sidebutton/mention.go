@@ -4,7 +4,6 @@ import (
 	"strconv"
 
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 )
 
 // MentionsIndicator is a small indicator that shows the mention count.
@@ -15,27 +14,6 @@ type MentionsIndicator struct {
 	count  int
 	reveal bool
 }
-
-var mentionCSS = cssutil.Applier("sidebar-mention", `
-.sidebar-mention {
-  background: none;
-}
-.sidebar-mention.sidebar-mention-active,
-.sidebar-mention.sidebar-mention-active label {
-  border-radius: 100px;
-  background-color: @theme_bg_color;
-}
-.sidebar-mention.sidebar-mention-active label {
-  color: white;
-  background-color: @mentioned;
-  min-width:  12pt;
-  min-height: 12pt;
-  padding: 0;
-  margin: 2px;
-  font-size: 8pt;
-  font-weight: bold;
-}
-`)
 
 // NewMentionsIndicator creates a new mention indicator.
 func NewMentionsIndicator() *MentionsIndicator {
@@ -52,7 +30,6 @@ func NewMentionsIndicator() *MentionsIndicator {
 	m.SetTransitionDuration(100)
 
 	m.update()
-	mentionCSS(m)
 	return m
 }
 
@@ -85,7 +62,6 @@ func (m *MentionsIndicator) update() {
 		return
 	}
 
-	m.AddCSSClass("sidebar-mention-active")
 	m.Label.SetText(strconv.Itoa(m.count))
 	m.Revealer.SetRevealChild(m.reveal && m.count > 0)
 }

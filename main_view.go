@@ -9,7 +9,6 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
 	"github.com/diamondburned/gotkit/app"
-	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
@@ -27,23 +26,6 @@ type MainView struct {
 	ctx context.Context
 }
 
-var mainViewCSS = cssutil.Applier("window-chatpage", `
-.right-header {
-  border-radius: 0;
-  box-shadow: none;
-}
-.right-header .adaptive-sidebar-reveal-button {
-  margin: 0;
-}
-.right-header .adaptive-sidebar-reveal-button button {
-  margin-left: 8px;
-  margin-right: 4px;
-}
-.right-header-label {
-  font-weight: bold;
-}
-`)
-
 func NewMainView(ctx context.Context, w *Window) *MainView {
 	p := MainView{
 		ctx: ctx,
@@ -58,7 +40,6 @@ func NewMainView(ctx context.Context, w *Window) *MainView {
 	p.Sidebar.SetHAlign(gtk.AlignStart)
 
 	rightTitle := gtk.NewLabel("")
-	rightTitle.AddCSSClass("right-header-label")
 	rightTitle.SetXAlign(0)
 	rightTitle.SetHExpand(true)
 	rightTitle.SetEllipsize(pango.EllipsizeEnd)
@@ -71,7 +52,6 @@ func NewMainView(ctx context.Context, w *Window) *MainView {
 	joinGroupButton.ConnectClicked(p.AskJoinGroup)
 
 	rightHeader := adw.NewHeaderBar()
-	rightHeader.AddCSSClass("right-header")
 	rightHeader.SetShowEndTitleButtons(true)
 	rightHeader.SetShowBackButton(false) // this is useless with OverlaySplitView
 	rightHeader.SetShowTitle(false)
@@ -103,7 +83,6 @@ func NewMainView(ctx context.Context, w *Window) *MainView {
 	// 	func(*read.UpdateEvent) { p.updateWindowTitle() },
 	// ))
 
-	mainViewCSS(p)
 	return &p
 }
 
@@ -135,7 +114,6 @@ func (p *MainView) AskJoinGroup() {
 	inner.SetHExpand(true)
 	inner.SetVAlign(gtk.AlignCenter)
 	inner.SetHAlign(gtk.AlignCenter)
-	// wordCSS(inner)
 
 	entry.ConnectActivate(func() {
 		// Enter key activates.

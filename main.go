@@ -19,6 +19,9 @@ import (
 	_ "github.com/diamondburned/gotkit/gtkutil/aggressivegc"
 )
 
+//go:embed bundle.css
+var css string
+
 //go:embed po/*
 var po embed.FS
 
@@ -32,22 +35,7 @@ var Version string
 
 func init() {
 	about.SetVersion(Version)
-	initDimensions()
 }
-
-var _ = cssutil.WriteCSS(`
-window.background,
-window.background.solid-csd {
-  background-color: @theme_bg_color;
-}
-
-.adaptive-avatar > image {
-  background: none;
-}
-.adaptive-avatar > label {
-  background: @borders;
-}
-`)
 
 var (
 	win         *Window
@@ -55,6 +43,8 @@ var (
 )
 
 func main() {
+	cssutil.WriteCSS(css)
+
 	application = app.New(context.Background(), "com.fiatjaf.shiitake", "Shiitake")
 
 	application.ConnectActivate(func() {

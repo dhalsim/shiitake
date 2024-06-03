@@ -9,7 +9,6 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
 	"github.com/diamondburned/gotkit/gtkutil"
-	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
@@ -32,31 +31,6 @@ type GroupsView struct {
 	selectGAD nip29.GroupAddress // delegate to select later
 }
 
-var sidebarViewCSS = cssutil.Applier("groups-view", `
-.groups-viewtree {
-  background: none;
-}
-/* GTK is dumb. There's absolutely no way to get a ListItemWidget instance
- * to style it, so we'll just unstyle everything and use the child instead.
- */
-.groups-viewtree > row {
-  margin: 0;
-  padding: 0;
-}
-.groups-header {
-  padding: 0 {$header_padding};
-  border-radius: 0;
-}
-.groups-view-scroll {
-  /* Space out the header, since it's in an overlay. */
-  margin-top: {$header_height};
-}
-.groups-name {
-  font-weight: 600;
-  font-size: 1.1em;
-}
-`)
-
 func NewGroupsView(ctx context.Context, relayURL string) *GroupsView {
 	v := GroupsView{
 		RelayURL: relayURL,
@@ -70,21 +44,18 @@ func NewGroupsView(ctx context.Context, relayURL string) *GroupsView {
 	v.ctx = gtkutil.WithVisibility(ctx, v)
 
 	v.Header.Name = gtk.NewLabel("")
-	v.Header.Name.AddCSSClass("groups-name")
 	v.Header.Name.SetHAlign(gtk.AlignStart)
 	v.Header.Name.SetEllipsize(pango.EllipsizeEnd)
 
 	// The header is placed on top of the overlay, kind of like the official
 	// client.
 	v.Header.HeaderBar = adw.NewHeaderBar()
-	v.Header.HeaderBar.AddCSSClass("groups-header")
 	v.Header.HeaderBar.SetShowTitle(false)
 	v.Header.HeaderBar.PackStart(v.Header.Name)
 
 	viewport := gtk.NewViewport(nil, nil)
 
 	v.Scroll = gtk.NewScrolledWindow()
-	v.Scroll.AddCSSClass("groups-view-scroll")
 	v.Scroll.SetVExpand(true)
 	v.Scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
 	v.Scroll.SetChild(viewport)
@@ -96,7 +67,6 @@ func NewGroupsView(ctx context.Context, relayURL string) *GroupsView {
 	v.List = gtk.NewListBox()
 	v.List.SetSelectionMode(gtk.SelectionSingle)
 	v.List.SetSizeRequest(groupsWidth, -1)
-	v.List.AddCSSClass("groups-viewtree")
 	v.List.SetHExpand(true)
 	v.List.SetVExpand(true)
 	v.List.ConnectRowSelected(func(row *gtk.ListBoxRow) {
@@ -141,7 +111,6 @@ func NewGroupsView(ctx context.Context, relayURL string) *GroupsView {
 	v.ToolbarView.SetContent(v.Scroll)
 	v.ToolbarView.SetFocusChild(v.Scroll)
 
-	sidebarViewCSS(v)
 	return &v
 }
 

@@ -8,7 +8,6 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
 	"github.com/diamondburned/gotkit/app/locale"
-	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/dustin/go-humanize"
 )
 
@@ -32,20 +31,10 @@ type uploadFile struct {
 	file File
 }
 
-var uploadTrayCSS = cssutil.Applier("composer-upload-tray", `
-.composer-upload-tray {
-}
-.composer-upload-item > image {
-  margin-bottom: 1px;
-  margin-right:  6px;
-}
-`)
-
 // NewUploadTray creates a new UploadTray.
 func NewUploadTray() *UploadTray {
 	t := UploadTray{}
 	t.Box = gtk.NewBox(gtk.OrientationVertical, 0)
-	uploadTrayCSS(t.Box)
 	return &t
 }
 
@@ -84,7 +73,6 @@ func (t *UploadTray) AddFile(file File) {
 
 	// TODO: hover to preview?
 	f.Box = gtk.NewBox(gtk.OrientationHorizontal, 0)
-	f.Box.AddCSSClass("composer-upload-item")
 	f.Box.SetHExpand(true)
 	f.Box.Append(f.icon)
 	f.Box.Append(f.name)

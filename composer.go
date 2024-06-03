@@ -18,7 +18,6 @@ import (
 	"github.com/diamondburned/gotkit/app"
 	"github.com/diamondburned/gotkit/app/locale"
 	"github.com/diamondburned/gotkit/gtkutil"
-	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/diamondburned/gotkit/gtkutil/mediautil"
 	"github.com/nbd-wtf/go-nostr"
 )
@@ -54,29 +53,6 @@ type ComposerView struct {
 	replyingTo string
 }
 
-var viewCSS = cssutil.Applier("composer-view", `
-.composer-left-actions {
-  margin: 0 4px 0 11px;
-}
-.composer-left-actions > *:not(:first-child) {
-  margin-right: 4px;
-}
-.composer-right-actions button.toggle:checked {
-  background-color: alpha(@accent_color, 0.25);
-  color: @accent_color;
-}
-.composer-right-actions {
-  margin: 0 11px 0 0;
-}
-.composer-right-actions > *:not(:first-child) {
-  margin-left: 4px;
-}
-.composer-placeholder {
-  padding: 12px 2px;
-  color: alpha(@theme_fg_color, 0.65);
-}
-`)
-
 const (
 	sendIcon   = "paper-plane-symbolic"
 	emojiIcon  = "sentiment-satisfied-symbolic"
@@ -101,7 +77,6 @@ func NewComposerView(ctx context.Context, messagesView *MessagesView, group *glo
 	scroll.SetChild(v.Input)
 
 	v.Placeholder = gtk.NewLabel("")
-	v.Placeholder.AddCSSClass("composer-placeholder")
 	v.Placeholder.SetVAlign(gtk.AlignStart)
 	v.Placeholder.SetHAlign(gtk.AlignFill)
 	v.Placeholder.SetXAlign(0)
@@ -115,7 +90,6 @@ func NewComposerView(ctx context.Context, messagesView *MessagesView, group *glo
 	revealer.SetTransitionDuration(75)
 
 	overlay := gtk.NewOverlay()
-	overlay.AddCSSClass("composer-placeholder-overlay")
 	overlay.SetChild(scroll)
 	overlay.AddOverlay(revealer)
 	overlay.SetClipOverlay(revealer, true)
@@ -142,27 +116,23 @@ func NewComposerView(ctx context.Context, messagesView *MessagesView, group *glo
 	})
 
 	v.leftBox = gtk.NewBox(gtk.OrientationHorizontal, 0)
-	v.leftBox.AddCSSClass("composer-left-actions")
 
 	v.EmojiChooser = gtk.NewEmojiChooser()
 	v.EmojiChooser.ConnectEmojiPicked(func(emoji string) { v.insertEmoji(emoji) })
 
 	v.emojiButton = gtk.NewMenuButton()
 	v.emojiButton.SetIconName(emojiIcon)
-	v.emojiButton.AddCSSClass("flat")
 	v.emojiButton.SetVAlign(gtk.AlignCenter)
 	v.emojiButton.SetTooltipText("Choose Emoji")
 	v.emojiButton.SetPopover(v.EmojiChooser)
 
 	v.sendButton = gtk.NewButtonFromIconName(sendIcon)
-	v.sendButton.AddCSSClass("composer-send")
 	v.sendButton.SetVAlign(gtk.AlignCenter)
 	v.sendButton.SetTooltipText("Send Message")
 	v.sendButton.SetHasFrame(false)
 	v.sendButton.ConnectClicked(v.publish)
 
 	v.rightBox = gtk.NewBox(gtk.OrientationHorizontal, 0)
-	v.rightBox.AddCSSClass("composer-right-actions")
 	v.rightBox.SetHAlign(gtk.AlignEnd)
 
 	v.resetAction()
@@ -175,7 +145,6 @@ func NewComposerView(ctx context.Context, messagesView *MessagesView, group *glo
 
 	v.SetPlaceholderMarkup("")
 
-	viewCSS(v)
 	return v
 }
 
@@ -214,7 +183,6 @@ type actionButtonData struct {
 
 func newActionButton(a actionButtonData) *gtk.Button {
 	button := gtk.NewButton()
-	button.AddCSSClass("composer-action")
 	button.SetHasFrame(false)
 	button.SetHAlign(gtk.AlignCenter)
 	button.SetVAlign(gtk.AlignCenter)
@@ -364,7 +332,6 @@ func textBufferIsReaction(buffer string) bool {
 func (v *ComposerView) StartReplyingTo(msg *nostr.Event) {
 	v.ctrl.stopEditingOrReplying()
 	v.replyingTo = msg.ID
-	v.AddCSSClass("composer-replying")
 
 	v.SetPlaceholderMarkup(fmt.Sprintf(
 		"Replying to %s",
@@ -372,7 +339,6 @@ func (v *ComposerView) StartReplyingTo(msg *nostr.Event) {
 	))
 
 	// mentionToggle := gtk.NewToggleButton()
-	// mentionToggle.AddCSSClass("composer-mention-toggle")
 	// mentionToggle.SetIconName("online-symbolic")
 	// mentionToggle.SetHasFrame(false)
 	// mentionToggle.SetActive(true)

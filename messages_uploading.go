@@ -10,7 +10,6 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
-	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/diamondburned/gotkit/gtkutil/textutil"
 )
 
@@ -21,20 +20,12 @@ type uploadingLabel struct {
 	max int
 }
 
-var uploadingLabelCSS = cssutil.Applier("message-uploading-label", `
-.message-uploading-label {
-  opacity: 0.75;
-  font-size: 0.8em;
-}
-`)
-
 func newUploadingLabel(ctx context.Context, count int) *uploadingLabel {
 	l := uploadingLabel{max: count}
 	l.Label = gtk.NewLabel("")
 	l.Label.SetXAlign(0)
 	l.Label.SetWrap(true)
 	l.Label.SetWrapMode(pango.WrapWordChar)
-	uploadingLabelCSS(l.Label)
 
 	l.invalidate()
 	return &l

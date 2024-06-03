@@ -10,7 +10,6 @@ import (
 	"github.com/diamondburned/gotk4/pkg/pango"
 	"github.com/diamondburned/gotkit/app/locale"
 	"github.com/diamondburned/gotkit/gtkutil"
-	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/diamondburned/gotkit/gtkutil/imgutil"
 	"github.com/diamondburned/gotkit/gtkutil/textutil"
 	"github.com/diamondburned/ningen/v3/discordmd"
@@ -31,34 +30,6 @@ type Content struct {
 	MessageID string
 }
 
-var contentCSS = cssutil.Applier("message-content-box", `
-.message-content-box {
-  margin-right: 4px;
-}
-.message-content-box > *:not(:first-child) {
-  margin-top: 4px;
-}
-.message-content-box .thumbnail-embed {
-  border-width: 0;
-  border-radius: 8px; /* stolen from Discord mobile */
-}
-.message-header-blockquote {
-  margin-bottom: 0;
-}
-.message-header-blockquote > *,
-.message-header-blockquote .mauthor-chip,
-.message-reply-content link {
-  color: mix(@theme_bg_color, @theme_fg_color, 0.85);
-}
-.message-header-blockquote > * {
-  font-size: 0.9em;
-}
-.message-interaction-name {
-  margin-left: 0.25em;
-  font-family: monospace;
-}
-`)
-
 // NewContent creates a new Content widget.
 func NewContent(ctx context.Context, event *nostr.Event, v *MessagesView) *Content {
 	c := Content{
@@ -69,7 +40,6 @@ func NewContent(ctx context.Context, event *nostr.Event, v *MessagesView) *Conte
 		MessageID: event.ID,
 	}
 	c.Box = gtk.NewBox(gtk.OrientationVertical, 0)
-	contentCSS(c.Box)
 
 	c.clear()
 
@@ -82,7 +52,6 @@ func NewContent(ctx context.Context, event *nostr.Event, v *MessagesView) *Conte
 	msg.ConnectActivateLink(func(uri string) bool {
 		return true
 	})
-	systemContentCSS(msg)
 	fixNatWrap(msg)
 	c.append(msg)
 
@@ -140,7 +109,6 @@ func NewContent(ctx context.Context, event *nostr.Event, v *MessagesView) *Conte
 
 	// 		return true
 	// 	})
-	// 	systemContentCSS(msg)
 	// 	fixNatWrap(msg)
 	// 	c.append(msg)
 	// }
@@ -192,18 +160,8 @@ func (c *Content) setMenu() {
 	}
 }
 
-var systemContentCSS = cssutil.Applier("message-system-content", `
-.message-system-content {
-  font-style: italic;
-  color: alpha(@theme_fg_color, 0.9);
-}
-`)
-
 func (c *Content) newReplyBox(m *nostr.Event) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
-	box.AddCSSClass("md-blockquote")
-	box.AddCSSClass("message-header-blockquote")
-	box.AddCSSClass("message-reply-box")
 
 	// state := gtkcord.FromContext(c.ctx)
 
@@ -221,7 +179,6 @@ func (c *Content) newReplyBox(m *nostr.Event) gtk.Widgetter {
 	// 		"id_reference", m.Reference.MessageID)
 
 	// 	header := gtk.NewLabel("Unknown message.")
-	// 	header.AddCSSClass("message-reply-header")
 	// 	box.Append(header)
 
 	// 	return box
@@ -242,7 +199,6 @@ func (c *Content) newReplyBox(m *nostr.Event) gtk.Widgetter {
 	// 	)
 
 	// 	reply := gtk.NewLabel(markup)
-	// 	reply.AddCSSClass("message-reply-content")
 	// 	reply.SetUseMarkup(true)
 	// 	reply.SetTooltipText(preview)
 	// 	reply.SetEllipsize(pango.EllipsizeEnd)
@@ -281,15 +237,11 @@ func (c *Content) newReplyBox(m *nostr.Event) gtk.Widgetter {
 
 func (c *Content) newInteractionBox(m *nostr.Event) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	box.AddCSSClass("md-blockquote")
-	box.AddCSSClass("message-header-blockquote")
-	box.AddCSSClass("message-interaction-box")
 
 	// state := gtkcord.FromContext(c.ctx)
 
 	// if !showBlockedMessages.Value() && state.UserIsBlocked(m.Interaction.User.ID) {
 	// 	header := gtk.NewLabel("Blocked user.")
-	// 	header.AddCSSClass("message-reply-header")
 	// 	box.Append(header)
 
 	// 	blockedCSS(box)
@@ -302,10 +254,8 @@ func (c *Content) newInteractionBox(m *nostr.Event) gtk.Widgetter {
 	box.Append(chip)
 
 	// nameLabel := gtk.NewLabel(m.Interaction.Name)
-	// nameLabel.AddCSSClass("message-interaction-name")
 	// if m.Interaction.Type == discord.CommandInteractionType {
 	// 	nameLabel.SetText("/" + m.Interaction.Name)
-	// 	nameLabel.AddCSSClass("message-interaction-command")
 	// }
 	// nameLabel.SetTooltipText(m.Interaction.Name)
 	// nameLabel.SetEllipsize(pango.EllipsizeEnd)
@@ -332,20 +282,12 @@ func (c *Content) clear() {
 	c.child = c.child[:0]
 }
 
-var redactedContentCSS = cssutil.Applier("message-redacted-content", `
-.message-redacted-content {
-  font-style: italic;
-  color: alpha(@theme_fg_color, 0.75);
-}
-`)
-
 // Redact clears the content widget.
 func (c *Content) Redact() {
 	c.clear()
 
 	red := gtk.NewLabel(locale.Get("Redacted."))
 	red.SetXAlign(0)
-	redactedContentCSS(red)
 	c.append(red)
 }
 

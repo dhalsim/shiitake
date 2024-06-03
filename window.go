@@ -12,7 +12,6 @@ import (
 	"github.com/diamondburned/gotkit/components/logui"
 	"github.com/diamondburned/gotkit/components/prefui"
 	"github.com/diamondburned/gotkit/gtkutil"
-	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/nbd-wtf/go-nostr/nip29"
 	"libdb.so/ctxt"
 )
@@ -22,19 +21,6 @@ var forceDarkTheme = prefs.NewBool(true, prefs.PropMeta{
 	Description: "Whether or not to use dark mode even if your system is set to light.",
 	Section:     "Theme",
 })
-
-var _ = cssutil.WriteCSS(`
-.titlebar {
-  background-color: @headerbar_bg_color;
-}
-
-window.devel .titlebar {
-  background-image: cross-fade(
-    5% -gtk-recolor(url("resource:/org/gnome/Adwaita/styles/assets/devel-symbolic.svg")),
-    image(transparent));
-  background-repeat: repeat-x;
-}
-`)
 
 // Window is the main gtkcord window.
 type Window struct {
@@ -171,18 +157,7 @@ func (w *Window) SetTitle(title string) {
 // 	})
 // }
 
-var emptyHeaderCSS = cssutil.Applier("empty-header", `
-.empty-header {
-  min-height: 0;
-  min-width: 0;
-  padding: 0;
-  margin: 0;
-  border: 0;
-}
-`)
-
 func newEmptyHeader() *gtk.Box {
 	b := gtk.NewBox(gtk.OrientationVertical, 0)
-	emptyHeaderCSS(b)
 	return b
 }

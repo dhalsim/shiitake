@@ -39,7 +39,6 @@ func New(ctx context.Context) *adw.AboutWindow {
 		about.SetVersion(version)
 
 		if strings.HasSuffix(version, "(dirty)") {
-			about.AddCSSClass("devel")
 			about.SetApplicationIcon("logo-nightly")
 		}
 	}

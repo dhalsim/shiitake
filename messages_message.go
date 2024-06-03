@@ -18,24 +18,13 @@ import (
 	"github.com/diamondburned/gotkit/app"
 	"github.com/diamondburned/gotkit/app/locale"
 	"github.com/diamondburned/gotkit/gtkutil"
-	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/diamondburned/gotkit/gtkutil/textutil"
 	"github.com/nbd-wtf/go-nostr"
 )
 
-var blockedCSS = cssutil.Applier("message-blocked", `
-.message-blocked {
-  transition-property: all;
-  transition-duration: 100ms;
-}
-.message-blocked:not(:hover) {
-  opacity: 0.35;
-}
-`)
-
 // message is a base that implements Message.
 type message struct {
-	parent *cozyMessage
+	parent *Message
 
 	Content *Content
 	Event   *nostr.Event
@@ -89,13 +78,6 @@ func menuItemIfOK(actions map[string]func(), label locale.Localized, action stri
 	return gtkutil.MenuItem(label, action, ok)
 }
 
-var sourceCSS = cssutil.Applier("message-source", `
-.message-source {
-  padding: 6px 4px;
-  font-family: monospace;
-}
-`)
-
 // ShowEmojiChooser opens a Gtk.EmojiChooser popover.
 func (msg *message) ShowEmojiChooser() {
 	e := gtk.NewEmojiChooser()
@@ -135,7 +117,6 @@ func (msg *message) ShowSource() {
 	t.SetEditable(false)
 	t.SetCursorVisible(false)
 	t.SetWrapMode(gtk.WrapWordChar)
-	sourceCSS(t)
 	textutil.SetTabSize(t)
 
 	s := gtk.NewScrolledWindow()
@@ -162,8 +143,7 @@ func (msg *message) ShowSource() {
 	d.Show()
 }
 
-// cozyMessage is a large cozy message with an avatar.
-type cozyMessage struct {
+type Message struct {
 	*gtk.Box
 	Avatar *avatar.Avatar
 
@@ -171,60 +151,8 @@ type cozyMessage struct {
 	tooltip string // markup
 }
 
-var cozyCSS = cssutil.Applier("message-cozy", `
-.message-cozy {
-  border-radius: 6px;
-  padding-bottom: 4px;
-  padding-top: 4px;
-  padding-right: 8px;
-  padding-left: 8px;
-  margin-top: 0;
-}
-.message-cozy-header {
-  margin-top: 0px;
-  min-height: 0;
-  font-size: 0.95em;
-}
-.message-cozy-avatar {
-  padding-right: 8px;
-}
-.msg-bg-0 { background-color: hsl(0.0, 66%, 89%); }
-.msg-bg-1 { background-color: hsl(22.5, 66%, 89%); }
-.msg-bg-2 { background-color: hsl(45.0, 66%, 89%); }
-.msg-bg-3 { background-color: hsl(67.5, 66%, 89%); }
-.msg-bg-4 { background-color: hsl(90.0, 66%, 89%); }
-.msg-bg-5 { background-color: hsl(112.5, 66%, 89%); }
-.msg-bg-6 { background-color: hsl(135.0, 66%, 89%); }
-.msg-bg-7 { background-color: hsl(157.5, 66%, 89%); }
-.msg-bg-8 { background-color: hsl(180.0, 66%, 89%); }
-.msg-bg-9 { background-color: hsl(202.5, 66%, 89%); }
-.msg-bg-a { background-color: hsl(225.0, 66%, 89%); }
-.msg-bg-b { background-color: hsl(247.5, 66%, 89%); }
-.msg-bg-c { background-color: hsl(270.0, 66%, 89%); }
-.msg-bg-d { background-color: hsl(292.5, 66%, 89%); }
-.msg-bg-e { background-color: hsl(315.0, 66%, 89%); }
-.msg-bg-f { background-color: hsl(337.5, 66%, 89%); }
-
-.dark .msg-bg-0 { background-color: hsl(0.0, 50%, 21%); }
-.dark .msg-bg-1 { background-color: hsl(22.5, 50%, 21%); }
-.dark .msg-bg-2 { background-color: hsl(45.0, 50%, 21%); }
-.dark .msg-bg-3 { background-color: hsl(67.5, 50%, 21%); }
-.dark .msg-bg-4 { background-color: hsl(90.0, 50%, 21%); }
-.dark .msg-bg-5 { background-color: hsl(112.5, 50%, 21%); }
-.dark .msg-bg-6 { background-color: hsl(135.0, 50%, 21%); }
-.dark .msg-bg-7 { background-color: hsl(157.5, 50%, 21%); }
-.dark .msg-bg-8 { background-color: hsl(180.0, 50%, 21%); }
-.dark .msg-bg-9 { background-color: hsl(202.5, 50%, 21%); }
-.dark .msg-bg-a { background-color: hsl(225.0, 50%, 21%); }
-.dark .msg-bg-b { background-color: hsl(247.5, 50%, 21%); }
-.dark .msg-bg-c { background-color: hsl(270.0, 50%, 21%); }
-.dark .msg-bg-d { background-color: hsl(292.5, 50%, 21%); }
-.dark .msg-bg-e { background-color: hsl(315.0, 50%, 21%); }
-.dark .msg-bg-f { background-color: hsl(337.5, 50%, 21%); }
-`)
-
-func NewCozyMessage(ctx context.Context, event *nostr.Event, v *MessagesView) *cozyMessage {
-	m := &cozyMessage{
+func NewMessage(ctx context.Context, event *nostr.Event, v *MessagesView) *Message {
+	m := &Message{
 		message: message{
 			Content: NewContent(ctx, event, v),
 			Event:   event,
@@ -250,7 +178,6 @@ func NewCozyMessage(ctx context.Context, event *nostr.Event, v *MessagesView) *c
 	// TODO: query tooltip
 
 	topLabel := gtk.NewLabel("")
-	topLabel.AddCSSClass("message-cozy-header")
 	topLabel.SetXAlign(0)
 	topLabel.SetEllipsize(pango.EllipsizeEnd)
 	topLabel.SetSingleLineMode(true)
@@ -263,7 +190,6 @@ func NewCozyMessage(ctx context.Context, event *nostr.Event, v *MessagesView) *c
 	rightBox.Append(m.message.Content)
 
 	avatar := avatar.New(ctx, 18, event.PubKey)
-	avatar.AddCSSClass("message-cozy-avatar")
 	avatar.SetVAlign(gtk.AlignCenter)
 	// avatar.EnableAnimation().OnHover()
 	avatar.SetTooltipMarkup(tooltip)
@@ -272,7 +198,6 @@ func NewCozyMessage(ctx context.Context, event *nostr.Event, v *MessagesView) *c
 	m.Box = gtk.NewBox(gtk.OrientationHorizontal, 0)
 	m.Box.Append(avatar)
 	m.Box.Append(rightBox)
-	m.Box.AddCSSClass(fmt.Sprintf("msg-bg-%s", event.PubKey[63:64]))
 	align := gtk.AlignStart
 	if event.PubKey == v.loggedUser {
 		align = gtk.AlignEnd
@@ -281,6 +206,5 @@ func NewCozyMessage(ctx context.Context, event *nostr.Event, v *MessagesView) *c
 
 	m.message.bind()
 
-	cozyCSS(m)
 	return m
 }

@@ -25,7 +25,6 @@ func New() *BackButton {
 	button.SetVAlign(gtk.AlignCenter)
 
 	revealer := gtk.NewRevealer()
-	revealer.AddCSSClass("adaptive-sidebar-reveal-button")
 	revealer.SetTransitionType(gtk.RevealerTransitionTypeCrossfade)
 	revealer.SetChild(button)
 	revealer.SetRevealChild(false)

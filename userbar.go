@@ -10,7 +10,6 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
 	"github.com/diamondburned/gotkit/gtkutil"
-	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 )
 
 type userBar struct {
@@ -23,22 +22,11 @@ type userBar struct {
 	ctx context.Context
 }
 
-var userBarCSS = cssutil.Applier("user-bar", `
-.user-bar-avatar {
-  padding: 6px;
-}
-.user-bar-menu {
-  margin: 0 6px;
-}
-`)
-
 func newUserBar(ctx context.Context) *userBar {
 	b := userBar{ctx: ctx}
 	b.avatar = avatar.New(ctx, 20, "")
-	b.avatar.AddCSSClass("user-bar-avatar")
 
 	b.name = gtk.NewLabel("")
-	b.name.AddCSSClass("user-bar-name")
 	b.name.SetSelectable(true)
 	b.name.SetXAlign(0)
 	b.name.SetHExpand(true)
@@ -46,11 +34,9 @@ func newUserBar(ctx context.Context) *userBar {
 	b.name.SetEllipsize(pango.EllipsizeEnd)
 
 	b.status = gtk.NewImage()
-	b.status.AddCSSClass("user-bar-status")
 	// b.updatePresence(nil)
 
 	b.menu = gtk.NewToggleButton()
-	b.menu.AddCSSClass("user-bar-menu")
 	b.menu.SetIconName("menu-large-symbolic")
 	b.menu.SetTooltipText("Main Menu")
 	b.menu.SetHasFrame(false)
@@ -80,7 +66,6 @@ func newUserBar(ctx context.Context) *userBar {
 	b.Box.Append(b.name)
 	b.Box.Append(b.status)
 	b.Box.Append(b.menu)
-	userBarCSS(b)
 
 	// anim := b.avatar.EnableAnimation()
 	// anim.ConnectMotion(b)

@@ -10,7 +10,6 @@ import (
 	"github.com/diamondburned/gotk4/pkg/pango"
 	"github.com/diamondburned/gotkit/app"
 	"github.com/diamondburned/gotkit/gtkutil"
-	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/diamondburned/gotkit/gtkutil/textutil"
 	"github.com/nbd-wtf/go-nostr/nip29"
 	"github.com/sahilm/fuzzy"
@@ -38,28 +37,11 @@ type qwEntry struct {
 	indexItem qwIndexItem
 }
 
-var qsCSS = cssutil.Applier("quickswitcher", `
-.quickswitcher-search {
-  font-size: 1.35em;
-}
-.quickswitcher-search image {
-  min-width:  32px;
-  min-height: 32px;
-}
-.quickswitcher-searchbar > revealer > box {
-  padding: 12px;
-}
-.quickswitcher-list {
-  font-size: 1.15em;
-}
-`)
-
 func NewQuickSwitcher(ctx context.Context) *QuickSwitcher {
 	var qs QuickSwitcher
 	qs.index.update(ctx)
 
 	qs.search = gtk.NewSearchEntry()
-	qs.search.AddCSSClass("quickswitcher-search")
 	qs.search.SetHExpand(true)
 	qs.search.SetObjectProperty("placeholder-text", "Search")
 	qs.search.ConnectActivate(func() { qs.selectEntry() })
@@ -89,7 +71,6 @@ func NewQuickSwitcher(ctx context.Context) *QuickSwitcher {
 	qs.search.AddController(keyCtrl)
 
 	qs.entryList = gtk.NewListBox()
-	qs.entryList.AddCSSClass("quickswitcher-list")
 	qs.entryList.SetVExpand(true)
 	qs.entryList.SetSelectionMode(gtk.SelectionSingle)
 	qs.entryList.SetActivateOnSingleClick(true)
@@ -103,7 +84,6 @@ func NewQuickSwitcher(ctx context.Context) *QuickSwitcher {
 	entryViewport.SetChild(qs.entryList)
 
 	qs.entryScroll = gtk.NewScrolledWindow()
-	qs.entryScroll.AddCSSClass("quickswitcher-scroll")
 	qs.entryScroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
 	qs.entryScroll.SetChild(entryViewport)
 	qs.entryScroll.SetVExpand(true)
@@ -116,7 +96,6 @@ func NewQuickSwitcher(ctx context.Context) *QuickSwitcher {
 	qs.ctx = gtkutil.WithVisibility(ctx, qs.search)
 	qs.search.SetKeyCaptureWidget(qs)
 
-	qsCSS(qs.Box)
 	return &qs
 }
 
@@ -263,15 +242,6 @@ func ShowQuickSwitcherDialog(ctx context.Context) {
 	d.Show()
 }
 
-var qwDialogCSS = cssutil.Applier("quickswitcher-dialog", `
-.quickswitcher-dialog .quickswitcher-list {
-  margin: 8px;
-}
-.quickswitcher-dialog .quickswitcher-search {
-  margin: 8px 0;
-}
-`)
-
 func NewQuickSwitcherDialog(ctx context.Context) *QuickSwitcherDialog {
 	qs := NewQuickSwitcher(ctx)
 	qs.Box.Remove(qs.search) // jank
@@ -299,7 +269,6 @@ func NewQuickSwitcherDialog(ctx context.Context) *QuickSwitcherDialog {
 	d.ConnectShow(func() {
 		qs.search.GrabFocus()
 	})
-	qwDialogCSS(d)
 
 	// SetDestroyWithParent doesn't work for some reason, so we have to manually
 	// destroy the QuickSwitcher on transient window destroy.
@@ -377,30 +346,6 @@ const (
 	chThreadHash = `<span face="monospace"><b><span size="x-large" rise="-800">#</span><span size="x-small" rise="-2000"># </span></b></span>`
 )
 
-var qwGroupCSS = cssutil.Applier("quickswitcher-group", `
-.quickswitcher-group-icon {
-  margin: 2px 12px;
-  margin-right: 1px;
-  min-width:  {$inline_emoji_size};
-  min-height: {$inline_emoji_size};
-}
-.quickswitcher-group-hash {
-  padding-left: 1px; /* account for the NSFW mark */
-  margin-right: 7px;
-}
-.quickswitcher-group-image {
-  margin-left: 8px;
-  margin-right: 12px;
-}
-.quickswitcher-group-relayname {
-  font-size: 0.9em;
-  color: alpha(@theme_fg_color, 0.75);
-  margin: 4px;
-  margin-left: 18px;
-  margin-bottom: calc(4px - 0.1em);
-}
-`)
-
 func (it qwGroupItem) Row(ctx context.Context) *gtk.ListBoxRow {
 	tooltip := it.name
 	tooltip += " (" + it.group.Name + ")"
@@ -410,17 +355,13 @@ func (it qwGroupItem) Row(ctx context.Context) *gtk.ListBoxRow {
 	row := gtk.NewListBoxRow()
 	row.SetTooltipText(tooltip)
 	row.SetChild(box)
-	qwGroupCSS(row)
 
 	icon := gtk.NewLabel("")
-	icon.AddCSSClass("quickswitcher-group-icon")
-	icon.AddCSSClass("quickswitcher-group-hash")
 	icon.SetHAlign(gtk.AlignCenter)
 	icon.SetMarkup(chHash)
 	box.Append(icon)
 
 	name := gtk.NewLabel(it.name)
-	name.AddCSSClass("quickswitcher-group-name")
 	name.SetHExpand(true)
 	name.SetXAlign(0)
 	name.SetEllipsize(pango.EllipsizeEnd)
@@ -428,7 +369,6 @@ func (it qwGroupItem) Row(ctx context.Context) *gtk.ListBoxRow {
 	box.Append(name)
 
 	relayName := gtk.NewLabel(it.group.Address.Relay)
-	relayName.AddCSSClass("quickswitcher-group-relayname")
 	relayName.SetEllipsize(pango.EllipsizeEnd)
 
 	box.Append(relayName)
@@ -448,20 +388,10 @@ func newRelayItem(url string) qwRelayItem {
 
 func (it qwRelayItem) String() string { return it.url }
 
-var qwRelayCSS = cssutil.Applier("quickswitcher-relay", `
-.quickswitcher-relay-icon {
-  margin: 2px 8px;
-  min-width:  {$inline_emoji_size};
-  min-height: {$inline_emoji_size};
-}
-`)
-
 func (it qwRelayItem) Row(ctx context.Context) *gtk.ListBoxRow {
 	row := gtk.NewListBoxRow()
-	qwRelayCSS(row)
 
 	// icon := avatar.New(ctx, imgutil.HTTPProvider, gtkcord.InlineEmojiSize)
-	// icon.AddCSSClass("quickswitcher-relay-icon")
 	// icon.SetInitials(it.Name)
 	// icon.SetFromURL(it.IconURL())
 	// icon.SetHAlign(gtk.AlignCenter)
@@ -470,7 +400,6 @@ func (it qwRelayItem) Row(ctx context.Context) *gtk.ListBoxRow {
 	// anim.ConnectMotion(row)
 
 	// name := gtk.NewLabel(it.Name)
-	// name.AddCSSClass("quickswitcher-relay-name")
 	// name.SetHExpand(true)
 	// name.SetXAlign(0)
 

@@ -18,7 +18,6 @@ import (
 	"github.com/diamondburned/gotkit/app/locale"
 	"github.com/diamondburned/gotkit/components/autoscroll"
 	"github.com/diamondburned/gotkit/gtkutil"
-	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip19"
 	"github.com/nbd-wtf/go-nostr/nip29"
@@ -26,7 +25,7 @@ import (
 
 type messageRow struct {
 	*gtk.ListBoxRow
-	message *cozyMessage
+	message *Message
 	event   *nostr.Event
 }
 
@@ -54,61 +53,6 @@ type MessagesView struct {
 	ctx context.Context
 	gad nip29.GroupAddress
 }
-
-var messagesViewCSS = cssutil.Applier("message-view", `
-.message-list {
-  background: none;
-}
-.message-list > row {
-  transition: linear 150ms background-color;
-  box-shadow: none;
-  background: none;
-  background-image: none;
-  background-color: transparent;
-  padding: 0;
-  border: 2px solid transparent;
-}
-.message-list > row:focus,
-.message-list > row:hover {
-  transition: none;
-}
-.message-list > row:focus {
-  background-color: alpha(@theme_fg_color, 0.125);
-}
-.message-list > row:hover {
-  background-color: alpha(@theme_fg_color, 0.075);
-}
-.message-list > row.message-replying {
-  background-color: alpha(@theme_selected_bg_color, 0.15);
-  border-color: alpha(@theme_selected_bg_color, 0.55);
-}
-.message-list > row.message-sending {
-  opacity: 0.65;
-}
-.message-list > row.message-first-prepended {
-  border-bottom: 1.5px dashed alpha(@theme_fg_color, 0.25);
-  padding-bottom: 2.5px;
-}
-.message-show-more {
-  background: none;
-  border-radius: 0;
-  font-size: 0.85em;
-  opacity: 0.65;
-}
-.message-show-more:hover {
-  background: alpha(@theme_fg_color, 0.075);
-}
-.messages-typing-indicator {
-  margin-top: -1em;
-}
-.messages-typing-box {
-  background-color: @theme_bg_color;
-}
-.message-list,
-.message-scroll scrollbar.vertical {
-  margin-bottom: 1em;
-}
-`)
 
 const (
 	loadMoreBatch = 25 // load this many more messages on scroll
@@ -210,11 +154,9 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 			// create list if we haven't done that before
 			// TODO: we need a context here or something so the subscription is canceled if this group is removed
 			list = gtk.NewListBox()
-			list.AddCSSClass("message-list")
 			list.SetSelectionMode(gtk.SelectionNone)
 
 			loadMore := gtk.NewButton()
-			loadMore.AddCSSClass("message-show-more")
 			loadMore.SetLabel("Show More")
 			loadMore.SetHExpand(true)
 			loadMore.SetSensitive(true)
@@ -229,7 +171,6 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 			clampBox.Append(list)
 
 			scrollW := autoscroll.NewWindow()
-			scrollW.AddCSSClass("message-scroll")
 			scrollW.SetVExpand(true)
 			scrollW.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
 			scrollW.SetPropagateNaturalWidth(true)
@@ -248,7 +189,6 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 				upper := scrollAdjustment.Upper()
 				psize := scrollAdjustment.PageSize()
 				if value < upper-psize {
-					scroll.AddCSSClass("undershoot-bottom")
 				} else {
 					scroll.RemoveCSSClass("undershoot-bottom")
 				}
@@ -263,9 +203,8 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 					return
 				}
 
-				cmessage := NewCozyMessage(v.ctx, event, v)
+				cmessage := NewMessage(v.ctx, event, v)
 				row := gtk.NewListBoxRow()
-				row.AddCSSClass("message-row")
 				row.SetName(id)
 				row.SetChild(cmessage)
 				msgRow := messageRow{
@@ -338,7 +277,6 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 		})
 	}()
 
-	messagesViewCSS(v)
 	return v
 }
 
@@ -357,7 +295,6 @@ func (v *MessagesView) HeaderButtons() []gtk.Widgetter {
 	var buttons []gtk.Widgetter
 
 	// if v.guildID.IsValid() {
-	// 	summariesButton := hoverpopover.NewPopoverButton(v.initSummariesPopover)
 	// 	summariesButton.SetIconName("speaker-notes-symbolic")
 	// 	summariesButton.SetTooltipText(locale.Get("Message Summaries"))
 	// 	buttons = append(buttons, summariesButton)
@@ -374,50 +311,6 @@ func (v *MessagesView) HeaderButtons() []gtk.Widgetter {
 	// 		})
 	// 	}
 
-	// 	infoButton := hoverpopover.NewPopoverButton(func(popover *gtk.Popover) bool {
-	// 		popover.AddCSSClass("message-channel-info-popover")
-	// 		popover.SetPosition(gtk.PosBottom)
-
-	// 		label := gtk.NewLabel("")
-	// 		label.AddCSSClass("popover-label")
-	// 		popover.SetChild(label)
-
-	// 		state := gtkcord.FromContext(v.ctx)
-	// 		ch, _ := state.Offline().Channel(v.chID)
-	// 		if ch == nil {
-	// 			label.SetText(locale.Get("Channel information unavailable."))
-	// 			return true
-	// 		}
-
-	// 		markup := fmt.Sprintf(
-	// 			`<b>%s</b>`,
-	// 			html.EscapeString(ch.Name))
-
-	// 		if ch.NSFW {
-	// 			markup += fmt.Sprintf(
-	// 				"\n<i><small>%s</small></i>",
-	// 				locale.Get("This channel is NSFW."))
-	// 		}
-
-	// 		if ch.Topic != "" {
-	// 			markup += fmt.Sprintf(
-	// 				"\n<small>%s</small>",
-	// 				html.EscapeString(ch.Topic))
-	// 		} else {
-	// 			markup += fmt.Sprintf(
-	// 				"\n<i><small>%s</small></i>",
-	// 				locale.Get("No topic set."))
-	// 		}
-
-	// 		label.SetSizeRequest(100, -1)
-	// 		label.SetMaxWidthChars(100)
-	// 		label.SetWrap(true)
-	// 		label.SetWrapMode(pango.WrapWordChar)
-	// 		label.SetJustify(gtk.JustifyLeft)
-	// 		label.SetXAlign(0)
-	// 		label.SetMarkup(markup)
-	// 		return true
-	// 	})
 	// 	infoButton.SetIconName("dialog-information-symbolic")
 	// 	infoButton.SetTooltipText(locale.Get("Channel Info"))
 	// 	buttons = append(buttons, infoButton)
@@ -489,7 +382,6 @@ func (v *MessagesView) loadMore() {
 	// 	// Style the first prepended message to add a visual indicator for the
 	// 	// user.
 	// 	first := v.msgs[messageKeyID(msgs[0].ID)]
-	// 	first.ListBoxRow.AddCSSClass("message-first-prepended")
 
 	// 	// Remove this visual indicator after a short while.
 	// 	glib.TimeoutSecondsAdd(10, func() {
@@ -661,7 +553,6 @@ func (v *MessagesView) ReplyTo(id string) {
 	v.state.row = msg.ListBoxRow
 	v.state.replying = true
 
-	msg.AddCSSClass("message-replying")
 	v.Composer.StartReplyingTo(msg.message.Event)
 }
 

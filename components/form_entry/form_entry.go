@@ -2,7 +2,6 @@ package form_entry
 
 import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 )
 
 // FormEntry is a widget containing a label and an entry.
@@ -11,8 +10,6 @@ type FormEntry struct {
 	Label *gtk.Label
 	Entry *gtk.Entry
 }
-
-var formEntryCSS = cssutil.Applier("login-formentry", ``)
 
 // New creates a new FormEntry.
 func New(label string) *FormEntry {
@@ -27,7 +24,6 @@ func New(label string) *FormEntry {
 	e.Box = gtk.NewBox(gtk.OrientationVertical, 0)
 	e.Box.Append(e.Label)
 	e.Box.Append(e.Entry)
-	formEntryCSS(e)
 
 	return &e
 }

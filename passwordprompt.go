@@ -6,23 +6,12 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
 	"github.com/diamondburned/gotkit/app"
-	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/diamondburned/gotkit/gtkutil/textutil"
 )
 
 var inputLabelAttrs = textutil.Attrs(
 	pango.NewAttrForegroundAlpha(65535 * 90 / 100), // 90%
 )
-
-var passwordCSS = cssutil.Applier("secretdialog-password", `
-.secretdialog-password {
-  margin: 6px 0;
-  margin-top: 6px;
-}
-.secretdialog-password label {
-  margin-left: .5em;
-}
-`)
 
 // promptPassword opens a password prompt modal.
 func promptPassword(ctx context.Context, done func(ok bool, password string)) {
@@ -53,7 +42,6 @@ func promptPassword(ctx context.Context, done func(ok bool, password string)) {
 	passInner.SetHExpand(true)
 	passInner.SetVAlign(gtk.AlignCenter)
 	passInner.SetHAlign(gtk.AlignCenter)
-	passwordCSS(passInner)
 
 	passEntry.ConnectActivate(func() {
 		// Enter key activates.

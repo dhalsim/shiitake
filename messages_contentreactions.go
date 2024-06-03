@@ -13,7 +13,6 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/app/locale"
 	"github.com/diamondburned/gotkit/gtkutil"
-	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
@@ -35,19 +34,6 @@ type contentReactions struct {
 	parent    *Content
 	reactions *gioutil.ListModel[messageReaction]
 }
-
-var reactionsCSS = cssutil.Applier("message-reactions", `
-.message-reactions {
-  padding: 0;
-  margin-top: 4px;
-  background: none;
-}
-.message-reactions > flowboxchild {
-  margin: 4px 0;
-  margin-right: 6px;
-  padding: 0;
-}
-`)
 
 func newContentReactions(ctx context.Context, parent *Content) *contentReactions {
 	rs := contentReactions{
@@ -77,7 +63,6 @@ func newContentReactions(ctx context.Context, parent *Content) *contentReactions
 	rs.FlowBox.SetHomogeneous(true)
 	rs.FlowBox.SetMaxChildrenPerLine(30)
 	rs.FlowBox.SetSelectionMode(gtk.SelectionNone)
-	reactionsCSS(rs)
 
 	rs.FlowBox.BindModel(rs.reactions.ListModel, func(o *glib.Object) gtk.Widgetter {
 		reaction := gioutil.ObjectValue[messageReaction](o)
@@ -210,30 +195,10 @@ type contentReaction struct {
 	tooltipState reactionsLoadState
 }
 
-var reactionCSS = cssutil.Applier("message-reaction", `
-.message-reaction {
-  /* min-width: 4em; */
-  min-width: 0;
-  min-height: 0;
-  padding: 0;
-}
-.message-reaction > box {
-  margin: 6px;
-}
-.message-reaction-emoji-icon {
-  min-width:  22px;
-  min-height: 22px;
-}
-.message-reaction-emoji-unicode {
-  font-size: 18px;
-}
-`)
-
 func newContentReaction() *contentReaction {
 	r := contentReaction{}
 
 	r.ToggleButton = gtk.NewToggleButton()
-	r.ToggleButton.AddCSSClass("message-reaction")
 	r.ToggleButton.ConnectClicked(func() {
 		r.SetSensitive(false)
 
@@ -253,10 +218,8 @@ func newContentReaction() *contentReaction {
 	})
 
 	r.iconBin = adw.NewBin()
-	r.iconBin.AddCSSClass("message-reaction-icon")
 
 	r.countLabel = gtk.NewLabel("")
-	r.countLabel.AddCSSClass("message-reaction-count")
 	r.countLabel.SetHExpand(true)
 	r.countLabel.SetXAlign(1)
 
@@ -265,7 +228,6 @@ func newContentReaction() *contentReaction {
 	box.Append(r.countLabel)
 
 	r.ToggleButton.SetChild(box)
-	reactionCSS(r)
 
 	return &r
 }
@@ -277,8 +239,6 @@ func (r *contentReaction) SetReaction(ctx context.Context, flowBox *gtk.FlowBox,
 
 	if strings.HasPrefix(reaction.Emoji, ":") {
 		// emoji := avatar.New(ctx, imgutil.HTTPProvider)
-		// emoji.AddCSSClass("message-reaction-emoji")
-		// emoji.AddCSSClass("message-reaction-emoji-custom")
 		// emoji.SetSizeRequest(13, 13)
 		// emoji.SetKeepAspectRatio(true)
 		// emoji.SetURL(reaction.Emoji)
@@ -294,8 +254,6 @@ func (r *contentReaction) SetReaction(ctx context.Context, flowBox *gtk.FlowBox,
 		// r.iconBin.SetChild(emoji)
 	} else {
 		label := gtk.NewLabel(reaction.Emoji)
-		label.AddCSSClass("message-reaction-emoji")
-		label.AddCSSClass("message-reaction-emoji-unicode")
 
 		r.iconBin.SetChild(label)
 	}
@@ -304,9 +262,7 @@ func (r *contentReaction) SetReaction(ctx context.Context, flowBox *gtk.FlowBox,
 
 	r.ToggleButton.SetActive(reaction.Me)
 	if reaction.Me {
-		r.AddCSSClass("message-reaction-me")
 	} else {
-		r.RemoveCSSClass("message-reaction-me")
 	}
 }
 

@@ -74,7 +74,6 @@ type MemberData discord.Member
 
 func (d MemberData) Row(ctx context.Context) *gtk.ListBoxRow {
 	// i := avatar.New(ctx, imgutil.HTTPProvider, emojiSize)
-	// i.AddCSSClass("autocompleter-customemoji")
 	// i.SetFromURL(gtkcord.InjectAvatarSize(d.User.AvatarURLWithType(discord.PNGImage)))
 
 	// l := gtk.NewLabel("")
@@ -101,7 +100,6 @@ func (d MemberData) Row(ctx context.Context) *gtk.ListBoxRow {
 	// b.Append(l)
 
 	r := gtk.NewListBoxRow()
-	r.AddCSSClass("autocomplete-member")
 	// r.SetChild(b)
 
 	return r

@@ -6,24 +6,8 @@ import (
 	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/diamondburned/gotkit/gtkutil/cssutil"
 	"github.com/nbd-wtf/go-nostr/nip29"
 )
-
-var sidebarCSS = cssutil.Applier("sidebar-sidebar", `
-@define-color sidebar_bg mix(@borders, @theme_bg_color, 0.25);
-
-windowcontrols.end:not(.empty) {
-  margin-right: 4px;
-}
-windowcontrols.start:not(.empty) {
-  margin: 4px;
-  margin-right: 0;
-}
-.sidebar-relayside {
-  background-color: @sidebar_bg;
-}
-`)
 
 type Sidebar struct {
 	*gtk.Box // horizontal
@@ -55,7 +39,6 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	})
 
 	separator := gtk.NewSeparator(gtk.OrientationHorizontal)
-	separator.AddCSSClass("sidebar-separator")
 
 	// leftBox holds just the new button and the relay view, as opposed to s.Left
 	// which holds the scrolled window and the window controls.
@@ -73,7 +56,6 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	leftCtrl.SetHAlign(gtk.AlignCenter)
 
 	left := gtk.NewBox(gtk.OrientationVertical, 0)
-	left.AddCSSClass("sidebar-relayside")
 	left.Append(leftCtrl)
 	left.Append(leftScroll)
 
@@ -124,7 +106,6 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	s.Box.SetHExpand(false)
 	s.Box.Append(left)
 	s.Box.Append(rightWrap)
-	sidebarCSS(s)
 
 	return &s
 }
