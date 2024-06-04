@@ -1,7 +1,6 @@
 package about
 
 import (
-	"context"
 	"fmt"
 	"path"
 	"runtime/debug"
@@ -12,8 +11,7 @@ import (
 	"github.com/diamondburned/gotkit/components/logui"
 )
 
-// New creates a new about window.
-func New(ctx context.Context) *adw.AboutDialog {
+func New() *adw.AboutDialog {
 	about := adw.NewAboutDialog()
 	about.SetApplicationName("shiitake")
 	about.SetApplicationIcon("logo")

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 
+	"fiatjaf.com/shiitake/about"
 	"fiatjaf.com/shiitake/components/icon_placeholder"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -70,7 +71,7 @@ func NewWindow(ctx context.Context) *Window {
 			w.main.messagesView.switchTo(nip29.GroupAddress{})
 		},
 		"preferences": func() { prefui.ShowDialog(ctx) },
-		"about":       func() { adw.NewAboutDialog() },
+		"about":       func() { about.New().Present(w) },
 		"logs": func() {
 			viewer := logui.NewDefaultViewer(ctx)
 			viewer.SetHideOnClose(false)
