@@ -24,14 +24,15 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	s.GroupsView.SetVExpand(true)
 	s.GroupsView.SetSizeRequest(100, -1)
 
-	userBar := newUserBar(ctx)
-	userBar.SetVAlign(gtk.AlignEnd)
+	userBar := NewUserBar(ctx)
 
 	sep := gtk.NewSeparator(gtk.OrientationVertical)
 	sep.AddCSSClass("spacer")
 	sep.SetVExpand(true)
 
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
+	box.SetName("sidebar-box")
+	box.SetHAlign(gtk.AlignFill)
 	box.SetSizeRequest(100, -1)
 	box.SetVExpand(true)
 	box.SetHExpand(true)
@@ -40,7 +41,10 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	box.Append(userBar)
 
 	s.ScrolledWindow = gtk.NewScrolledWindow()
+	s.ScrolledWindow.SetName("sidebar")
 	s.ScrolledWindow.SetChild(box)
+	s.ScrolledWindow.SetHExpand(true)
+	s.ScrolledWindow.SetHAlign(gtk.AlignFill)
 
 	return &s
 }

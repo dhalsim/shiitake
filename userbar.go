@@ -17,16 +17,18 @@ type userBar struct {
 	ctx context.Context
 }
 
-func newUserBar(ctx context.Context) *userBar {
+func NewUserBar(ctx context.Context) *userBar {
 	b := userBar{ctx: ctx}
 
 	avatar := avatar.New(ctx, 20, "")
+	avatar.AddCSSClass("ml-2")
 
 	name := gtk.NewLabel("")
 	name.SetSelectable(true)
 	name.SetHExpand(true)
 	name.SetWrap(false)
 	name.SetEllipsize(pango.EllipsizeEnd)
+	name.AddCSSClass("mx-2")
 
 	menu := gtk.NewToggleButton()
 	menu.SetIconName("menu-large-symbolic")
@@ -53,6 +55,8 @@ func newUserBar(ctx context.Context) *userBar {
 	})
 
 	b.Box = gtk.NewBox(gtk.OrientationHorizontal, 0)
+	b.Box.SetName("userbar")
+	b.Box.SetHAlign(gtk.AlignEnd)
 	b.Box.Append(avatar)
 	b.Box.Append(name)
 	b.Box.Append(menu)

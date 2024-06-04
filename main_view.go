@@ -33,7 +33,6 @@ func NewMainView(ctx context.Context, w *Window) *MainView {
 	p.messagesView = NewMessagesView(ctx)
 
 	p.Sidebar = NewSidebar(ctx)
-	p.Sidebar.SetHAlign(gtk.AlignStart)
 
 	rightTitle := gtk.NewLabel("")
 	rightTitle.SetXAlign(0)
@@ -54,7 +53,7 @@ func NewMainView(ctx context.Context, w *Window) *MainView {
 	paned.SetVExpand(true)
 	paned.SetStartChild(p.Sidebar)
 	paned.SetEndChild(p.messagesView)
-	paned.SetPosition(130)
+	paned.SetPosition(160)
 	paned.SetResizeStartChild(true)
 	paned.SetResizeEndChild(true)
 	paned.Show()

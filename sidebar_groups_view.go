@@ -25,6 +25,7 @@ func NewGroupsView(ctx context.Context) *GroupsView {
 	var current nip29.GroupAddress
 
 	v.List = gtk.NewListBox()
+	v.List.SetName("groups-list")
 	v.List.SetSelectionMode(gtk.SelectionSingle)
 	v.List.SetHExpand(true)
 	v.List.SetVExpand(true)
@@ -63,14 +64,11 @@ func NewGroupsView(ctx context.Context) *GroupsView {
 		}
 	}()
 
-	viewport := gtk.NewViewport(nil, nil)
-	viewport.SetChild(v.List)
-	viewport.SetFocusChild(v.List)
-
 	v.ScrolledWindow = gtk.NewScrolledWindow()
+	v.ScrolledWindow.SetName("groups-view")
 	v.ScrolledWindow.SetVExpand(true)
 	v.ScrolledWindow.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
-	v.ScrolledWindow.SetChild(viewport)
+	v.ScrolledWindow.SetChild(v.List)
 
 	// bind the context to cancel when we're hidden.
 	v.ctx = gtkutil.WithVisibility(ctx, v)
