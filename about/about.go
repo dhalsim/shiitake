@@ -9,25 +9,19 @@ import (
 
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/diamondburned/gotkit/app"
 	"github.com/diamondburned/gotkit/components/logui"
 )
 
 // New creates a new about window.
-func New(ctx context.Context) *adw.AboutWindow {
-	about := adw.NewAboutWindow()
-	about.SetTransientFor(app.GTKWindowFromContext(ctx))
-	about.SetModal(true)
-	about.SetApplicationName("Shiitake")
+func New(ctx context.Context) *adw.AboutDialog {
+	about := adw.NewAboutDialog()
+	about.SetApplicationName("shiitake")
 	about.SetApplicationIcon("logo")
 	about.SetVersion("git") // TODO: version
-	about.SetWebsite("https://fiatjaf.com/shiitake")
-	about.SetCopyright("© 2023 diamondburned and contributors")
+	about.SetWebsite("https://git.fiatjaf.com/shiitake")
+	about.SetCopyright("© 2024 diamondburned and contributors")
 	about.SetLicenseType(gtk.LicenseGPL30)
-	about.SetDevelopers([]string{
-		"fiatjaf",
-		"diamondburned",
-	})
+	about.SetDevelopers([]string{"fiatjaf"})
 
 	build, ok := debug.ReadBuildInfo()
 	if ok {

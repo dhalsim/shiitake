@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 
-	"fiatjaf.com/shiitake/components/backbutton"
 	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -13,11 +12,11 @@ import (
 )
 
 type MainView struct {
-	*adw.OverlaySplitView
+	*gtk.Box
+
 	Sidebar *Sidebar
 
-	messagesView  *MessagesView
-	quickswitcher *QuickSwitcherDialog
+	messagesView *MessagesView
 
 	// lastButtons keeps tracks of the header buttons of the previous view.
 	// On view change, these buttons will be removed.
@@ -31,9 +30,6 @@ func NewMainView(ctx context.Context, w *Window) *MainView {
 		ctx: ctx,
 	}
 
-	p.quickswitcher = NewQuickSwitcherDialog(ctx)
-	p.quickswitcher.SetHideOnClose(true) // so we can reopen it later
-
 	p.messagesView = NewMessagesView(ctx)
 
 	p.Sidebar = NewSidebar(ctx)
@@ -44,36 +40,28 @@ func NewMainView(ctx context.Context, w *Window) *MainView {
 	rightTitle.SetHExpand(true)
 	rightTitle.SetEllipsize(pango.EllipsizeEnd)
 
-	back := backbutton.New()
-	back.SetTransitionType(gtk.RevealerTransitionTypeSlideRight)
-
 	joinGroupButton := gtk.NewButtonFromIconName("list-add-symbolic")
 	joinGroupButton.SetTooltipText("Join Group")
 	joinGroupButton.ConnectClicked(p.AskJoinGroup)
 
-	rightHeader := adw.NewHeaderBar()
-	rightHeader.SetShowEndTitleButtons(true)
-	rightHeader.SetShowBackButton(false) // this is useless with OverlaySplitView
-	rightHeader.SetShowTitle(false)
-	rightHeader.PackStart(back)
-	rightHeader.PackStart(rightTitle)
-	rightHeader.PackEnd(joinGroupButton)
+	header := adw.NewHeaderBar()
+	header.SetShowEndTitleButtons(true)
+	header.SetShowBackButton(false)
+	header.SetShowTitle(true)
 
-	p.OverlaySplitView = adw.NewOverlaySplitView()
-	p.OverlaySplitView.SetSidebar(p.Sidebar)
-	p.OverlaySplitView.SetSidebarPosition(gtk.PackStart)
-	p.OverlaySplitView.SetContent(p.messagesView)
-	p.OverlaySplitView.SetEnableHideGesture(true)
-	p.OverlaySplitView.SetEnableShowGesture(true)
-	p.OverlaySplitView.SetMinSidebarWidth(100)
-	p.OverlaySplitView.SetMaxSidebarWidth(300)
-	p.OverlaySplitView.SetSidebarWidthFraction(0.3)
+	paned := gtk.NewPaned(gtk.OrientationHorizontal)
+	paned.SetHExpand(true)
+	paned.SetVExpand(true)
+	paned.SetStartChild(p.Sidebar)
+	paned.SetEndChild(p.messagesView)
+	paned.SetPosition(130)
+	paned.SetResizeStartChild(true)
+	paned.SetResizeEndChild(true)
+	paned.Show()
 
-	back.ConnectSplitView(p.OverlaySplitView)
-
-	breakpoint := adw.NewBreakpoint(adw.BreakpointConditionParse("max-width: 500sp"))
-	breakpoint.AddSetter(p.OverlaySplitView, "collapsed", true)
-	w.AddBreakpoint(breakpoint)
+	p.Box = gtk.NewBox(gtk.OrientationVertical, 0)
+	p.Box.Append(header)
+	p.Box.Append(paned)
 
 	// state := gtkcord.FromContext(ctx)
 	// w.ConnectDestroy(state.AddHandler(
@@ -92,7 +80,6 @@ func (p *MainView) AskJoinGroup() {
 	entry.SetVisibility(false)
 
 	label := gtk.NewLabel("Enter group address:")
-	label.SetAttributes(inputLabelAttrs)
 	label.SetXAlign(0)
 
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
@@ -135,9 +122,6 @@ func (p *MainView) AskJoinGroup() {
 
 	prompt.Show()
 }
-
-// OpenQuickSwitcher opens the Quick Switcher dialog.
-func (p *MainView) OpenQuickSwitcher() { p.quickswitcher.Show() }
 
 func (p *MainView) updateWindowTitle() {
 	// state := gtkcord.FromContext(p.ctx)

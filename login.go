@@ -6,10 +6,9 @@ import (
 	"log/slog"
 	"strings"
 
-	"fiatjaf.com/shiitake/components/form_entry"
 	"fiatjaf.com/shiitake/global"
-	"github.com/diamondburned/adaptive"
 	"github.com/diamondburned/chatkit/kits/secret"
+	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/nbd-wtf/go-nostr/nip29"
@@ -17,14 +16,9 @@ import (
 
 type LoginPage struct {
 	*gtk.Box
-	Body *gtk.Box
-
 	ctx context.Context
 
 	driver secret.Driver
-
-	KeyOrBunker *form_entry.FormEntry
-	ErrorRev    *gtk.Revealer
 }
 
 func NewLoginPage(ctx context.Context, w *Window) *LoginPage {
@@ -32,52 +26,75 @@ func NewLoginPage(ctx context.Context, w *Window) *LoginPage {
 		ctx: ctx,
 	}
 
-	header := gtk.NewHeaderBar()
-	header.SetShowTitleButtons(true)
+	header := adw.NewHeaderBar()
+	header.SetShowBackButton(false)
+	header.SetShowTitle(true)
 
-	loginWith := gtk.NewLabel("Login with nsec or ncryptsec:")
-	loginWith.SetXAlign(0)
+	input := adw.NewEntryRow()
+	password := adw.NewPasswordEntryRow()
+
+	login := func() {
+		err := p.login(input.Text(), password.Text())
+		if err != nil {
+			return
+		}
+
+		// here we have a signer, so we can store our input value
+		p.driver.Set("key-or-bunker", []byte(input.Text()))
+	}
+
+	input.SetTitle("nsec, ncryptsec or bunker")
+	input.ConnectChanged(func() {
+		if strings.HasPrefix(input.Text(), "ncryptsec1") {
+			password.Show()
+		}
+	})
+	input.AddCSSClass("mb-4")
+	input.AddCSSClass("rounded")
+	input.ConnectActivate(login)
+	input.Show()
+
+	password.SetTitle("password")
+	password.ConnectActivate(login)
+	password.AddCSSClass("mb-4")
+	password.AddCSSClass("rounded")
+	password.Hide()
 
 	submit := gtk.NewButtonWithLabel("Log In")
+	submit.AddCSSClass("suggested-action")
 	submit.SetHExpand(true)
-	submit.ConnectClicked(func() {
-		p.loginWithInput(p.KeyOrBunker.Entry.Text())
-	})
+	submit.ConnectClicked(login)
 
-	p.KeyOrBunker = form_entry.New("nsec, ncryptsec or bunker")
-	p.KeyOrBunker.FocusNextOnActivate()
-	p.KeyOrBunker.Entry.SetInputPurpose(gtk.InputPurposeEmail)
-	p.KeyOrBunker.ConnectActivate(func() {
-		submit.Activate()
-	})
+	body := gtk.NewListBox()
+	body.SetHAlign(gtk.AlignCenter)
+	body.SetVAlign(gtk.AlignCenter)
+	body.SetVExpand(true)
+	body.SetHExpand(true)
+	body.Show()
 
-	p.ErrorRev = gtk.NewRevealer()
-	p.ErrorRev.SetTransitionType(gtk.RevealerTransitionTypeSlideDown)
-	p.ErrorRev.SetRevealChild(false)
-
-	buttonBox := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	buttonBox.Append(submit)
-
-	form := gtk.NewBox(gtk.OrientationVertical, 0)
-	form.Append(loginWith)
-	form.Append(p.KeyOrBunker)
-	form.Append(p.ErrorRev)
-	form.Append(buttonBox)
-
-	p.Body = gtk.NewBox(gtk.OrientationVertical, 0)
-	p.Body.SetHAlign(gtk.AlignCenter)
-	p.Body.SetVAlign(gtk.AlignCenter)
-	p.Body.SetVExpand(true)
-	p.Body.SetHExpand(true)
-	p.Body.SetSensitive(true)
-	p.Body.Show()
-	p.Body.Append(form)
+	body.Append(input)
+	body.Append(password)
+	body.Append(submit)
 
 	p.Box = gtk.NewBox(gtk.OrientationVertical, 0)
 	p.Box.Append(header)
-	p.Box.Append(p.Body)
+	p.Box.Append(body)
 
 	return &p
+}
+
+func (p *LoginPage) login(input, password string) error {
+	err := global.Init(p.ctx, input, password)
+	if err != nil {
+		slog.Error("error initializing signer", err)
+		return err
+	}
+
+	// switch to chat page
+	win.Stack.SetVisibleChild(win.main)
+	win.main.messagesView.switchTo(nip29.GroupAddress{})
+	win.SetTitle("Chat")
+	return nil
 }
 
 func (p *LoginPage) TryLoginFromDriver(ctx context.Context) {
@@ -99,51 +116,7 @@ func (p *LoginPage) TryLoginFromDriver(ctx context.Context) {
 
 		return func() {
 			value := string(b)
-			p.loginWithInput(value)
+			p.login(value, "")
 		}
 	})
-}
-
-func (p *LoginPage) ShowError(err error) {
-	errLabel := adaptive.NewErrorLabel(err)
-	p.ErrorRev.SetChild(errLabel)
-	p.ErrorRev.SetRevealChild(true)
-}
-
-func (p *LoginPage) hideError() {
-	p.ErrorRev.SetRevealChild(false)
-}
-
-func (p *LoginPage) loginWithInput(input string) {
-	log.Printf("using '%s'\n", input)
-	if strings.HasPrefix(input, "ncryptsec1") {
-		promptPassword(p.ctx, func(ok bool, password string) {
-			p.loginWithPassword(input, password)
-		})
-	} else {
-		p.loginWithPassword(input, "")
-	}
-}
-
-func (p *LoginPage) loginWithPassword(input string, password string) {
-	// set busy
-	p.Body.SetSensitive(false)
-
-	err := global.Init(p.ctx, input, password)
-	if err != nil {
-		p.Body.SetSensitive(true)
-		slog.Error("error initializing signer", err)
-		return
-	}
-
-	// here we have a signer, so we can store our input value
-	p.driver.Set("key-or-bunker", []byte(input))
-
-	// set done
-	p.SetSensitive(true)
-
-	// switch to chat page
-	win.Stack.SetVisibleChild(win.main)
-	win.main.messagesView.switchTo(nip29.GroupAddress{})
-	win.SetTitle("Chat")
 }

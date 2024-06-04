@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 
-	"fiatjaf.com/shiitake/about"
 	"fiatjaf.com/shiitake/components/icon_placeholder"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -70,11 +69,8 @@ func NewWindow(ctx context.Context) *Window {
 		"reset-view": func() {
 			w.main.messagesView.switchTo(nip29.GroupAddress{})
 		},
-		"quick-switcher": func() {
-			w.main.OpenQuickSwitcher()
-		},
 		"preferences": func() { prefui.ShowDialog(ctx) },
-		"about":       func() { about.New(ctx).Present() },
+		"about":       func() { adw.NewAboutDialog() },
 		"logs": func() {
 			viewer := logui.NewDefaultViewer(ctx)
 			viewer.SetHideOnClose(false)
@@ -115,31 +111,16 @@ func NewWindow(ctx context.Context) *Window {
 }
 
 func (w *Window) OpenGroup(gad nip29.GroupAddress) {
-	eachChild(w.main.Sidebar.CurrentGroupsView.List, func(lbr *gtk.ListBoxRow) bool {
+	eachChild(w.main.Sidebar.GroupsView.List, func(lbr *gtk.ListBoxRow) bool {
 		if lbr.Name() == gad.String() {
-			if w.main.Sidebar.CurrentGroupsView.List.SelectedRow() != lbr {
-				w.main.Sidebar.CurrentGroupsView.List.SelectRow(lbr)
+			if w.main.Sidebar.GroupsView.List.SelectedRow() != lbr {
+				w.main.Sidebar.GroupsView.List.SelectRow(lbr)
 			}
 			return true
 		}
 		return false
 	})
 	w.main.messagesView.switchTo(gad)
-}
-
-func (w *Window) OpenRelay(url string) {
-	eachChild(w.main.Sidebar.RelaysView.Widget, func(lbr *gtk.ListBoxRow) bool {
-		if lbr.Name() == url {
-			if w.main.Sidebar.RelaysView.Widget.SelectedRow() != lbr {
-				w.main.Sidebar.RelaysView.Widget.SelectRow(lbr)
-			}
-			return true
-		}
-		return false
-	})
-
-	w.main.Sidebar.openRelay(url)
-	w.main.messagesView.switchTo(nip29.GroupAddress{})
 }
 
 func (w *Window) SetTitle(title string) {

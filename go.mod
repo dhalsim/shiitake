@@ -82,3 +82,5 @@ require (
 replace github.com/diamondburned/chatkit => ../chatkit
 
 replace fiatjaf.com/nostr-gtk => ../nostr-gtk
+
+replace github.com/diamondburned/gotk4-adwaita/pkg => ../gotk4-adwaita/pkg
