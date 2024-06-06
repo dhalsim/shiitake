@@ -11,14 +11,14 @@ import (
 	"github.com/diamondburned/gotkit/gtkutil"
 )
 
-type userBar struct {
+type UserBar struct {
 	*gtk.Box
 
 	ctx context.Context
 }
 
-func NewUserBar(ctx context.Context) *userBar {
-	b := userBar{ctx: ctx}
+func NewUserBar(ctx context.Context) *UserBar {
+	b := UserBar{ctx: ctx}
 
 	avatar := avatar.New(ctx, 20, "")
 	avatar.AddCSSClass("ml-2")

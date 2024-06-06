@@ -28,7 +28,8 @@ type Window struct {
 	win *app.Window
 	ctx context.Context
 
-	Stack *gtk.Stack
+	ToastOverlay *adw.ToastOverlay
+	Stack        *gtk.Stack
 
 	main *MainView
 }
@@ -61,14 +62,18 @@ func NewWindow(ctx context.Context) *Window {
 	w.Stack.AddChild(login)
 	w.Stack.AddChild(w.main)
 	w.Stack.AddChild(plc)
-	win.SetContent(w.Stack)
+
+	w.ToastOverlay = adw.NewToastOverlay()
+	w.ToastOverlay.SetChild(w.Stack)
+
+	win.SetContent(w.ToastOverlay)
 
 	// show placeholder
 	w.Stack.SetVisibleChild(plc)
 
 	gtkutil.AddActions(&w, map[string]func(){
 		"reset-view": func() {
-			w.main.messagesView.switchTo(nip29.GroupAddress{})
+			w.main.Messages.switchTo(nip29.GroupAddress{})
 		},
 		"preferences": func() { prefui.ShowDialog(ctx) },
 		"about":       func() { about.New().Present(w) },
@@ -121,25 +126,24 @@ func (w *Window) OpenGroup(gad nip29.GroupAddress) {
 		}
 		return false
 	})
-	w.main.messagesView.switchTo(gad)
+	w.main.Stack.SetVisibleChild(w.main.Messages)
+	w.main.Messages.switchTo(gad)
 }
 
 func (w *Window) SetTitle(title string) {
 	w.ApplicationWindow.SetTitle(app.FromContext(w.ctx).SuffixedTitle(title))
 }
 
-// func (w *Window) setStatus(status discord.Status) {
-// 	w.useChatPage(func(*ChatPage) {
-// 		state := gtkcord.FromContext(w.ctx).Online()
-// 		go func() {
-// 			if err := state.SetStatus(status, nil); err != nil {
-// 				app.Error(w.ctx, errors.Wrap(err, "invalid status"))
-// 			}
-// 		}()
-// 	})
-// }
+func (w *Window) ErrorToast(msg string) {
+	toast := adw.NewToast(msg)
+	toast.SetTimeout(5)
+	toast.SetButtonLabel("Logs")
+	toast.SetActionName("win.logs")
+	w.ToastOverlay.AddToast(toast)
+}
 
-func newEmptyHeader() *gtk.Box {
-	b := gtk.NewBox(gtk.OrientationVertical, 0)
-	return b
+func (w *Window) Toast(msg string) {
+	toast := adw.NewToast(msg)
+	toast.SetTimeout(5)
+	w.ToastOverlay.AddToast(toast)
 }

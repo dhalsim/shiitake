@@ -14,13 +14,11 @@ import (
 type MainView struct {
 	*gtk.Box
 
-	Sidebar *Sidebar
+	Sidebar  *Sidebar
+	Messages *MessagesView
+	Discover *DiscoverView
 
-	messagesView *MessagesView
-
-	// lastButtons keeps tracks of the header buttons of the previous view.
-	// On view change, these buttons will be removed.
-	lastButtons []gtk.Widgetter
+	Stack *gtk.Stack
 
 	ctx context.Context
 }
@@ -30,9 +28,15 @@ func NewMainView(ctx context.Context, w *Window) *MainView {
 		ctx: ctx,
 	}
 
-	p.messagesView = NewMessagesView(ctx)
-
 	p.Sidebar = NewSidebar(ctx)
+
+	p.Messages = NewMessagesView(ctx)
+	p.Discover = NewDiscoverView(ctx)
+
+	p.Stack = gtk.NewStack()
+	p.Stack.AddChild(p.Discover)
+	p.Stack.AddChild(p.Messages)
+	p.Stack.SetVisibleChild(p.Discover)
 
 	rightTitle := gtk.NewLabel("")
 	rightTitle.SetXAlign(0)
@@ -46,13 +50,13 @@ func NewMainView(ctx context.Context, w *Window) *MainView {
 	header := adw.NewHeaderBar()
 	header.SetShowEndTitleButtons(true)
 	header.SetShowBackButton(false)
-	header.SetShowTitle(true)
+	header.SetShowTitle(false)
 
 	paned := gtk.NewPaned(gtk.OrientationHorizontal)
 	paned.SetHExpand(true)
 	paned.SetVExpand(true)
 	paned.SetStartChild(p.Sidebar)
-	paned.SetEndChild(p.messagesView)
+	paned.SetEndChild(p.Stack)
 	paned.SetPosition(160)
 	paned.SetResizeStartChild(true)
 	paned.SetResizeEndChild(true)

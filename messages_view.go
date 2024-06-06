@@ -33,9 +33,8 @@ type messageRow struct {
 type MessagesView struct {
 	*adaptive.LoadablePage
 
-	ToastOverlay *adw.ToastOverlay
-	LoadMore     *gtk.Button
-	Composer     *ComposerView
+	LoadMore *gtk.Button
+	Composer *ComposerView
 
 	listStack *gtk.Stack
 
@@ -79,12 +78,9 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 	outerBox.Append(v.listStack)
 	outerBox.Append(composerOverlay)
 
-	v.ToastOverlay = adw.NewToastOverlay()
-	v.ToastOverlay.SetChild(outerBox)
-
 	v.LoadablePage = adaptive.NewLoadablePage()
 	v.LoadablePage.SetTransitionDuration(125)
-	v.LoadablePage.SetChild(v.ToastOverlay)
+	v.LoadablePage.SetChild(outerBox)
 
 	// If the window gains focus, try to carefully mark the channel as read.
 	var windowSignal glib.SignalHandle
@@ -113,18 +109,16 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 
 		if !gad.IsValid() {
 			// empty, switch to placeholder
-			v.ToastOverlay.SetChild(plc)
+			v.LoadablePage.SetChild(plc)
 			return
 		}
 
 		// otherwise we have something,
 		// so switch back to the main thing which is outerBox
-		if v.ToastOverlay.Child() != outerBox {
-			v.ToastOverlay.SetChild(outerBox)
-		}
+		v.LoadablePage.SetChild(outerBox)
 
 		gtkutil.NotifyProperty(v.Parent(), "transition-running", func() bool {
-			if !v.Stack.TransitionRunning() {
+			if !v.LoadablePage.Stack.TransitionRunning() {
 				return true
 			}
 			return false
@@ -272,8 +266,7 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 	go func() {
 		<-global.GetMe(ctx).ListLoaded
 		glib.IdleAdd(func() {
-			v.ToastOverlay.SetChild(plc)
-			v.LoadablePage.SetChild(v.ToastOverlay)
+			v.LoadablePage.SetChild(plc)
 		})
 	}()
 
@@ -525,20 +518,6 @@ func (v *MessagesView) AddReaction(id string, emoji discord.APIEmoji) {
 	// 	}
 	// 	return nil
 	// })
-}
-
-func (v *MessagesView) ErrorToast(msg string) {
-	toast := adw.NewToast(msg)
-	toast.SetTimeout(5)
-	toast.SetButtonLabel("Logs")
-	toast.SetActionName("win.logs")
-	v.ToastOverlay.AddToast(toast)
-}
-
-func (v *MessagesView) Toast(msg string) {
-	toast := adw.NewToast(msg)
-	toast.SetTimeout(5)
-	v.ToastOverlay.AddToast(toast)
 }
 
 // ReplyTo starts replying to the message with the given ID.

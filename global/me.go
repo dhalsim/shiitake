@@ -23,9 +23,7 @@ type Me struct {
 
 	ListLoaded      chan struct{}
 	MetadataUpdated chan struct{}
-	JoinedRelay     chan *Relay
 	JoinedGroup     chan *Group
-	LeftRelay       chan string
 	LeftGroup       chan nip29.GroupAddress
 }
 
@@ -50,9 +48,7 @@ func GetMe(ctx context.Context) *Me {
 
 		ListLoaded:      make(chan struct{}),
 		MetadataUpdated: make(chan struct{}),
-		JoinedRelay:     make(chan *Relay, 20),
 		JoinedGroup:     make(chan *Group, 20),
-		LeftRelay:       make(chan string),
 		LeftGroup:       make(chan nip29.GroupAddress),
 	}
 
@@ -82,9 +78,6 @@ func GetMe(ctx context.Context) *Me {
 		// these are just for continued comparison with new events
 		currentGroups := make([]nip29.GroupAddress, 0, 20)
 
-		// the relay list is just derived from the groups list in a pseudo-hierarchy
-		currentRelays := make([]string, 0, 20)
-
 		processIncomingGroupListEvent := func(evt *nostr.Event) {
 			if me.lastList != nil && me.lastList.CreatedAt > evt.CreatedAt {
 				// this event is older than the last one we have, ignore
@@ -99,10 +92,6 @@ func GetMe(ctx context.Context) *Me {
 			removedGroups := make([]nip29.GroupAddress, len(currentGroups))
 			copy(removedGroups, currentGroups)
 
-			// same for relays
-			removedRelays := make([]string, len(currentRelays))
-			copy(removedRelays, currentRelays)
-
 			// then we go through the tags to see which groups were added and which ones were kept
 			for _, tag := range evt.Tags {
 				if len(tag) >= 2 && tag[0] == "group" {
@@ -116,14 +105,6 @@ func GetMe(ctx context.Context) *Me {
 						currentGroups = append(currentGroups, gad)
 						group := GetGroup(ctx, gad)
 						if group != nil {
-							// is it also a new relay?
-							if !slices.Contains(currentRelays, gad.Relay) {
-								currentRelays = append(currentRelays, gad.Relay)
-								relay := LoadRelay(ctx, gad.Relay)
-								log.Printf("new relay: %s", gad.Relay)
-								me.JoinedRelay <- relay
-							}
-
 							log.Printf("new group: %s", group.Address)
 							me.JoinedGroup <- group // notify UI that this group was added
 						}
@@ -137,30 +118,8 @@ func GetMe(ctx context.Context) *Me {
 							removedGroups[pos] = removedGroups[len(removedGroups)-1]
 							removedGroups = removedGroups[0 : len(removedGroups)-1]
 						}
-
-						// same for relays
-						pos = slices.Index(removedRelays, gad.Relay)
-						if pos != -1 {
-							// swap-remove
-							removedRelays[pos] = removedRelays[len(removedRelays)-1]
-							removedRelays = removedRelays[0 : len(removedRelays)-1]
-						}
 					}
-
 				}
-			}
-
-			// if a relay wasn't kept that means it was removed
-			for _, url := range removedRelays {
-				log.Printf("left relay: %s", url)
-				// swap-remove
-				pos := slices.Index(currentRelays, url)
-				if pos != -1 {
-					// swap-remove
-					currentRelays[pos] = currentRelays[len(currentRelays)-1]
-					currentRelays = currentRelays[0 : len(currentRelays)-1]
-				}
-				me.LeftRelay <- url // notify UI
 			}
 
 			// if a group wasn't kept that means it was removed

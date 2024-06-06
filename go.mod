@@ -15,7 +15,6 @@ require (
     fiatjaf.com/nostr-gtk v0.0.1
 	github.com/ianlancetaylor/cgosymbolizer v0.0.0-20220405231054-a1ae3e4bba26
 	github.com/mitchellh/go-homedir v1.1.0
-
 	github.com/nbd-wtf/go-nostr v0.31.4
 	github.com/nbd-wtf/nostr-sdk v0.2.2
 	github.com/pkg/errors v0.9.1
@@ -84,3 +83,5 @@ replace github.com/diamondburned/chatkit => ../chatkit
 replace fiatjaf.com/nostr-gtk => ../nostr-gtk
 
 replace github.com/diamondburned/gotk4-adwaita/pkg => ../gotk4-adwaita/pkg
+
+replace github.com/nbd-wtf/go-nostr => ../go-nostr
