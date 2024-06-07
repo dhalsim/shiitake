@@ -116,20 +116,6 @@ func NewWindow(ctx context.Context) *Window {
 	return &w
 }
 
-func (w *Window) OpenGroup(gad nip29.GroupAddress) {
-	eachChild(w.main.Sidebar.GroupsView.List, func(lbr *gtk.ListBoxRow) bool {
-		if lbr.Name() == gad.String() {
-			if w.main.Sidebar.GroupsView.List.SelectedRow() != lbr {
-				w.main.Sidebar.GroupsView.List.SelectRow(lbr)
-			}
-			return true
-		}
-		return false
-	})
-	w.main.Stack.SetVisibleChild(w.main.Messages)
-	w.main.Messages.switchTo(gad)
-}
-
 func (w *Window) SetTitle(title string) {
 	w.ApplicationWindow.SetTitle(app.FromContext(w.ctx).SuffixedTitle(title))
 }

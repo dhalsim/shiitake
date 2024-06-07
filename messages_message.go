@@ -38,7 +38,7 @@ func (msg *message) bind() *gio.Menu {
 
 	actions := map[string]func(){
 		"message.show-source": func() { msg.ShowSource() },
-		"message.reply":       func() { msg.Content.view.ReplyTo(msg.Event.ID) },
+		"message.reply":       func() { win.main.Messages.ReplyTo(msg.Event.ID) },
 	}
 
 	me := global.GetMe(msg.Content.ctx)
@@ -49,7 +49,7 @@ func (msg *message) bind() *gio.Menu {
 	// }
 
 	if me != nil && msg.Event.PubKey == me.PubKey /* TODO: admins should also be able to delete */ {
-		actions["message.delete"] = func() { msg.Content.view.Delete(msg.Event.ID) }
+		actions["message.delete"] = func() { win.main.Messages.Delete(msg.Event.ID) }
 	}
 
 	// 	if channel != nil && (channel.Type == discord.DirectMessage || channel.Type == discord.GroupDM) {
@@ -86,7 +86,7 @@ func (msg *message) ShowEmojiChooser() {
 
 	e.ConnectEmojiPicked(func(text string) {
 		emoji := discord.APIEmoji(text)
-		msg.Content.view.AddReaction(msg.Content.MessageID, emoji)
+		win.main.Messages.AddReaction(msg.Content.MessageID, emoji)
 	})
 
 	e.Present()
@@ -128,7 +128,7 @@ func (msg *message) ShowSource() {
 	copyBtn := gtk.NewButtonFromIconName("edit-copy-symbolic")
 	copyBtn.SetTooltipText(locale.Get("Copy JSON"))
 	copyBtn.ConnectClicked(func() {
-		clipboard := msg.Content.view.Clipboard()
+		clipboard := win.main.Messages.Clipboard()
 		sourceText := buf.Text(buf.StartIter(), buf.EndIter(), false)
 		clipboard.SetText(sourceText)
 	})
@@ -151,10 +151,10 @@ type Message struct {
 	tooltip string // markup
 }
 
-func NewMessage(ctx context.Context, event *nostr.Event, v *MessagesView) *Message {
+func NewMessage(ctx context.Context, event *nostr.Event, loggedUser string) *Message {
 	m := &Message{
 		message: message{
-			Content: NewContent(ctx, event, v),
+			Content: NewContent(ctx, event),
 			Event:   event,
 		},
 	}
@@ -199,7 +199,8 @@ func NewMessage(ctx context.Context, event *nostr.Event, v *MessagesView) *Messa
 	m.Box.Append(avatar)
 	m.Box.Append(rightBox)
 	align := gtk.AlignStart
-	if event.PubKey == v.loggedUser {
+
+	if event.PubKey == loggedUser {
 		align = gtk.AlignEnd
 	}
 	m.Box.SetHAlign(align)

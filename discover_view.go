@@ -84,7 +84,7 @@ func (d *DiscoverView) loadRelay(url string) {
 					button.AddCSSClass("suggested-action")
 					button.AddCSSClass("mt-1")
 					button.ConnectClicked(func() {
-						win.OpenGroup(gad)
+						win.main.OpenGroup(gad)
 					})
 
 					grid := gtk.NewGrid()

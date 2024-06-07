@@ -27,6 +27,18 @@ type Me struct {
 	LeftGroup       chan nip29.GroupAddress
 }
 
+func (me *Me) InGroup(gad nip29.GroupAddress) bool {
+	if me.lastList == nil {
+		return false
+	}
+	for _, tag := range me.lastList.Tags {
+		if len(tag) >= 3 && tag[0] == "group" && tag[1] == gad.ID && tag[2] == gad.Relay {
+			return true
+		}
+	}
+	return false
+}
+
 type User struct {
 	sdk.ProfileMetadata
 }

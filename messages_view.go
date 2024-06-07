@@ -29,7 +29,6 @@ type messageRow struct {
 	event   *nostr.Event
 }
 
-// MessagesView is a message view widget.
 type MessagesView struct {
 	*adaptive.LoadablePage
 
@@ -41,8 +40,7 @@ type MessagesView struct {
 	currentGroup *global.Group
 	switchTo     func(gad nip29.GroupAddress)
 
-	loggedUser string
-	msgs       map[string]messageRow
+	msgs map[string]messageRow
 
 	state struct {
 		row      *gtk.ListBoxRow
@@ -64,6 +62,8 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 		msgs: make(map[string]messageRow),
 		ctx:  ctx,
 	}
+
+	var me *global.Me
 
 	v.listStack = gtk.NewStack()
 	v.listStack.SetTransitionType(gtk.StackTransitionTypeCrossfade)
@@ -102,13 +102,17 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 
 	var current nip29.GroupAddress
 	v.switchTo = func(gad nip29.GroupAddress) {
+		me = global.GetMe(ctx)
+
 		if current.Equals(gad) {
 			return
 		}
 		current = gad
 
+		fmt.Println("switching to", gad)
 		if !gad.IsValid() {
 			// empty, switch to placeholder
+			fmt.Println("not valid")
 			v.LoadablePage.SetChild(plc)
 			return
 		}
@@ -197,7 +201,7 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 					return
 				}
 
-				cmessage := NewMessage(v.ctx, event, v)
+				cmessage := NewMessage(v.ctx, event, me.PubKey)
 				row := gtk.NewListBoxRow()
 				row.SetName(id)
 				row.SetChild(cmessage)
@@ -255,20 +259,20 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 		// make it visible
 		v.listStack.SetVisibleChild(scroll)
 
-		// create composer and forward typing
-		v.Composer = NewComposerView(ctx, v, group)
-		composerOverlay.SetChild(v.Composer)
-		gtkutil.ForwardTyping(list, v.Composer.Input)
+		// check if we should be a member of this group
+		<-me.ListLoaded
+
+		if me.InGroup(gad) {
+			// create composer and forward typing
+			v.Composer = NewComposerView(ctx, v, group)
+			composerOverlay.SetChild(v.Composer)
+			gtkutil.ForwardTyping(list, v.Composer.Input)
+		} else {
+			// TODO button to join
+		}
 	}
 
 	v.LoadablePage.SetLoading()
-
-	go func() {
-		<-global.GetMe(ctx).ListLoaded
-		glib.IdleAdd(func() {
-			v.LoadablePage.SetChild(plc)
-		})
-	}()
 
 	return v
 }
@@ -482,8 +486,7 @@ func (v *MessagesView) messageIDFromRow(row *gtk.ListBoxRow) string {
 	return row.Name()
 }
 
-// ScrollToMessage scrolls to the message with the given ID.
-func (v *MessagesView) ScrollToMessage(id string) {
+func (v *MessagesView) ScrollToMessage(gad nip29.GroupAddress, id string) {
 	msg, ok := v.msgs[id]
 	if !ok {
 		slog.Warn(
@@ -492,7 +495,7 @@ func (v *MessagesView) ScrollToMessage(id string) {
 		return
 	}
 
-	v.listStack.SetVisibleChildName(msg.message.Content.view.gad.String())
+	v.listStack.SetVisibleChildName(gad.String())
 
 	if !msg.ListBoxRow.GrabFocus() {
 		slog.Warn(

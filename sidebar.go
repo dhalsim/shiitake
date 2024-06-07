@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"fiatjaf.com/nostr-gtk/components/avatar"
+	"fiatjaf.com/shiitake/components/sidebutton"
 	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -25,6 +26,15 @@ func NewSidebar(ctx context.Context) *Sidebar {
 		ctx: ctx,
 	}
 
+	discover := sidebutton.New(ctx, "Discover", func() {
+		win.main.OpenDiscover()
+	})
+	discover.Icon.SetFromURL("earth-symbolic")
+
+	sep := gtk.NewSeparator(gtk.OrientationVertical)
+	sep.AddCSSClass("spacer")
+	sep.SetVExpand(true)
+
 	s.GroupsView = NewGroupsView(s.ctx)
 	s.GroupsView.List.GrabFocus()
 	s.GroupsView.SetVExpand(true)
@@ -32,16 +42,13 @@ func NewSidebar(ctx context.Context) *Sidebar {
 
 	userBar := NewUserBar(ctx)
 
-	sep := gtk.NewSeparator(gtk.OrientationVertical)
-	sep.AddCSSClass("spacer")
-	sep.SetVExpand(true)
-
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.SetName("sidebar-box")
 	box.SetHAlign(gtk.AlignFill)
 	box.SetSizeRequest(100, -1)
 	box.SetVExpand(true)
 	box.SetHExpand(true)
+	box.Append(discover)
 	box.Append(s.GroupsView)
 	box.Append(sep)
 	box.Append(userBar)
@@ -79,7 +86,7 @@ func NewGroupsView(ctx context.Context) *GroupsView {
 		if gad.Equals(current) {
 			return
 		}
-		win.OpenGroup(gad)
+		win.main.OpenGroup(gad)
 	})
 
 	go func() {
@@ -93,7 +100,7 @@ func NewGroupsView(ctx context.Context) *GroupsView {
 					lbr.SetName(g.gad.String())
 					lbr.SetChild(g)
 					v.List.Append(lbr)
-					win.OpenGroup(group.Address)
+					win.main.OpenGroup(group.Address)
 				})
 			case gad := <-me.LeftGroup:
 				eachChild(v.List, func(lbr *gtk.ListBoxRow) bool {

@@ -46,7 +46,6 @@ func main() {
 	cssutil.WriteCSS(css)
 
 	application = app.New(context.Background(), "com.fiatjaf.shiitake", "Shiitake")
-
 	application.ConnectActivate(func() {
 		ctx := application.Context()
 		adw.Init()

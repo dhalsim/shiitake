@@ -126,15 +126,20 @@ func (p *MainView) AskJoinGroup() {
 	prompt.Show()
 }
 
-func (p *MainView) updateWindowTitle() {
-	// state := gtkcord.FromContext(p.ctx)
+func (p *MainView) OpenDiscover() {
+	p.Stack.SetVisibleChild(p.Discover)
+}
 
-	// // Add a ping indicator if the user has pings.
-	// mentions := state.ReadState.TotalMentionCount()
-	// if mentions > 0 {
-	// 	title = fmt.Sprintf("(%d) %s", mentions, title)
-	// }
-
-	// win, _ := ctxt.From[*Window](p.ctx)
-	// win.SetTitle(title)
+func (p *MainView) OpenGroup(gad nip29.GroupAddress) {
+	eachChild(p.Sidebar.GroupsView.List, func(lbr *gtk.ListBoxRow) bool {
+		if lbr.Name() == gad.String() {
+			if p.Sidebar.GroupsView.List.SelectedRow() != lbr {
+				p.Sidebar.GroupsView.List.SelectRow(lbr)
+			}
+			return true
+		}
+		return false
+	})
+	p.Stack.SetVisibleChild(p.Messages)
+	p.Messages.switchTo(gad)
 }

@@ -14,29 +14,23 @@ import (
 	"github.com/diamondburned/gotkit/gtkutil/textutil"
 	"github.com/diamondburned/ningen/v3/discordmd"
 	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
 // Content is the message content widget.
 type Content struct {
 	*gtk.Box
 	ctx   context.Context
-	view  *MessagesView
 	menu  *gio.Menu
 	react *contentReactions
 	child []gtk.Widgetter
 
-	Group     nip29.GroupAddress
 	MessageID string
 }
 
-// NewContent creates a new Content widget.
-func NewContent(ctx context.Context, event *nostr.Event, v *MessagesView) *Content {
+func NewContent(ctx context.Context, event *nostr.Event) *Content {
 	c := Content{
 		ctx:       ctx,
-		view:      v,
 		child:     make([]gtk.Widgetter, 0, 2),
-		Group:     v.currentGroup.Address,
 		MessageID: event.ID,
 	}
 	c.Box = gtk.NewBox(gtk.OrientationVertical, 0)

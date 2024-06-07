@@ -139,7 +139,7 @@ func (rs *contentReactions) SetReactions(reactions []string) {
 	for i, r := range reactions {
 		messageReactions[i] = messageReaction{
 			Emoji:        r,
-			GroupAddress: rs.parent.view.currentGroup.Address,
+			GroupAddress: win.main.Messages.currentGroup.Address,
 			MessageID:    rs.parent.MessageID,
 		}
 	}

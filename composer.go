@@ -77,6 +77,10 @@ func NewComposerView(ctx context.Context, messagesView *MessagesView, group *glo
 	scroll.SetChild(v.Input)
 
 	v.Placeholder = gtk.NewLabel("")
+	v.Placeholder.AddCSSClass("mx-2")
+	v.Placeholder.AddCSSClass("px-4")
+	v.Placeholder.AddCSSClass("py-2")
+	v.Placeholder.AddCSSClass("text-subtle")
 	v.Placeholder.SetVAlign(gtk.AlignStart)
 	v.Placeholder.SetHAlign(gtk.AlignFill)
 	v.Placeholder.SetXAlign(0)

@@ -1,5 +1,7 @@
 @tailwind utilities;
 
+.text-subtle { color: #aaabbb; }
+
 .msg-bg-0 { background-color: hsl(0.0, 66%, 89%); }
 .msg-bg-1 { background-color: hsl(22.5, 66%, 89%); }
 .msg-bg-2 { background-color: hsl(45.0, 66%, 89%); }
