@@ -127,7 +127,6 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 		}
 		current = gad
 
-		fmt.Println("switching to", gad)
 		if !gad.IsValid() {
 			// empty, switch to placeholder
 			fmt.Println("not valid")
@@ -147,6 +146,7 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 		})
 
 		group := global.GetGroup(ctx, gad)
+		win.main.Header.SetTitleWidget(adw.NewWindowTitle(group.Name, group.Address.String()))
 		v.currentGroup = group
 
 		// get existing group messages view (scroll) and list

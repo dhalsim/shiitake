@@ -20,7 +20,7 @@ func New(ctx context.Context, label string, open func()) *Sidebutton {
 		ctx: ctx,
 	}
 
-	g.Icon = avatar.New(ctx, 18, "")
+	g.Icon = avatar.New(ctx, 18, label)
 	g.Icon.AddCSSClass("mr-2")
 
 	g.Label = gtk.NewLabel(label)

@@ -16,7 +16,8 @@ type MainView struct {
 	Messages *MessagesView
 	Discover *DiscoverView
 
-	Stack *gtk.Stack
+	Header *adw.HeaderBar
+	Stack  *gtk.Stack
 
 	ctx context.Context
 }
@@ -41,10 +42,10 @@ func NewMainView(ctx context.Context, w *Window) *MainView {
 	rightTitle.SetHExpand(true)
 	rightTitle.SetEllipsize(pango.EllipsizeEnd)
 
-	header := adw.NewHeaderBar()
-	header.SetShowEndTitleButtons(true)
-	header.SetShowBackButton(false)
-	header.SetShowTitle(false)
+	p.Header = adw.NewHeaderBar()
+	p.Header.SetShowEndTitleButtons(true)
+	p.Header.SetShowBackButton(true)
+	p.Header.SetShowTitle(true)
 
 	paned := gtk.NewPaned(gtk.OrientationHorizontal)
 	paned.SetHExpand(true)
@@ -57,7 +58,7 @@ func NewMainView(ctx context.Context, w *Window) *MainView {
 	paned.Show()
 
 	p.Box = gtk.NewBox(gtk.OrientationVertical, 0)
-	p.Box.Append(header)
+	p.Box.Append(p.Header)
 	p.Box.Append(paned)
 
 	// state := gtkcord.FromContext(ctx)
@@ -73,6 +74,7 @@ func NewMainView(ctx context.Context, w *Window) *MainView {
 
 func (p *MainView) OpenDiscover() {
 	p.Stack.SetVisibleChild(p.Discover)
+	p.Header.SetTitleWidget(adw.NewWindowTitle("Discover", ""))
 }
 
 func (p *MainView) OpenGroup(gad nip29.GroupAddress) {

@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"fiatjaf.com/nostr-gtk/components/avatar"
 	"fiatjaf.com/shiitake/components/sidebutton"
 	"fiatjaf.com/shiitake/global"
+	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/gtkutil"
@@ -31,9 +31,11 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	})
 	discover.Icon.Avatar.SetIconName("earth-symbolic")
 
-	sep := gtk.NewSeparator(gtk.OrientationVertical)
-	sep.AddCSSClass("spacer")
-	sep.SetVExpand(true)
+	sep1 := gtk.NewSeparator(gtk.OrientationVertical)
+	sep1.AddCSSClass("spacer")
+
+	sep2 := gtk.NewSeparator(gtk.OrientationVertical)
+	sep2.AddCSSClass("spacer")
 
 	s.GroupsView = NewGroupsView(s.ctx)
 	s.GroupsView.List.GrabFocus()
@@ -49,8 +51,9 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	box.SetVExpand(true)
 	box.SetHExpand(true)
 	box.Append(discover)
+	box.Append(sep1)
 	box.Append(s.GroupsView)
-	box.Append(sep)
+	box.Append(sep2)
 	box.Append(userBar)
 
 	s.ScrolledWindow = gtk.NewScrolledWindow()
@@ -78,7 +81,7 @@ func NewGroupsView(ctx context.Context) *GroupsView {
 
 	v.List = gtk.NewListBox()
 	v.List.SetName("groups-list")
-	v.List.SetSelectionMode(gtk.SelectionSingle)
+	v.List.SetSelectionMode(gtk.SelectionNone)
 	v.List.SetHExpand(true)
 	v.List.SetVExpand(true)
 	v.List.ConnectRowSelected(func(row *gtk.ListBoxRow) {
@@ -94,13 +97,37 @@ func NewGroupsView(ctx context.Context) *GroupsView {
 		for {
 			select {
 			case group := <-me.JoinedGroup:
+				gad := group.Address
+
 				glib.IdleAdd(func() {
-					g := NewGroup(ctx, group)
+					button := sidebutton.New(ctx, group.Name, func() {
+						if gad.Equals(current) {
+							return
+						}
+						win.main.OpenGroup(gad)
+					})
+
 					lbr := gtk.NewListBoxRow()
-					lbr.SetName(g.gad.String())
-					lbr.SetChild(g)
+					lbr.SetName(gad.String())
+					lbr.SetChild(button)
+
 					v.List.Append(lbr)
 					win.main.OpenGroup(group.Address)
+
+					go func() {
+						for {
+							select {
+							case <-group.GroupUpdated:
+								button.Label.SetText(group.Name)
+								button.Icon.SetFromURL(group.Picture)
+								if win.main.Messages.currentGroup.Address.Equals(group.Address) {
+									win.main.Header.SetTitleWidget(adw.NewWindowTitle(group.Name, group.Address.String()))
+								}
+							case err := <-group.NewError:
+								fmt.Println(group.Address, "ERROR", err)
+							}
+						}
+					}()
 				})
 			case gad := <-me.LeftGroup:
 				eachChild(v.List, func(lbr *gtk.ListBoxRow) bool {
@@ -119,6 +146,7 @@ func NewGroupsView(ctx context.Context) *GroupsView {
 	v.ScrolledWindow = gtk.NewScrolledWindow()
 	v.ScrolledWindow.SetName("groups-view")
 	v.ScrolledWindow.SetVExpand(true)
+	v.ScrolledWindow.SetVAlign(gtk.AlignFill)
 	v.ScrolledWindow.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
 	v.ScrolledWindow.SetChild(v.List)
 
@@ -126,54 +154,4 @@ func NewGroupsView(ctx context.Context) *GroupsView {
 	v.ctx = gtkutil.WithVisibility(ctx, v)
 
 	return &v
-}
-
-type Group struct {
-	ctx context.Context
-
-	*gtk.Box
-
-	gad nip29.GroupAddress
-}
-
-func NewGroup(ctx context.Context, group *global.Group) *Group {
-	g := &Group{
-		ctx: ctx,
-		gad: group.Address,
-	}
-
-	g.Box = gtk.NewBox(gtk.OrientationHorizontal, 0)
-	g.SetHExpand(true)
-
-	// indicator := gtk.NewLabel("")
-	// indicator.SetHExpand(true)
-	// indicator.SetHAlign(gtk.AlignEnd)
-	// indicator.SetVAlign(gtk.AlignCenter)
-
-	label := gtk.NewLabel(group.Name)
-	label.SetHAlign(gtk.AlignBaseline)
-	label.SetHExpand(true)
-
-	if group.Picture != "" {
-		icon := avatar.New(ctx, 12, group.Address.String())
-		icon.SetFromURL(group.Picture)
-		g.Box.Append(icon)
-	}
-
-	g.Box.Append(label)
-	// g.Box.Append(indicator)
-
-	go func() {
-		for {
-			select {
-			case <-group.GroupUpdated:
-				button := g.Box.LastChild().(*gtk.Label)
-				button.SetText(group.Name)
-			case err := <-group.NewError:
-				fmt.Println(group.Address, "ERROR", err)
-			}
-		}
-	}()
-
-	return g
 }
