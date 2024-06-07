@@ -29,7 +29,7 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	discover := sidebutton.New(ctx, "Discover", func() {
 		win.main.OpenDiscover()
 	})
-	discover.Icon.SetFromURL("earth-symbolic")
+	discover.Icon.Avatar.SetIconName("earth-symbolic")
 
 	sep := gtk.NewSeparator(gtk.OrientationVertical)
 	sep.AddCSSClass("spacer")

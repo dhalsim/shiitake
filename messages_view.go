@@ -70,13 +70,32 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 
 	plc := icon_placeholder.New("chat-bubbles-empty-symbolic")
 
+	var current nip29.GroupAddress
+
 	composerOverlay := gtk.NewOverlay()
+
+	joinButton := gtk.NewButtonWithLabel("Join")
+	joinButton.SetHExpand(true)
+	joinButton.SetHAlign(gtk.AlignFill)
+	joinButton.AddCSSClass("p-8")
+	joinButton.AddCSSClass("mx-4")
+	joinButton.AddCSSClass("my-2")
+	joinButton.AddCSSClass("suggested-action")
+	joinButton.SetTooltipText("Join Group")
+	joinButton.ConnectClicked(func() {
+		global.JoinGroup(ctx, current)
+	})
+
+	bottomStack := gtk.NewStack()
+	bottomStack.AddChild(composerOverlay)
+	bottomStack.AddChild(joinButton)
+	bottomStack.SetVisibleChild(joinButton)
 
 	outerBox := gtk.NewBox(gtk.OrientationVertical, 0)
 	outerBox.SetHExpand(true)
 	outerBox.SetVExpand(true)
 	outerBox.Append(v.listStack)
-	outerBox.Append(composerOverlay)
+	outerBox.Append(bottomStack)
 
 	v.LoadablePage = adaptive.NewLoadablePage()
 	v.LoadablePage.SetTransitionDuration(125)
@@ -100,7 +119,6 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 		windowSignal = 0
 	})
 
-	var current nip29.GroupAddress
 	v.switchTo = func(gad nip29.GroupAddress) {
 		me = global.GetMe(ctx)
 
@@ -261,14 +279,14 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 
 		// check if we should be a member of this group
 		<-me.ListLoaded
-
 		if me.InGroup(gad) {
 			// create composer and forward typing
 			v.Composer = NewComposerView(ctx, v, group)
 			composerOverlay.SetChild(v.Composer)
 			gtkutil.ForwardTyping(list, v.Composer.Input)
+			bottomStack.SetVisibleChild(composerOverlay)
 		} else {
-			// TODO button to join
+			bottomStack.SetVisibleChild(joinButton)
 		}
 	}
 

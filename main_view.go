@@ -3,11 +3,9 @@ package main
 import (
 	"context"
 
-	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
-	"github.com/diamondburned/gotkit/app"
 	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
@@ -43,10 +41,6 @@ func NewMainView(ctx context.Context, w *Window) *MainView {
 	rightTitle.SetHExpand(true)
 	rightTitle.SetEllipsize(pango.EllipsizeEnd)
 
-	joinGroupButton := gtk.NewButtonFromIconName("list-add-symbolic")
-	joinGroupButton.SetTooltipText("Join Group")
-	joinGroupButton.ConnectClicked(p.AskJoinGroup)
-
 	header := adw.NewHeaderBar()
 	header.SetShowEndTitleButtons(true)
 	header.SetShowBackButton(false)
@@ -75,55 +69,6 @@ func NewMainView(ctx context.Context, w *Window) *MainView {
 	// ))
 
 	return &p
-}
-
-func (p *MainView) AskJoinGroup() {
-	entry := gtk.NewEntry()
-	entry.SetInputPurpose(gtk.InputPurposeFreeForm)
-	entry.SetVisibility(false)
-
-	label := gtk.NewLabel("Enter group address:")
-	label.SetXAlign(0)
-
-	box := gtk.NewBox(gtk.OrientationVertical, 0)
-	box.Append(label)
-	box.Append(entry)
-
-	prompt := gtk.NewDialog()
-	prompt.SetTitle("File")
-	prompt.SetDefaultSize(250, 80)
-	prompt.SetTransientFor(app.GTKWindowFromContext(p.ctx))
-	prompt.SetModal(true)
-	prompt.AddButton("Cancel", int(gtk.ResponseCancel))
-	prompt.AddButton("OK", int(gtk.ResponseAccept))
-	prompt.SetDefaultResponse(int(gtk.ResponseAccept))
-
-	inner := prompt.ContentArea()
-	inner.Append(box)
-	inner.SetVExpand(true)
-	inner.SetHExpand(true)
-	inner.SetVAlign(gtk.AlignCenter)
-	inner.SetHAlign(gtk.AlignCenter)
-
-	entry.ConnectActivate(func() {
-		// Enter key activates.
-		prompt.Response(int(gtk.ResponseAccept))
-	})
-
-	prompt.ConnectResponse(func(id int) {
-		defer prompt.Close()
-		gad, err := nip29.ParseGroupAddress(entry.Text())
-		if err != nil {
-			return
-		}
-
-		switch id {
-		case int(gtk.ResponseAccept):
-			global.JoinGroup(p.ctx, gad)
-		}
-	})
-
-	prompt.Show()
 }
 
 func (p *MainView) OpenDiscover() {
