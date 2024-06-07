@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"fiatjaf.com/shiitake/global"
-	"github.com/diamondburned/chatkit/kits/secret"
+	"fiatjaf.com/shiitake/utils/secret"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/gtkutil"
