@@ -187,6 +187,7 @@ type actionButtonData struct {
 
 func newActionButton(a actionButtonData) *gtk.Button {
 	button := gtk.NewButton()
+	button.AddCSSClass("px-2")
 	button.SetHasFrame(false)
 	button.SetHAlign(gtk.AlignCenter)
 	button.SetVAlign(gtk.AlignCenter)

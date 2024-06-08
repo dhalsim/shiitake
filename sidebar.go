@@ -9,20 +9,19 @@ import (
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
 type Sidebar struct {
 	*gtk.ScrolledWindow
 
-	GroupsView *GroupsView
-
 	ctx context.Context
+
+	selectGroup func(nip29.GroupAddress)
 }
 
 func NewSidebar(ctx context.Context) *Sidebar {
-	s := Sidebar{
+	s := &Sidebar{
 		ctx: ctx,
 	}
 
@@ -30,6 +29,8 @@ func NewSidebar(ctx context.Context) *Sidebar {
 		win.main.OpenDiscover()
 	})
 	discover.Icon.Avatar.SetIconName("earth-symbolic")
+	discover.AddCSSClass("frame")
+	discover.AddCSSClass("border-2")
 
 	sep1 := gtk.NewSeparator(gtk.OrientationVertical)
 	sep1.AddCSSClass("spacer")
@@ -37,10 +38,20 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	sep2 := gtk.NewSeparator(gtk.OrientationVertical)
 	sep2.AddCSSClass("spacer")
 
-	s.GroupsView = NewGroupsView(s.ctx)
-	s.GroupsView.List.GrabFocus()
-	s.GroupsView.SetVExpand(true)
-	s.GroupsView.SetSizeRequest(100, -1)
+	groupsList := gtk.NewListBox()
+	groupsList.SetName("groups-list")
+	groupsList.SetSelectionMode(gtk.SelectionNone)
+	groupsList.SetHExpand(true)
+	groupsList.SetVExpand(true)
+	groupsList.GrabFocus()
+
+	groupsScroll := gtk.NewScrolledWindow()
+	groupsScroll.SetName("groups-view")
+	groupsScroll.SetSizeRequest(100, -1)
+	groupsScroll.SetVExpand(true)
+	groupsScroll.SetVAlign(gtk.AlignFill)
+	groupsScroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+	groupsScroll.SetChild(groupsList)
 
 	userBar := NewUserBar(ctx)
 
@@ -52,7 +63,7 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	box.SetHExpand(true)
 	box.Append(discover)
 	box.Append(sep1)
-	box.Append(s.GroupsView)
+	box.Append(groupsScroll)
 	box.Append(sep2)
 	box.Append(userBar)
 
@@ -62,36 +73,6 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	s.ScrolledWindow.SetHExpand(true)
 	s.ScrolledWindow.SetHAlign(gtk.AlignFill)
 
-	return &s
-}
-
-type GroupsView struct {
-	*gtk.ScrolledWindow
-	List *gtk.ListBox
-
-	ctx gtkutil.Cancellable
-
-	selectGAD nip29.GroupAddress // delegate to select later
-}
-
-func NewGroupsView(ctx context.Context) *GroupsView {
-	v := GroupsView{}
-
-	var current nip29.GroupAddress
-
-	v.List = gtk.NewListBox()
-	v.List.SetName("groups-list")
-	v.List.SetSelectionMode(gtk.SelectionNone)
-	v.List.SetHExpand(true)
-	v.List.SetVExpand(true)
-	v.List.ConnectRowSelected(func(row *gtk.ListBoxRow) {
-		gad, _ := nip29.ParseGroupAddress(row.Name())
-		if gad.Equals(current) {
-			return
-		}
-		win.main.OpenGroup(gad)
-	})
-
 	go func() {
 		me := global.GetMe(ctx)
 		for {
@@ -99,11 +80,13 @@ func NewGroupsView(ctx context.Context) *GroupsView {
 			case group := <-me.JoinedGroup:
 				gad := group.Address
 
+				// if we have just asked to join this group, we do this so we reload it
+				if win.main.Messages.currentGroup != nil && win.main.Messages.currentGroup.Address.Equals(gad) {
+					win.main.Messages.switchTo(nip29.GroupAddress{})
+				}
+
 				glib.IdleAdd(func() {
 					button := sidebutton.New(ctx, group.Name, func() {
-						if gad.Equals(current) {
-							return
-						}
 						win.main.OpenGroup(gad)
 					})
 
@@ -111,7 +94,7 @@ func NewGroupsView(ctx context.Context) *GroupsView {
 					lbr.SetName(gad.String())
 					lbr.SetChild(button)
 
-					v.List.Append(lbr)
+					groupsList.Append(lbr)
 					win.main.OpenGroup(group.Address)
 
 					go func() {
@@ -130,10 +113,10 @@ func NewGroupsView(ctx context.Context) *GroupsView {
 					}()
 				})
 			case gad := <-me.LeftGroup:
-				eachChild(v.List, func(lbr *gtk.ListBoxRow) bool {
+				eachChild(groupsList, func(lbr *gtk.ListBoxRow) bool {
 					if lbr.Name() == gad.String() {
 						glib.IdleAdd(func() {
-							v.List.Remove(lbr)
+							groupsList.Remove(lbr)
 						})
 						return true // stop
 					}
@@ -143,15 +126,29 @@ func NewGroupsView(ctx context.Context) *GroupsView {
 		}
 	}()
 
-	v.ScrolledWindow = gtk.NewScrolledWindow()
-	v.ScrolledWindow.SetName("groups-view")
-	v.ScrolledWindow.SetVExpand(true)
-	v.ScrolledWindow.SetVAlign(gtk.AlignFill)
-	v.ScrolledWindow.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
-	v.ScrolledWindow.SetChild(v.List)
+	s.selectGroup = func(gad nip29.GroupAddress) {
+		if gad.IsValid() {
+			discover.RemoveCSSClass("frame")
+			discover.RemoveCSSClass("border-2")
+		} else {
+			discover.AddCSSClass("frame")
+			discover.AddCSSClass("border-2")
+		}
 
-	// bind the context to cancel when we're hidden.
-	v.ctx = gtkutil.WithVisibility(ctx, v)
+		eachChild(groupsList, func(lbr *gtk.ListBoxRow) bool {
+			// iterate through all buttons, removing classes from all and adding in the selected
+			sidebuttonWidget := lbr.Child().(*gtk.Button)
+			if lbr.Name() == gad.String() {
+				sidebuttonWidget.AddCSSClass("frame")
+				sidebuttonWidget.AddCSSClass("border-2")
+			} else {
+				sidebuttonWidget.RemoveCSSClass("frame")
+				sidebuttonWidget.RemoveCSSClass("border-2")
+			}
 
-	return &v
+			return false
+		})
+	}
+
+	return s
 }

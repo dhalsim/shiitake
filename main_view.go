@@ -73,20 +73,13 @@ func NewMainView(ctx context.Context, w *Window) *MainView {
 }
 
 func (p *MainView) OpenDiscover() {
+	p.Sidebar.selectGroup(nip29.GroupAddress{})
 	p.Stack.SetVisibleChild(p.Discover)
 	p.Header.SetTitleWidget(adw.NewWindowTitle("Discover", ""))
 }
 
 func (p *MainView) OpenGroup(gad nip29.GroupAddress) {
-	eachChild(p.Sidebar.GroupsView.List, func(lbr *gtk.ListBoxRow) bool {
-		if lbr.Name() == gad.String() {
-			if p.Sidebar.GroupsView.List.SelectedRow() != lbr {
-				p.Sidebar.GroupsView.List.SelectRow(lbr)
-			}
-			return true
-		}
-		return false
-	})
+	p.Sidebar.selectGroup(gad)
 	p.Stack.SetVisibleChild(p.Messages)
 	p.Messages.switchTo(gad)
 }

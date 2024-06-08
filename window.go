@@ -12,7 +12,6 @@ import (
 	"github.com/diamondburned/gotkit/components/logui"
 	"github.com/diamondburned/gotkit/components/prefui"
 	"github.com/diamondburned/gotkit/gtkutil"
-	"github.com/nbd-wtf/go-nostr/nip29"
 	"libdb.so/ctxt"
 )
 
@@ -72,9 +71,6 @@ func NewWindow(ctx context.Context) *Window {
 	w.Stack.SetVisibleChild(plc)
 
 	gtkutil.AddActions(&w, map[string]func(){
-		"reset-view": func() {
-			w.main.Messages.switchTo(nip29.GroupAddress{})
-		},
 		"preferences": func() { prefui.ShowDialog(ctx) },
 		"about":       func() { about.New().Present(w) },
 		"logs": func() {

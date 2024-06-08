@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip29"
@@ -124,9 +125,51 @@ func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
 	return group
 }
 
-func JoinGroup(ctx context.Context, gad nip29.GroupAddress) {
-	newTag := []string{"group", gad.ID, gad.Relay}
+func JoinGroup(ctx context.Context, gad nip29.GroupAddress) error {
+	since := nostr.Now() - 1
 
+	// ask to join group
+	joinRequest := nostr.Event{
+		Kind:      nostr.KindSimpleGroupJoinRequest,
+		CreatedAt: nostr.Now(),
+		Tags:      nostr.Tags{nostr.Tag{"h", gad.ID}},
+	}
+	if err := sys.Signer.SignEvent(&joinRequest); err != nil {
+		return err
+	}
+	groupRelay, err := sys.Pool.EnsureRelay(gad.Relay)
+	if err != nil {
+		return err
+	}
+	if err := groupRelay.Publish(ctx, joinRequest); err != nil {
+		return err
+	}
+
+	// wait for an automatic response -- or nothing
+	sctx, cancel := context.WithTimeout(ctx, time.Second*5)
+	defer cancel()
+
+	sub, err := groupRelay.Subscribe(sctx, nostr.Filters{
+		{
+			Kinds: []int{nostr.KindSimpleGroupAddUser},
+			Tags:  nostr.TagMap{"p": []string{joinRequest.PubKey}},
+			Since: &since,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	select {
+	case <-sub.Events:
+		// if an event comes that means we are successful and will move on to the next step
+	case <-sctx.Done():
+		// otherwise we were denied
+		return fmt.Errorf("not authorized to join group")
+	}
+
+	// add group to user list of groups
+	newTag := []string{"group", gad.ID, gad.Relay}
 	var found *nostr.Tag
 	if me.lastList == nil {
 		me.lastList = &nostr.Event{
@@ -150,6 +193,8 @@ func JoinGroup(ctx context.Context, gad nip29.GroupAddress) {
 		}
 		relay.Publish(ctx, *me.lastList)
 	}
+
+	return nil
 }
 
 func LeaveGroup(ctx context.Context, gad nip29.GroupAddress) {
