@@ -151,7 +151,12 @@ type Message struct {
 	tooltip string // markup
 }
 
-func NewMessage(ctx context.Context, event *nostr.Event, loggedUser string) *Message {
+func NewMessage(
+	ctx context.Context,
+	event *nostr.Event,
+	fromLoggedUser bool,
+	authorIsTheSameAsPrevious bool,
+) *Message {
 	m := &Message{
 		message: message{
 			Content: NewContent(ctx, event),
@@ -189,21 +194,25 @@ func NewMessage(ctx context.Context, event *nostr.Event, loggedUser string) *Mes
 	rightBox.Append(topLabel)
 	rightBox.Append(m.message.Content)
 
-	avatar := avatar.New(ctx, 18, event.PubKey)
-	avatar.SetVAlign(gtk.AlignCenter)
-	// avatar.EnableAnimation().OnHover()
-	avatar.SetTooltipMarkup(tooltip)
-	avatar.SetFromURL(user.Picture)
-
 	m.Box = gtk.NewBox(gtk.OrientationHorizontal, 0)
-	m.Box.Append(avatar)
-	m.Box.Append(rightBox)
-	align := gtk.AlignStart
 
-	if event.PubKey == loggedUser {
-		align = gtk.AlignEnd
+	if !fromLoggedUser {
+		avatar := avatar.New(ctx, 30, event.PubKey)
+		avatar.SetVAlign(gtk.AlignCenter)
+		avatar.SetTooltipMarkup(tooltip)
+		avatar.SetFromURL(user.Picture)
+		avatar.AddCSSClass("mx-2")
+		m.Box.Append(avatar)
+
+		if authorIsTheSameAsPrevious {
+			avatar.AddCSSClass("opacity-0")
+		}
+	} else {
+		m.Box.SetHAlign(gtk.AlignEnd)
+		m.Box.AddCSSClass("mr-2")
 	}
-	m.Box.SetHAlign(align)
+
+	m.Box.Append(rightBox)
 
 	m.message.bind()
 

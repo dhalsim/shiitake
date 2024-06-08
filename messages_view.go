@@ -224,13 +224,23 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 			vp := scrollW.Viewport()
 			vp.SetScrollToFocus(true)
 
+			lastAppendedAuthor := ""
 			upsertMessage := func(event *nostr.Event, pos int) {
 				id := event.ID
 				if _, ok := v.msgs[id]; ok {
 					return
 				}
 
-				cmessage := NewMessage(v.ctx, event, me.PubKey)
+				authorIdem := false
+				if pos == -1 {
+					if event.PubKey == lastAppendedAuthor {
+						authorIdem = true
+					} else {
+						lastAppendedAuthor = event.PubKey
+					}
+				}
+
+				cmessage := NewMessage(v.ctx, event, event.PubKey == me.PubKey, authorIdem)
 				row := gtk.NewListBoxRow()
 				row.SetName(id)
 				row.SetChild(cmessage)

@@ -20,7 +20,7 @@ type UserBar struct {
 func NewUserBar(ctx context.Context) *UserBar {
 	b := UserBar{ctx: ctx}
 
-	avatar := avatar.New(ctx, 20, "")
+	avatar := avatar.New(ctx, 30, "")
 	avatar.AddCSSClass("ml-2")
 
 	name := gtk.NewLabel("")
@@ -55,8 +55,9 @@ func NewUserBar(ctx context.Context) *UserBar {
 	})
 
 	b.Box = gtk.NewBox(gtk.OrientationHorizontal, 0)
+	b.Box.AddCSSClass("mb-2")
 	b.Box.SetName("userbar")
-	b.Box.SetHAlign(gtk.AlignEnd)
+	b.Box.SetHAlign(gtk.AlignFill)
 	b.Box.Append(avatar)
 	b.Box.Append(name)
 	b.Box.Append(menu)
