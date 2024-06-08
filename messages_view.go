@@ -83,7 +83,19 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 	joinButton.AddCSSClass("suggested-action")
 	joinButton.SetTooltipText("Join Group")
 	joinButton.ConnectClicked(func() {
-		global.JoinGroup(ctx, current)
+		joinButton.SetLabel("Joining...")
+		joinButton.SetSensitive(false)
+		joinButton.RemoveCSSClass("suggested-action")
+
+		go func() {
+			if err := global.JoinGroup(ctx, current); err != nil {
+				win.ErrorToast(err.Error())
+			}
+
+			joinButton.SetLabel("Join")
+			joinButton.SetSensitive(true)
+			joinButton.AddCSSClass("suggested-action")
+		}()
 	})
 
 	bottomStack := gtk.NewStack()
@@ -129,7 +141,6 @@ func NewMessagesView(ctx context.Context) *MessagesView {
 
 		if !gad.IsValid() {
 			// empty, switch to placeholder
-			fmt.Println("not valid")
 			v.LoadablePage.SetChild(plc)
 			return
 		}

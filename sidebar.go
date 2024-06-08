@@ -38,6 +38,9 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	sep2 := gtk.NewSeparator(gtk.OrientationVertical)
 	sep2.AddCSSClass("spacer")
 
+	sep3 := gtk.NewSeparator(gtk.OrientationVertical)
+	sep3.AddCSSClass("spacer")
+
 	groupsList := gtk.NewListBox()
 	groupsList.SetName("groups-list")
 	groupsList.SetSelectionMode(gtk.SelectionNone)
@@ -61,10 +64,11 @@ func NewSidebar(ctx context.Context) *Sidebar {
 	box.SetSizeRequest(100, -1)
 	box.SetVExpand(true)
 	box.SetHExpand(true)
-	box.Append(discover)
 	box.Append(sep1)
-	box.Append(groupsScroll)
+	box.Append(discover)
 	box.Append(sep2)
+	box.Append(groupsScroll)
+	box.Append(sep3)
 	box.Append(userBar)
 
 	s.ScrolledWindow = gtk.NewScrolledWindow()

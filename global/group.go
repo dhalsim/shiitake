@@ -152,7 +152,10 @@ func JoinGroup(ctx context.Context, gad nip29.GroupAddress) error {
 	sub, err := groupRelay.Subscribe(sctx, nostr.Filters{
 		{
 			Kinds: []int{nostr.KindSimpleGroupAddUser},
-			Tags:  nostr.TagMap{"p": []string{joinRequest.PubKey}},
+			Tags: nostr.TagMap{
+				"h": []string{gad.ID},
+				"p": []string{joinRequest.PubKey},
+			},
 			Since: &since,
 		},
 	})
