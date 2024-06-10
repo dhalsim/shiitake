@@ -37,14 +37,6 @@ func NewUserBar(ctx context.Context) *UserBar {
 	menu.SetVAlign(gtk.AlignCenter)
 	menu.ConnectClicked(func() {
 		p := gtkutil.NewPopoverMenuCustom(menu, gtk.PosTop, []gtkutil.PopoverMenuItem{
-			gtkutil.MenuSeparator("User Settings"),
-			// gtkutil.Submenu("Set _Status", []gtkutil.PopoverMenuItem{
-			// 	gtkutil.MenuItem("_Online", "win.set-online"),
-			// 	gtkutil.MenuItem("_Idle", "win.set-idle"),
-			// 	gtkutil.MenuItem("_Do Not Disturb", "win.set-dnd"),
-			// 	gtkutil.MenuItem("In_visible", "win.set-invisible"),
-			// }),
-			gtkutil.MenuSeparator(""),
 			gtkutil.MenuItem("Preferences", "win.preferences"),
 			gtkutil.MenuItem("About", "win.about"),
 			gtkutil.MenuItem("Logs", "win.logs"),

@@ -11,18 +11,15 @@ import (
 
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip29"
-	"github.com/puzpuzpuz/xsync/v3"
 )
 
-var groups = xsync.NewMapOf[string, *Group]()
+var groups = make(map[string]*Group)
 
 type Group struct {
 	nip29.Group
-	Messages     []*nostr.Event
-	NewMessage   chan *nostr.Event
-	GroupUpdated chan struct{}
-	NewError     chan error
-	EOSE         chan struct{}
+	NewMessage chan *nostr.Event
+
+	updateListeners []func()
 }
 
 var getGroupMutex sync.Mutex
@@ -31,7 +28,7 @@ func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
 	getGroupMutex.Lock()
 	defer getGroupMutex.Unlock()
 
-	if group, ok := groups.Load(gad.String()); ok {
+	if group, ok := groups[gad.String()]; ok {
 		return group
 	}
 
@@ -41,17 +38,13 @@ func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
 			Name:    gad.ID,
 			Members: make(map[string]*nip29.Role, 5),
 		},
-		Messages:     make([]*nostr.Event, 0, 500),
-		GroupUpdated: make(chan struct{}),
-		NewMessage:   make(chan *nostr.Event),
-		NewError:     make(chan error),
-		EOSE:         make(chan struct{}),
+		NewMessage: make(chan *nostr.Event),
 	}
-	groups.Store(gad.String(), group)
+	groups[gad.String()] = group
 
 	relay, err := sys.Pool.EnsureRelay(group.Address.Relay)
 	if err != nil {
-		group.NewError <- fmt.Errorf("connect error: %w", err)
+		slog.Warn("connect error", "relay", group.Address.Relay, "err", err)
 		return group
 	}
 
@@ -72,13 +65,12 @@ func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
 		},
 	})
 	if err != nil {
-		group.NewError <- fmt.Errorf("subscription error: %w", err)
+		slog.Warn("subscription error", "relay", group.Address.Relay, "err", err)
 		return group
 	}
 
 	go func() {
 		log.Printf("opening subscription to %s", group.Address)
-		eosed := false
 		for {
 			select {
 			case evt, ok := <-sub.Events:
@@ -90,32 +82,27 @@ func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
 				switch evt.Kind {
 				case 39000:
 					group.Group.MergeInMetadataEvent(evt)
-					group.GroupUpdated <- struct{}{}
+					for _, fn := range group.updateListeners {
+						fn()
+					}
 				case 39001:
 					group.Group.MergeInAdminsEvent(evt)
-					group.GroupUpdated <- struct{}{}
+					for _, fn := range group.updateListeners {
+						fn()
+					}
 				case 39002:
 					group.Group.MergeInMembersEvent(evt)
-					group.GroupUpdated <- struct{}{}
-				case 9, 10:
-					if eosed {
-						group.NewMessage <- evt
-						group.Messages = append(group.Messages, evt)
-					} else {
-						group.Messages = append(group.Messages, evt)
+					for _, fn := range group.updateListeners {
+						fn()
 					}
+				case 9, 10:
+					group.NewMessage <- evt
 				}
-			case <-sub.EndOfStoredEvents:
-				slices.SortFunc(group.Messages, func(a, b *nostr.Event) int {
-					return int(a.CreatedAt - b.CreatedAt)
-				})
-				eosed = true
-				close(group.EOSE)
 			case <-ctx.Done():
 				// when we leave a group or when we were just browsing it and leave, we close the subscription
 				// and remove it from our list of cached groups
 				getGroupMutex.Lock()
-				groups.Delete(gad.String())
+				delete(groups, gad.String())
 				getGroupMutex.Unlock()
 				return
 			}
@@ -124,6 +111,8 @@ func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
 
 	return group
 }
+
+func (g *Group) OnUpdated(fn func()) { g.updateListeners = append(g.updateListeners, fn) }
 
 func JoinGroup(ctx context.Context, gad nip29.GroupAddress) error {
 	since := nostr.Now() - 1

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	"fiatjaf.com/shiitake/components/sidebutton"
 	"fiatjaf.com/shiitake/global"
@@ -50,7 +49,7 @@ func NewSidebar(ctx context.Context) *Sidebar {
 
 	groupsScroll := gtk.NewScrolledWindow()
 	groupsScroll.SetName("groups-view")
-	groupsScroll.SetSizeRequest(100, -1)
+	groupsScroll.SetSizeRequest(150, -1)
 	groupsScroll.SetVExpand(true)
 	groupsScroll.SetVAlign(gtk.AlignFill)
 	groupsScroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
@@ -85,8 +84,8 @@ func NewSidebar(ctx context.Context) *Sidebar {
 				gad := group.Address
 
 				// if we have just asked to join this group, we do this so we reload it
-				if win.main.Messages.currentGroup != nil && win.main.Messages.currentGroup.Address.Equals(gad) {
-					win.main.Messages.switchTo(nip29.GroupAddress{})
+				if win.main.Groups.currentGroup() != nil && win.main.Groups.currentGroup().Address.Equals(gad) {
+					win.main.Groups.switchTo(nip29.GroupAddress{})
 				}
 
 				glib.IdleAdd(func() {
@@ -99,22 +98,14 @@ func NewSidebar(ctx context.Context) *Sidebar {
 					lbr.SetChild(button)
 
 					groupsList.Append(lbr)
-					win.main.OpenGroup(group.Address)
 
-					go func() {
-						for {
-							select {
-							case <-group.GroupUpdated:
-								button.Label.SetText(group.Name)
-								button.Icon.SetFromURL(group.Picture)
-								if win.main.Messages.currentGroup.Address.Equals(group.Address) {
-									win.main.Header.SetTitleWidget(adw.NewWindowTitle(group.Name, group.Address.String()))
-								}
-							case err := <-group.NewError:
-								fmt.Println(group.Address, "ERROR", err)
-							}
+					group.OnUpdated(func() {
+						button.Label.SetText(group.Name)
+						button.Icon.SetFromURL(group.Picture)
+						if win.main.Groups.currentGroup().Address.Equals(group.Address) {
+							win.main.Header.SetTitleWidget(adw.NewWindowTitle(group.Name, group.Address.String()))
 						}
-					}()
+					})
 				})
 			case gad := <-me.LeftGroup:
 				eachChild(groupsList, func(lbr *gtk.ListBoxRow) bool {

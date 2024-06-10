@@ -13,7 +13,7 @@ type MainView struct {
 	*gtk.Box
 
 	Sidebar  *Sidebar
-	Messages *MessagesView
+	Groups   *GroupsController
 	Discover *DiscoverView
 
 	Header *adw.HeaderBar
@@ -29,12 +29,12 @@ func NewMainView(ctx context.Context, w *Window) *MainView {
 
 	p.Sidebar = NewSidebar(ctx)
 
-	p.Messages = NewMessagesView(ctx)
+	p.Groups = NewGroupsController(ctx)
 	p.Discover = NewDiscoverView(ctx)
 
 	p.Stack = gtk.NewStack()
 	p.Stack.AddChild(p.Discover)
-	p.Stack.AddChild(p.Messages)
+	p.Stack.AddChild(p.Groups)
 	p.Stack.SetVisibleChild(p.Discover)
 
 	rightTitle := gtk.NewLabel("")
@@ -80,6 +80,6 @@ func (p *MainView) OpenDiscover() {
 
 func (p *MainView) OpenGroup(gad nip29.GroupAddress) {
 	p.Sidebar.selectGroup(gad)
-	p.Stack.SetVisibleChild(p.Messages)
-	p.Messages.switchTo(gad)
+	p.Stack.SetVisibleChild(p.Groups)
+	p.Groups.switchTo(gad)
 }

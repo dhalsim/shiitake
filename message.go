@@ -9,7 +9,6 @@ import (
 
 	"fiatjaf.com/nostr-gtk/components/avatar"
 	"fiatjaf.com/shiitake/global"
-	"github.com/diamondburned/arikawa/v3/discord"
 	"github.com/diamondburned/chatkit/md/hl"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
@@ -38,7 +37,7 @@ func (msg *message) bind() *gio.Menu {
 
 	actions := map[string]func(){
 		"message.show-source": func() { msg.ShowSource() },
-		"message.reply":       func() { win.main.Messages.ReplyTo(msg.Event.ID) },
+		// "message.reply":       func() { win.main.Groups.ReplyTo(msg.Event.ID) },
 	}
 
 	me := global.GetMe(msg.Content.ctx)
@@ -49,7 +48,7 @@ func (msg *message) bind() *gio.Menu {
 	// }
 
 	if me != nil && msg.Event.PubKey == me.PubKey /* TODO: admins should also be able to delete */ {
-		actions["message.delete"] = func() { win.main.Messages.Delete(msg.Event.ID) }
+		// actions["message.delete"] = func() { win.main.Messages.Delete(msg.Event.ID) }
 	}
 
 	// 	if channel != nil && (channel.Type == discord.DirectMessage || channel.Type == discord.GroupDM) {
@@ -85,8 +84,8 @@ func (msg *message) ShowEmojiChooser() {
 	e.SetHasArrow(false)
 
 	e.ConnectEmojiPicked(func(text string) {
-		emoji := discord.APIEmoji(text)
-		win.main.Messages.AddReaction(msg.Content.MessageID, emoji)
+		// emoji := discord.APIEmoji(text)
+		// win.main.Messages.AddReaction(msg.Content.MessageID, emoji)
 	})
 
 	e.Present()
@@ -128,9 +127,9 @@ func (msg *message) ShowSource() {
 	copyBtn := gtk.NewButtonFromIconName("edit-copy-symbolic")
 	copyBtn.SetTooltipText(locale.Get("Copy JSON"))
 	copyBtn.ConnectClicked(func() {
-		clipboard := win.main.Messages.Clipboard()
-		sourceText := buf.Text(buf.StartIter(), buf.EndIter(), false)
-		clipboard.SetText(sourceText)
+		// clipboard := win.main.Messages.Clipboard()
+		// sourceText := buf.Text(buf.StartIter(), buf.EndIter(), false)
+		// clipboard.SetText(sourceText)
 	})
 	h.PackStart(copyBtn)
 

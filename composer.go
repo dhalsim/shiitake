@@ -9,7 +9,6 @@ import (
 	"strings"
 	"unicode"
 
-	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/gotk4/pkg/core/gioutil"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -38,9 +37,8 @@ type ComposerView struct {
 	UploadTray   *UploadTray
 	EmojiChooser *gtk.EmojiChooser
 
-	ctx   context.Context
-	ctrl  *MessagesView
-	group *global.Group
+	ctx  context.Context
+	ctrl *GroupView
 
 	rightBox    *gtk.Box
 	emojiButton *gtk.MenuButton
@@ -61,14 +59,13 @@ const (
 	uploadIcon = "list-add-symbolic"
 )
 
-func NewComposerView(ctx context.Context, messagesView *MessagesView, group *global.Group) *ComposerView {
+func NewComposerView(ctx context.Context, groupView *GroupView) *ComposerView {
 	v := &ComposerView{
-		ctx:   ctx,
-		ctrl:  messagesView,
-		group: group,
+		ctx:  ctx,
+		ctrl: groupView,
 	}
 
-	v.Input = NewInput(ctx, v, group.Address)
+	v.Input = NewInput(ctx, v, v.ctrl.group.Address)
 
 	scroll := gtk.NewScrolledWindow()
 	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
@@ -164,7 +161,7 @@ func (v *ComposerView) SetPlaceholderMarkup(markup string) {
 }
 
 func (v *ComposerView) ResetPlaceholder() {
-	v.Placeholder.SetText("Message " + v.group.Address.String()) // + gtkcord.ChannelNameFromID(v.ctx, v.chID))
+	v.Placeholder.SetText("Message " + v.ctrl.group.Address.String()) // + gtkcord.ChannelNameFromID(v.ctx, v.chID))
 }
 
 // actionButton is a button that is used in the composer bar.
@@ -315,7 +312,7 @@ func (v *ComposerView) publish() {
 		return
 	}
 
-	err := v.ctrl.currentGroup.SendChatMessage(v.ctx, text, v.replyingTo)
+	err := v.ctrl.group.SendChatMessage(v.ctx, text, v.replyingTo)
 	if err != nil {
 		slog.Warn(err.Error())
 		win.ErrorToast(strings.Replace(err.Error(), " msg: ", " ", 1))

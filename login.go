@@ -92,7 +92,7 @@ func (p *LoginPage) login(input, password string) error {
 
 	// switch to chat page
 	win.Stack.SetVisibleChild(win.main)
-	win.main.Messages.switchTo(nip29.GroupAddress{})
+	win.main.Groups.switchTo(nip29.GroupAddress{})
 	win.SetTitle("Chat")
 	return nil
 }

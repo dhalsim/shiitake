@@ -118,9 +118,7 @@ func (c *Content) SetExtraMenu(menu gio.MenuModeller) {
 	c.menu = gio.NewMenu()
 	c.menu.InsertSection(0, locale.Get("Message"), menu)
 
-	// if c.mdview != nil {
 	c.setMenu()
-	// }
 }
 
 type extraMenuSetter interface{ SetExtraMenu(gio.MenuModeller) }
