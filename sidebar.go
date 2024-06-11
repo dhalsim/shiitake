@@ -5,7 +5,6 @@ import (
 
 	"fiatjaf.com/shiitake/components/sidebutton"
 	"fiatjaf.com/shiitake/global"
-	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/nbd-wtf/go-nostr/nip29"
@@ -102,9 +101,6 @@ func NewSidebar(ctx context.Context) *Sidebar {
 					group.OnUpdated(func() {
 						button.Label.SetText(group.Name)
 						button.Icon.SetFromURL(group.Picture)
-						if win.main.Groups.currentGroup() != nil && win.main.Groups.currentGroup().Address.Equals(group.Address) {
-							win.main.Header.SetTitleWidget(adw.NewWindowTitle(group.Name, group.Address.String()))
-						}
 					})
 				})
 			case gad := <-me.LeftGroup:

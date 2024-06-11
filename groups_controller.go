@@ -92,6 +92,13 @@ func (v *GroupsController) switchTo(gad nip29.GroupAddress) {
 		// insert in the stack and keep track of this
 		v.Stack.AddNamed(groupView, gad.String())
 		v.groups[gad.String()] = groupView
+
+		// set to update window header title
+		groupView.group.OnUpdated(func() {
+			if v.current == groupView {
+				win.main.Header.SetTitleWidget(adw.NewWindowTitle(group.Name, group.Address.String()))
+			}
+		})
 	}
 
 	v.current = groupView
