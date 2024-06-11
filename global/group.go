@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bep/debounce"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip29"
 )
@@ -19,7 +20,10 @@ type Group struct {
 	nip29.Group
 	NewMessage chan *nostr.Event
 
-	updateListeners []func()
+	update struct {
+		listeners []func()
+		debouncer func(func())
+	}
 }
 
 var getGroupMutex sync.Mutex
@@ -69,6 +73,8 @@ func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
 		return group
 	}
 
+	group.update.debouncer = debounce.New(700 * time.Millisecond)
+
 	go func() {
 		log.Printf("opening subscription to %s", group.Address)
 		for {
@@ -82,18 +88,18 @@ func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
 				switch evt.Kind {
 				case 39000:
 					group.Group.MergeInMetadataEvent(evt)
-					for _, fn := range group.updateListeners {
-						fn()
+					for _, fn := range group.update.listeners {
+						group.update.debouncer(fn)
 					}
 				case 39001:
 					group.Group.MergeInAdminsEvent(evt)
-					for _, fn := range group.updateListeners {
-						fn()
+					for _, fn := range group.update.listeners {
+						group.update.debouncer(fn)
 					}
 				case 39002:
 					group.Group.MergeInMembersEvent(evt)
-					for _, fn := range group.updateListeners {
-						fn()
+					for _, fn := range group.update.listeners {
+						group.update.debouncer(fn)
 					}
 				case 9, 10:
 					group.NewMessage <- evt
@@ -112,7 +118,7 @@ func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
 	return group
 }
 
-func (g *Group) OnUpdated(fn func()) { g.updateListeners = append(g.updateListeners, fn) }
+func (g *Group) OnUpdated(fn func()) { g.update.listeners = append(g.update.listeners, fn) }
 
 func JoinGroup(ctx context.Context, gad nip29.GroupAddress) error {
 	since := nostr.Now() - 1

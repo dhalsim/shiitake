@@ -4,6 +4,7 @@ go 1.22.3
 
 require (
 	fiatjaf.com/nostr-gtk v0.0.1
+	github.com/bep/debounce v1.2.1
 	github.com/diamondburned/adaptive v0.0.2-0.20221227093656-fa139be203a8
 	github.com/diamondburned/arikawa/v3 v3.3.5
 	github.com/diamondburned/chatkit v0.0.0-20240214131532-4b8acdf0f84b
