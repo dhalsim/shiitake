@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 
+	"fiatjaf.com/nostr-gtk/components/avatar"
 	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/arikawa/v3/discord"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -44,138 +45,193 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 
 	viewStack := adw.NewViewStack()
 
+	// this thing will display the names of each stack item automatically at the top
+	// (as long as we add them with AddTitled() and provide a title)
 	switcher := adw.NewViewSwitcher()
 	switcher.SetPolicy(adw.ViewSwitcherPolicyWide)
 	switcher.SetStack(viewStack)
 
 	headerBar := adw.NewHeaderBar()
 	headerBar.SetTitleWidget(switcher)
+	headerBar.SetShowBackButton(false)
+	headerBar.SetShowEndTitleButtons(false)
+	headerBar.SetShowStartTitleButtons(false)
+	headerBar.SetShowTitle(true)
 
-	bottomBar := adw.NewViewSwitcherBar()
-	bottomBar.SetStack(viewStack)
+	// group info
+	{
+		groupInfo := gtk.NewBox(gtk.OrientationVertical, 0)
+		groupInfo.AddCSSClass("p-16")
 
-	joinButton := gtk.NewButtonWithLabel("Join")
-	joinButton.SetHExpand(true)
-	joinButton.SetHAlign(gtk.AlignFill)
-	joinButton.AddCSSClass("p-8")
-	joinButton.AddCSSClass("mx-4")
-	joinButton.AddCSSClass("my-2")
-	joinButton.AddCSSClass("suggested-action")
-	joinButton.SetTooltipText("Join Group")
-	joinButton.ConnectClicked(func() {
-		joinButton.SetLabel("Joining...")
-		joinButton.SetSensitive(false)
-		joinButton.RemoveCSSClass("suggested-action")
-
-		go func() {
-			if err := global.JoinGroup(ctx, group.Address); err != nil {
-				win.ErrorToast(err.Error())
-			}
-
-			joinButton.SetLabel("Join")
-			joinButton.SetSensitive(true)
-			joinButton.AddCSSClass("suggested-action")
-		}()
-	})
-
-	v.chat.list = gtk.NewListBox()
-	v.chat.list.SetSelectionMode(gtk.SelectionNone)
-
-	loadMore := gtk.NewButton()
-	loadMore.SetLabel("Show More")
-	loadMore.SetHExpand(true)
-	loadMore.SetSensitive(true)
-	loadMore.ConnectClicked(v.loadMore)
-	loadMore.Hide()
-
-	clampBox := gtk.NewBox(gtk.OrientationVertical, 0)
-	clampBox.SetHExpand(true)
-	clampBox.SetVExpand(true)
-	clampBox.SetVAlign(gtk.AlignEnd)
-	clampBox.Append(loadMore)
-	clampBox.Append(v.chat.list)
-
-	v.chat.scroll = autoscroll.NewWindow()
-	v.chat.scroll.SetVExpand(true)
-	v.chat.scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
-	v.chat.scroll.SetPropagateNaturalWidth(true)
-	v.chat.scroll.SetPropagateNaturalHeight(true)
-	v.chat.scroll.SetChild(clampBox)
-	// scrollW.OnBottomed(v.onScrollBottomed)
-
-	scrollAdjustment := v.chat.scroll.ScrolledWindow.VAdjustment()
-	scrollAdjustment.ConnectValueChanged(func() {
-		// Replicate adw.ToolbarView's behavior: if the user scrolls up, then
-		// show a small drop shadow at the bottom of the view. We're not using
-		// the actual widget, because it adds a WindowHandle at the bottom,
-		// which breaks double-clicking.
-		value := scrollAdjustment.Value()
-		upper := scrollAdjustment.Upper()
-		psize := scrollAdjustment.PageSize()
-		if value < upper-psize {
-		} else {
-			v.chat.scroll.ScrolledWindow.RemoveCSSClass("undershoot-bottom")
+		picture := avatar.New(ctx, 72, group.Name)
+		if group.Picture != "" {
+			picture.SetFromURL(group.Picture)
 		}
-	})
+		picture.AddCSSClass("mb-4")
+		groupInfo.Append(picture)
 
-	vp := v.chat.scroll.Viewport()
-	vp.SetScrollToFocus(true)
+		name := gtk.NewLabel(group.Name)
+		name.AddCSSClass("title-1")
+		name.AddCSSClass("mb-2")
+		groupInfo.Append(name)
 
-	lastAppendedAuthor := ""
-	insertMessage := func(event *nostr.Event, pos int) {
-		id := event.ID
+		id := gtk.NewLabel(group.Address.String())
+		id.AddCSSClass("title-3")
+		id.AddCSSClass("mb-2")
+		groupInfo.Append(id)
 
-		authorIdem := false
-		if pos == -1 {
-			if event.PubKey == lastAppendedAuthor {
-				authorIdem = true
-			} else {
-				lastAppendedAuthor = event.PubKey
+		about := gtk.NewLabel(group.About)
+		about.AddCSSClass("mb-4")
+		groupInfo.Append(about)
+
+		leaveButton := gtk.NewButtonWithLabel("Leave")
+		leaveButton.ConnectClicked(func() {
+			global.LeaveGroup(ctx, group.Address)
+		})
+		leaveButton.AddCSSClass("destructive-action")
+		leaveButton.AddCSSClass("text-2xl")
+		leaveButton.AddCSSClass("mx-24")
+		groupInfo.Append(leaveButton)
+
+		viewStack.AddTitled(groupInfo, "group", "Group")
+
+		// update details when we get an update
+		group.OnUpdated(func() {
+			if group.Picture != "" {
+				picture.SetFromURL(group.Picture)
 			}
-		}
-
-		cmessage := NewMessage(v.ctx, event, event.PubKey == me.PubKey, authorIdem)
-		row := gtk.NewListBoxRow()
-		row.AddCSSClass("background")
-		row.SetName(id)
-		row.SetChild(cmessage)
-
-		v.chat.list.Insert(row, pos)
-		v.chat.list.Display().Flush()
-		v.chat.list.SetFocusChild(row)
+			name.SetLabel(group.Name)
+			id.SetLabel(group.Address.String())
+			about.SetLabel(group.About)
+		})
 	}
 
-	v.chat.bottomStack = gtk.NewStack()
-	v.chat.bottomStack.AddNamed(joinButton, "join")
+	// chat
+	{
+		joinButton := gtk.NewButtonWithLabel("Join")
+		joinButton.SetHExpand(true)
+		joinButton.SetHAlign(gtk.AlignFill)
+		joinButton.AddCSSClass("p-8")
+		joinButton.AddCSSClass("mx-4")
+		joinButton.AddCSSClass("my-2")
+		joinButton.AddCSSClass("suggested-action")
+		joinButton.SetTooltipText("Join Group")
+		joinButton.ConnectClicked(func() {
+			joinButton.SetLabel("Joining...")
+			joinButton.SetSensitive(false)
+			joinButton.RemoveCSSClass("suggested-action")
 
-	chatView := gtk.NewBox(gtk.OrientationVertical, 0)
-	chatView.Append(v.chat.scroll)
-	chatView.Append(v.chat.bottomStack)
-
-	viewStack.Add(chatView)
-
-	v.SetHExpand(true)
-	v.SetVExpand(true)
-	v.AddTopBar(headerBar)
-	v.SetContent(viewStack)
-	v.AddBottomBar(bottomBar)
-
-	showingLoadMoreAlready := false
-
-	// listen for new messages
-	go func() {
-		for evt := range group.NewMessage {
-			glib.IdleAdd(func() {
-				insertMessage(evt, -1)
-
-				if !showingLoadMoreAlready &&
-					v.chat.scroll.AllocatedHeight() < int(vp.VAdjustment().Upper()) {
-					showingLoadMoreAlready = true
-					loadMore.Show()
+			go func() {
+				if err := global.JoinGroup(ctx, group.Address); err != nil {
+					win.ErrorToast(err.Error())
 				}
-			})
+
+				joinButton.SetLabel("Join")
+				joinButton.SetSensitive(true)
+				joinButton.AddCSSClass("suggested-action")
+			}()
+		})
+
+		v.chat.list = gtk.NewListBox()
+		v.chat.list.SetSelectionMode(gtk.SelectionNone)
+
+		loadMore := gtk.NewButton()
+		loadMore.SetLabel("Show More")
+		loadMore.SetHExpand(true)
+		loadMore.SetSensitive(true)
+		loadMore.ConnectClicked(v.loadMore)
+		loadMore.Hide()
+
+		clampBox := gtk.NewBox(gtk.OrientationVertical, 0)
+		clampBox.SetHExpand(true)
+		clampBox.SetVExpand(true)
+		clampBox.SetVAlign(gtk.AlignEnd)
+		clampBox.Append(loadMore)
+		clampBox.Append(v.chat.list)
+
+		v.chat.scroll = autoscroll.NewWindow()
+		v.chat.scroll.SetVExpand(true)
+		v.chat.scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+		v.chat.scroll.SetPropagateNaturalWidth(true)
+		v.chat.scroll.SetPropagateNaturalHeight(true)
+		v.chat.scroll.SetChild(clampBox)
+
+		scrollAdjustment := v.chat.scroll.ScrolledWindow.VAdjustment()
+		scrollAdjustment.ConnectValueChanged(func() {
+			// Replicate adw.ToolbarView's behavior: if the user scrolls up, then
+			// show a small drop shadow at the bottom of the view. We're not using
+			// the actual widget, because it adds a WindowHandle at the bottom,
+			// which breaks double-clicking.
+			value := scrollAdjustment.Value()
+			upper := scrollAdjustment.Upper()
+			psize := scrollAdjustment.PageSize()
+			if value < upper-psize {
+			} else {
+				v.chat.scroll.ScrolledWindow.RemoveCSSClass("undershoot-bottom")
+			}
+		})
+
+		vp := v.chat.scroll.Viewport()
+		vp.SetScrollToFocus(true)
+
+		lastAppendedAuthor := ""
+		insertMessage := func(event *nostr.Event, pos int) {
+			id := event.ID
+
+			authorIdem := false
+			if pos == -1 {
+				if event.PubKey == lastAppendedAuthor {
+					authorIdem = true
+				} else {
+					lastAppendedAuthor = event.PubKey
+				}
+			}
+
+			cmessage := NewMessage(v.ctx, event, event.PubKey == me.PubKey, authorIdem)
+			row := gtk.NewListBoxRow()
+			row.AddCSSClass("background")
+			row.SetName(id)
+			row.SetChild(cmessage)
+
+			v.chat.list.Insert(row, pos)
+			v.chat.list.Display().Flush()
+			v.chat.list.SetFocusChild(row)
 		}
-	}()
+
+		v.chat.bottomStack = gtk.NewStack()
+		v.chat.bottomStack.AddNamed(joinButton, "join")
+
+		chatView := gtk.NewBox(gtk.OrientationVertical, 0)
+		chatView.Append(v.chat.scroll)
+		chatView.Append(v.chat.bottomStack)
+
+		viewStack.AddTitled(chatView, "chat", "Chat")
+
+		v.ToolbarView.SetHExpand(true)
+		v.ToolbarView.SetVExpand(true)
+		v.ToolbarView.AddTopBar(headerBar)
+		v.ToolbarView.SetContent(viewStack)
+
+		showingLoadMoreAlready := false
+
+		// listen for new messages
+		go func() {
+			for evt := range group.NewMessage {
+				glib.IdleAdd(func() {
+					insertMessage(evt, -1)
+
+					if !showingLoadMoreAlready &&
+						v.chat.scroll.AllocatedHeight() < int(vp.VAdjustment().Upper()) {
+						showingLoadMoreAlready = true
+						loadMore.Show()
+					}
+				})
+			}
+		}()
+	}
+
+	// always default to displaying the chat
+	viewStack.SetVisibleChildName("chat")
 
 	return v
 }
