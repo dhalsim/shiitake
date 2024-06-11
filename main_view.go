@@ -28,7 +28,6 @@ func NewMainView(ctx context.Context, w *Window) *MainView {
 	}
 
 	p.Sidebar = NewSidebar(ctx)
-
 	p.Groups = NewGroupsController(ctx)
 	p.Discover = NewDiscoverView(ctx)
 
@@ -79,7 +78,7 @@ func (p *MainView) OpenDiscover() {
 }
 
 func (p *MainView) OpenGroup(gad nip29.GroupAddress) {
-	p.Sidebar.selectGroup(gad)
 	p.Stack.SetVisibleChild(p.Groups)
 	p.Groups.switchTo(gad)
+	p.Sidebar.selectGroup(gad)
 }

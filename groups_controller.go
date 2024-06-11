@@ -8,24 +8,21 @@ import (
 
 	"fiatjaf.com/shiitake/components/icon_placeholder"
 	"fiatjaf.com/shiitake/global"
-	"github.com/diamondburned/adaptive"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/app"
-	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/nbd-wtf/go-nostr/nip19"
 	"github.com/nbd-wtf/go-nostr/nip29"
 )
 
 type GroupsController struct {
-	*adaptive.LoadablePage
+	*gtk.Stack
 
 	LoadMore *gtk.Button
 	Composer *ComposerView
 
 	placeholder gtk.Widgetter
-	groupStack  *gtk.Stack
 
 	switching sync.Mutex
 	groups    map[string]*GroupView
@@ -40,14 +37,13 @@ func NewGroupsController(ctx context.Context) *GroupsController {
 		groups: make(map[string]*GroupView),
 	}
 
-	v.groupStack = gtk.NewStack()
-	v.groupStack.SetTransitionType(gtk.StackTransitionTypeCrossfade)
-	v.groupStack.SetHExpand(true)
-	v.groupStack.SetVExpand(true)
+	v.Stack = gtk.NewStack()
+	v.Stack.SetTransitionType(gtk.StackTransitionTypeCrossfade)
+	v.Stack.SetHExpand(true)
+	v.Stack.SetVExpand(true)
 
-	v.LoadablePage = adaptive.NewLoadablePage()
-	v.LoadablePage.SetTransitionDuration(125)
-	v.LoadablePage.SetChild(v.groupStack)
+	plc := icon_placeholder.New("chat-bubbles-empty-symbolic")
+	v.Stack.AddNamed(plc, "placeholder")
 
 	// if the window gains focus, try to carefully mark the channel as read.
 	var windowSignal glib.SignalHandle
@@ -67,16 +63,13 @@ func NewGroupsController(ctx context.Context) *GroupsController {
 		windowSignal = 0
 	})
 
-	v.LoadablePage.SetLoading()
-
 	return v
 }
 
 func (v *GroupsController) switchTo(gad nip29.GroupAddress) {
 	if !gad.IsValid() {
 		// empty, switch to placeholder
-		plc := icon_placeholder.New("chat-bubbles-empty-symbolic")
-		v.LoadablePage.SetChild(plc)
+		v.Stack.SetVisibleChildName("placeholder")
 		return
 	}
 
@@ -88,17 +81,6 @@ func (v *GroupsController) switchTo(gad nip29.GroupAddress) {
 	}
 	group := global.GetGroup(v.ctx, gad)
 
-	// otherwise we have something,
-	// so switch back to the main thing
-	v.LoadablePage.SetChild(v.groupStack)
-
-	gtkutil.NotifyProperty(v.Parent(), "transition-running", func() bool {
-		if !v.LoadablePage.Stack.TransitionRunning() {
-			return true
-		}
-		return false
-	})
-
 	win.main.Header.SetTitleWidget(adw.NewWindowTitle(group.Name, group.Address.String()))
 
 	// get existing group view
@@ -108,7 +90,7 @@ func (v *GroupsController) switchTo(gad nip29.GroupAddress) {
 		groupView = NewGroupView(v.ctx, group)
 
 		// insert in the stack and keep track of this
-		v.groupStack.AddNamed(groupView, gad.String())
+		v.Stack.AddNamed(groupView, gad.String())
 		v.groups[gad.String()] = groupView
 	}
 
@@ -116,7 +98,7 @@ func (v *GroupsController) switchTo(gad nip29.GroupAddress) {
 	groupView.selected()
 
 	// make it visible
-	v.groupStack.SetVisibleChild(groupView)
+	v.Stack.SetVisibleChild(groupView)
 }
 
 func (v *GroupsController) currentGroup() *global.Group {

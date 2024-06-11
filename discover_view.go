@@ -83,16 +83,19 @@ func (d *DiscoverView) loadRelay(url string) {
 					button := gtk.NewButtonWithLabel("Open")
 					button.AddCSSClass("suggested-action")
 					button.AddCSSClass("mt-1")
+					button.SetHExpand(false)
 					button.ConnectClicked(func() {
 						button.SetLabel("Opening...")
 						button.SetSensitive(false)
 						button.RemoveCSSClass("suggested-action")
 
-						win.main.OpenGroup(gad)
+						go func() {
+							win.main.OpenGroup(gad)
 
-						button.SetLabel("Open")
-						button.SetSensitive(true)
-						button.AddCSSClass("suggested-action")
+							button.SetLabel("Open")
+							button.SetSensitive(true)
+							button.AddCSSClass("suggested-action")
+						}()
 					})
 
 					grid := gtk.NewGrid()

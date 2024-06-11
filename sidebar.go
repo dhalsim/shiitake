@@ -102,7 +102,7 @@ func NewSidebar(ctx context.Context) *Sidebar {
 					group.OnUpdated(func() {
 						button.Label.SetText(group.Name)
 						button.Icon.SetFromURL(group.Picture)
-						if win.main.Groups.currentGroup().Address.Equals(group.Address) {
+						if win.main.Groups.currentGroup() != nil && win.main.Groups.currentGroup().Address.Equals(group.Address) {
 							win.main.Header.SetTitleWidget(adw.NewWindowTitle(group.Name, group.Address.String()))
 						}
 					})
@@ -110,9 +110,7 @@ func NewSidebar(ctx context.Context) *Sidebar {
 			case gad := <-me.LeftGroup:
 				eachChild(groupsList, func(lbr *gtk.ListBoxRow) bool {
 					if lbr.Name() == gad.String() {
-						glib.IdleAdd(func() {
-							groupsList.Remove(lbr)
-						})
+						groupsList.Remove(lbr)
 						return true // stop
 					}
 					return false // continue

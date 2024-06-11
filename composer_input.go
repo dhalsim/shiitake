@@ -66,6 +66,7 @@ func NewInput(ctx context.Context, ctrl *ComposerView, gad nip29.GroupAddress) *
 		gtk.InputHintWordCompletion |
 		gtk.InputHintUppercaseSentences,
 	)
+
 	textutil.SetTabSize(i.TextView)
 
 	i.TextView.ConnectPasteClipboard(i.readClipboard)

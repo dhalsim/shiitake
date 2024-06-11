@@ -148,10 +148,6 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 	v.chat.bottomStack = gtk.NewStack()
 	v.chat.bottomStack.AddNamed(joinButton, "join")
 
-	v.chat.composer = NewComposerView(v.ctx, v)
-	gtkutil.ForwardTyping(v.chat.list, v.chat.composer.Input)
-	v.chat.bottomStack.AddNamed(v.chat.composer, "composer")
-
 	chatView := gtk.NewBox(gtk.OrientationVertical, 0)
 	chatView.Append(v.chat.scroll)
 	chatView.Append(v.chat.bottomStack)
@@ -188,6 +184,12 @@ func (v *GroupView) selected() {
 	// check if we should be a member of this group
 	<-v.me.ListLoaded
 	if v.me.InGroup(v.group.Address) {
+		if v.chat.composer == nil {
+			// composer must be created here, not on GroupView instantiation, otherwise gtk.NewTextInput crashes
+			v.chat.composer = NewComposerView(v.ctx, v)
+			gtkutil.ForwardTyping(v.chat.list, v.chat.composer.Input)
+			v.chat.bottomStack.AddNamed(v.chat.composer, "composer")
+		}
 		v.chat.bottomStack.SetVisibleChildName("composer")
 	} else {
 		v.chat.bottomStack.SetVisibleChildName("join")
