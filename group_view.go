@@ -5,6 +5,7 @@ import (
 
 	"fiatjaf.com/nostr-gtk/components/avatar"
 	"fiatjaf.com/shiitake/global"
+	"fiatjaf.com/shiitake/utils"
 	"github.com/diamondburned/arikawa/v3/discord"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -84,14 +85,30 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 		about.AddCSSClass("mb-4")
 		groupInfo.Append(about)
 
-		leaveButton := gtk.NewButtonWithLabel("Leave")
-		leaveButton.ConnectClicked(func() {
-			global.LeaveGroup(ctx, group.Address)
+		button := gtk.NewButtonWithLabel("Join/Leave")
+		button.AddCSSClass("text-2xl")
+		button.AddCSSClass("mx-24")
+		button.ConnectClicked(func() {
+			switch button.Label() {
+			case "Join":
+				button.SetLabel("Joining...")
+				button.SetSensitive(false)
+				go func() {
+					if err := global.JoinGroup(ctx, group.Address); err != nil {
+						win.ErrorToast(err.Error())
+					}
+					button.SetSensitive(true)
+				}()
+			case "Leave":
+				button.SetLabel("Leaving...")
+				button.SetSensitive(false)
+				go func() {
+					global.LeaveGroup(ctx, group.Address)
+					button.SetSensitive(true)
+				}()
+			}
 		})
-		leaveButton.AddCSSClass("destructive-action")
-		leaveButton.AddCSSClass("text-2xl")
-		leaveButton.AddCSSClass("mx-24")
-		groupInfo.Append(leaveButton)
+		groupInfo.Append(button)
 
 		viewStack.AddTitled(groupInfo, "group", "Group")
 
@@ -104,6 +121,23 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 			id.SetLabel(group.Address.String())
 			about.SetLabel(group.About)
 		})
+
+		// display either "join" or "leave" at the bottom depending on group membership status
+		setJoinOrLeave := func() {
+			glib.IdleAdd(func() {
+				if v.me.InGroup(v.group.Address) {
+					button.SetLabel("Leave")
+					button.AddCSSClass("destructive-action")
+					button.RemoveCSSClass("suggested-action")
+				} else {
+					button.SetLabel("Join")
+					button.AddCSSClass("suggested-action")
+					button.RemoveCSSClass("destructive-action")
+				}
+			})
+		}
+		setJoinOrLeave()
+		v.me.OnListUpdated(setJoinOrLeave)
 	}
 
 	// chat
@@ -117,18 +151,14 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 		joinButton.AddCSSClass("suggested-action")
 		joinButton.SetTooltipText("Join Group")
 		joinButton.ConnectClicked(func() {
-			joinButton.SetLabel("Joining...")
-			joinButton.SetSensitive(false)
-			joinButton.RemoveCSSClass("suggested-action")
+			revert := utils.ButtonLoading(joinButton, "Joining...")
 
 			go func() {
 				if err := global.JoinGroup(ctx, group.Address); err != nil {
 					win.ErrorToast(err.Error())
 				}
 
-				joinButton.SetLabel("Join")
-				joinButton.SetSensitive(true)
-				joinButton.AddCSSClass("suggested-action")
+				revert()
 			}()
 		})
 
@@ -228,28 +258,27 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 				})
 			}
 		}()
+
+		// display either "join" button or composer at the end depending on group membership status
+		v.me.OnListUpdated(func() {
+			if v.me.InGroup(v.group.Address) {
+				if v.chat.composer == nil {
+					// composer must be created here, not on GroupView instantiation, otherwise gtk.NewTextInput crashes
+					v.chat.composer = NewComposerView(v.ctx, v)
+					gtkutil.ForwardTyping(v.chat.list, v.chat.composer.Input)
+					v.chat.bottomStack.AddNamed(v.chat.composer, "composer")
+				}
+				v.chat.bottomStack.SetVisibleChildName("composer")
+			} else {
+				v.chat.bottomStack.SetVisibleChildName("join")
+			}
+		})
 	}
 
 	// always default to displaying the chat
 	viewStack.SetVisibleChildName("chat")
 
 	return v
-}
-
-func (v *GroupView) selected() {
-	// check if we should be a member of this group
-	<-v.me.ListLoaded
-	if v.me.InGroup(v.group.Address) {
-		if v.chat.composer == nil {
-			// composer must be created here, not on GroupView instantiation, otherwise gtk.NewTextInput crashes
-			v.chat.composer = NewComposerView(v.ctx, v)
-			gtkutil.ForwardTyping(v.chat.list, v.chat.composer.Input)
-			v.chat.bottomStack.AddNamed(v.chat.composer, "composer")
-		}
-		v.chat.bottomStack.SetVisibleChildName("composer")
-	} else {
-		v.chat.bottomStack.SetVisibleChildName("join")
-	}
 }
 
 func (v *GroupView) loadMore() {

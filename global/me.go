@@ -19,9 +19,9 @@ var (
 type Me struct {
 	User
 
-	lastList *nostr.Event
+	lastList            *nostr.Event
+	listUpdateListeners []func()
 
-	ListLoaded      chan struct{}
 	MetadataUpdated chan struct{}
 	JoinedGroup     chan *Group
 	LeftGroup       chan nip29.GroupAddress
@@ -58,7 +58,6 @@ func GetMe(ctx context.Context) *Me {
 	me = &Me{
 		User: GetUser(ctx, pubkey),
 
-		ListLoaded:      make(chan struct{}),
 		MetadataUpdated: make(chan struct{}),
 		JoinedGroup:     make(chan *Group, 20),
 		LeftGroup:       make(chan nip29.GroupAddress),
@@ -152,8 +151,8 @@ func GetMe(ctx context.Context) *Me {
 		res, _ := sys.StoreRelay.QuerySync(bg, nostr.Filter{Kinds: []int{10009}, Authors: []string{me.PubKey}})
 		if len(res) != 0 {
 			processIncomingGroupListEvent(res[0])
+			me.triggerListUpdate()
 		}
-		close(me.ListLoaded)
 
 		for ie := range sys.Pool.SubMany(bg, sys.FetchOutboxRelays(bg, me.PubKey), nostr.Filters{
 			{
@@ -162,9 +161,20 @@ func GetMe(ctx context.Context) *Me {
 			},
 		}) {
 			processIncomingGroupListEvent(ie.Event)
+			me.triggerListUpdate()
 			sys.StoreRelay.Publish(bg, *ie.Event)
 		}
 	}()
 
 	return me
+}
+
+func (me *Me) OnListUpdated(fn func()) {
+	me.listUpdateListeners = append(me.listUpdateListeners, fn)
+}
+
+func (me *Me) triggerListUpdate() {
+	for _, fn := range me.listUpdateListeners {
+		fn()
+	}
 }

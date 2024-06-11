@@ -5,6 +5,7 @@ import (
 
 	"fiatjaf.com/nostr-gtk/components/avatar"
 	"fiatjaf.com/shiitake/global"
+	"fiatjaf.com/shiitake/utils"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/core/glib"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -85,16 +86,10 @@ func (d *DiscoverView) loadRelay(url string) {
 					button.AddCSSClass("mt-1")
 					button.SetHExpand(false)
 					button.ConnectClicked(func() {
-						button.SetLabel("Opening...")
-						button.SetSensitive(false)
-						button.RemoveCSSClass("suggested-action")
-
+						revert := utils.ButtonLoading(button, "Opening...")
 						go func() {
 							win.main.OpenGroup(gad)
-
-							button.SetLabel("Open")
-							button.SetSensitive(true)
-							button.AddCSSClass("suggested-action")
+							revert()
 						}()
 					})
 

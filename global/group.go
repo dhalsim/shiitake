@@ -196,7 +196,7 @@ func JoinGroup(ctx context.Context, gad nip29.GroupAddress) error {
 }
 
 func LeaveGroup(ctx context.Context, gad nip29.GroupAddress) {
-	if me.lastList != nil {
+	if me.lastList == nil {
 		return
 	}
 	before := len(me.lastList.Tags)

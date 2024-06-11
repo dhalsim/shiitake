@@ -102,7 +102,6 @@ func (v *GroupsController) switchTo(gad nip29.GroupAddress) {
 	}
 
 	v.current = groupView
-	groupView.selected()
 
 	// make it visible
 	v.Stack.SetVisibleChild(groupView)

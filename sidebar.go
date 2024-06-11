@@ -82,11 +82,6 @@ func NewSidebar(ctx context.Context) *Sidebar {
 			case group := <-me.JoinedGroup:
 				gad := group.Address
 
-				// if we have just asked to join this group, we do this so we reload it
-				if win.main.Groups.currentGroup() != nil && win.main.Groups.currentGroup().Address.Equals(gad) {
-					win.main.Groups.switchTo(nip29.GroupAddress{})
-				}
-
 				glib.IdleAdd(func() {
 					button := sidebutton.New(ctx, group.Name, func() {
 						win.main.OpenGroup(gad)
