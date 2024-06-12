@@ -183,16 +183,21 @@ func JoinGroup(ctx context.Context, gad nip29.GroupAddress) error {
 		me.lastList.Tags = append(me.lastList.Tags, newTag)
 	}
 	me.lastList.CreatedAt = nostr.Now()
+	if err := sys.Signer.SignEvent(me.lastList); err != nil {
+		return fmt.Errorf("failed to sign event: %w", err)
+	}
+
 	for _, url := range sys.FetchOutboxRelays(ctx, me.PubKey) {
 		relay, err := sys.Pool.EnsureRelay(url)
 		if err != nil {
-			return fmt.Errorf("failed to connect to '%s': %w", url, err)
+			slog.Warn("failed to connect to outbox relay in order to publish list", "relay", url, "err", err)
+			continue
 		}
 
-		if err := sys.Signer.SignEvent(me.lastList); err != nil {
-			return fmt.Errorf("failed to sign event: %w", err)
+		if err := relay.Publish(ctx, *me.lastList); err != nil {
+			slog.Warn("failed to publish groups list", "relay", url, "err", err)
+			continue
 		}
-		relay.Publish(ctx, *me.lastList)
 	}
 
 	return nil
