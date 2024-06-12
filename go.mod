@@ -75,8 +75,8 @@ require (
 	google.golang.org/protobuf v1.31.0 // indirect
 )
 
-replace fiatjaf.com/nostr-gtk => ../nostr-gtk
-
 replace github.com/diamondburned/gotk4-adwaita/pkg => github.com/fiatjaf/gotk4-adwaita/pkg v0.0.0-20240604001651-1286f0db18ea
+
+replace fiatjaf.com/nostr-gtk => ../nostr-gtk
 
 replace github.com/nbd-wtf/go-nostr => ../go-nostr
