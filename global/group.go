@@ -200,6 +200,10 @@ func JoinGroup(ctx context.Context, gad nip29.GroupAddress) error {
 		}
 	}
 
+	if err := sys.StoreRelay.Publish(ctx, *me.lastList); err != nil {
+		return fmt.Errorf("failed to store new groups list locally: %w", err)
+	}
+
 	return nil
 }
 
