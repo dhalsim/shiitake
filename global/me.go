@@ -2,9 +2,13 @@ package global
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"log/slog"
 	"sync"
+	"time"
 
+	"github.com/bep/debounce"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip29"
 	sdk "github.com/nbd-wtf/nostr-sdk"
@@ -19,8 +23,11 @@ var (
 type Me struct {
 	User
 
-	lastList            *nostr.Event
-	listUpdateListeners []func()
+	lastList   *nostr.Event
+	listUpdate struct {
+		listeners []func()
+		debouncer func(func())
+	}
 
 	MetadataUpdated chan struct{}
 	JoinedGroup     chan *Group
@@ -64,6 +71,8 @@ func GetMe(ctx context.Context) *Me {
 	}
 
 	bg := context.Background()
+
+	me.listUpdate.debouncer = debounce.New(700 * time.Millisecond)
 
 	go func() {
 		for ie := range sys.Pool.SubMany(bg, sys.MetadataRelays, nostr.Filters{
@@ -170,11 +179,40 @@ func GetMe(ctx context.Context) *Me {
 }
 
 func (me *Me) OnListUpdated(fn func()) {
-	me.listUpdateListeners = append(me.listUpdateListeners, fn)
+	me.listUpdate.listeners = append(me.listUpdate.listeners, fn)
 }
 
 func (me *Me) triggerListUpdate() {
-	for _, fn := range me.listUpdateListeners {
-		fn()
+	me.listUpdate.debouncer(func() {
+		for _, fn := range me.listUpdate.listeners {
+			fn()
+		}
+	})
+}
+
+func (me *Me) updateAndPublishLastList(ctx context.Context) error {
+	me.lastList.CreatedAt = nostr.Now()
+	if err := sys.Signer.SignEvent(me.lastList); err != nil {
+		return fmt.Errorf("failed to sign event: %w", err)
 	}
+
+	for _, url := range sys.FetchOutboxRelays(ctx, me.PubKey) {
+		relay, err := sys.Pool.EnsureRelay(url)
+		if err != nil {
+			slog.Warn("failed to connect to outbox relay in order to publish list", "relay", url, "err", err)
+			continue
+		}
+
+		if err := relay.Publish(ctx, *me.lastList); err != nil {
+			slog.Warn("failed to publish groups list", "relay", url, "err", err)
+			continue
+		}
+	}
+
+	if err := sys.StoreRelay.Publish(ctx, *me.lastList); err != nil {
+		return fmt.Errorf("failed to store new groups list locally: %w", err)
+	}
+
+	me.triggerListUpdate()
+	return nil
 }

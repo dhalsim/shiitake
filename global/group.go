@@ -88,13 +88,13 @@ func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
 				switch evt.Kind {
 				case 39000:
 					group.Group.MergeInMetadataEvent(evt)
-					group.update.debouncer(group.triggerUpdate)
+					group.triggerUpdate()
 				case 39001:
 					group.Group.MergeInAdminsEvent(evt)
-					group.update.debouncer(group.triggerUpdate)
+					group.triggerUpdate()
 				case 39002:
 					group.Group.MergeInMembersEvent(evt)
-					group.update.debouncer(group.triggerUpdate)
+					group.triggerUpdate()
 				case 9, 10:
 					group.NewMessage <- evt
 				}
@@ -115,9 +115,11 @@ func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
 func (g *Group) OnUpdated(fn func()) { g.update.listeners = append(g.update.listeners, fn) }
 
 func (g *Group) triggerUpdate() {
-	for _, fn := range g.update.listeners {
-		fn()
-	}
+	g.update.debouncer(func() {
+		for _, fn := range g.update.listeners {
+			fn()
+		}
+	})
 }
 
 func JoinGroup(ctx context.Context, gad nip29.GroupAddress) error {
@@ -182,34 +184,13 @@ func JoinGroup(ctx context.Context, gad nip29.GroupAddress) error {
 		// this is new, add
 		me.lastList.Tags = append(me.lastList.Tags, newTag)
 	}
-	me.lastList.CreatedAt = nostr.Now()
-	if err := sys.Signer.SignEvent(me.lastList); err != nil {
-		return fmt.Errorf("failed to sign event: %w", err)
-	}
 
-	for _, url := range sys.FetchOutboxRelays(ctx, me.PubKey) {
-		relay, err := sys.Pool.EnsureRelay(url)
-		if err != nil {
-			slog.Warn("failed to connect to outbox relay in order to publish list", "relay", url, "err", err)
-			continue
-		}
-
-		if err := relay.Publish(ctx, *me.lastList); err != nil {
-			slog.Warn("failed to publish groups list", "relay", url, "err", err)
-			continue
-		}
-	}
-
-	if err := sys.StoreRelay.Publish(ctx, *me.lastList); err != nil {
-		return fmt.Errorf("failed to store new groups list locally: %w", err)
-	}
-
-	return nil
+	return me.updateAndPublishLastList(ctx)
 }
 
-func LeaveGroup(ctx context.Context, gad nip29.GroupAddress) {
+func LeaveGroup(ctx context.Context, gad nip29.GroupAddress) error {
 	if me.lastList == nil {
-		return
+		return nil
 	}
 	before := len(me.lastList.Tags)
 	me.lastList.Tags = slices.DeleteFunc(me.lastList.Tags, func(t nostr.Tag) bool {
@@ -221,16 +202,10 @@ func LeaveGroup(ctx context.Context, gad nip29.GroupAddress) {
 
 	if before != after {
 		// we have removed something, update
-		me.lastList.CreatedAt = nostr.Now()
-		for _, url := range sys.FetchOutboxRelays(ctx, me.PubKey) {
-			relay, _ := sys.Pool.EnsureRelay(url)
-
-			if err := sys.Signer.SignEvent(me.lastList); err != nil {
-				panic(err)
-			}
-			relay.Publish(ctx, *me.lastList)
-		}
+		return me.updateAndPublishLastList(ctx)
 	}
+
+	return nil
 }
 
 func (g Group) SendChatMessage(ctx context.Context, text string, replyTo string) error {

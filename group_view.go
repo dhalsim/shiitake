@@ -103,7 +103,9 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 				button.SetLabel("Leaving...")
 				button.SetSensitive(false)
 				go func() {
-					global.LeaveGroup(ctx, group.Address)
+					if err := global.LeaveGroup(ctx, group.Address); err != nil {
+						win.ErrorToast(err.Error())
+					}
 					button.SetSensitive(true)
 				}()
 			}
