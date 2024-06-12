@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log/slog"
 
 	"fiatjaf.com/shiitake/about"
 	"fiatjaf.com/shiitake/components/icon_placeholder"
@@ -117,6 +118,7 @@ func (w *Window) SetTitle(title string) {
 }
 
 func (w *Window) ErrorToast(msg string) {
+	slog.Warn(msg)
 	toast := adw.NewToast(msg)
 	toast.SetTimeout(5)
 	toast.SetButtonLabel("Logs")
