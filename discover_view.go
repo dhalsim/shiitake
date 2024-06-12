@@ -24,15 +24,21 @@ func NewDiscoverView(ctx context.Context) *DiscoverView {
 		ctx: ctx,
 	}
 
+	current := "groups.fiatjaf.com"
+
 	relayEntry := adw.NewEntryRow()
 	relayEntry.SetTitle("relay")
-	relayEntry.SetText("groups.fiatjaf.com")
+	relayEntry.SetText(current)
 
 	lb := gtk.NewListBox()
 	lb.Append(relayEntry)
 
 	relayEntry.ConnectEntryActivated(func() {
-		d.loadRelay(relayEntry.Text())
+		value := relayEntry.Text()
+		if value != current {
+			current = value
+			d.loadRelay(value)
+		}
 	})
 	d.Append(lb)
 
