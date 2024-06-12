@@ -4,13 +4,13 @@ import (
 	"context"
 
 	"fiatjaf.com/nostr-gtk/components/avatar"
+	"fiatjaf.com/shiitake/components/autoscroll"
 	"fiatjaf.com/shiitake/global"
 	"fiatjaf.com/shiitake/utils"
 	"github.com/diamondburned/arikawa/v3/discord"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/diamondburned/gotkit/components/autoscroll"
 	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/nbd-wtf/go-nostr"
 )
