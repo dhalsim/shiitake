@@ -1,4 +1,6 @@
+export PATH := "./node_modules/.bin:" + env_var('PATH')
+
 run:
-    BROWSERSLIST_IGNORE_OLD_DATA=true tailwindcss -i style.css -o bundle.css
+    postcss style.css -o bundle.css
     go build
     ./shiitake

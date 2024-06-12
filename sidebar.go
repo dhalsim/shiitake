@@ -27,8 +27,6 @@ func NewSidebar(ctx context.Context) *Sidebar {
 		win.main.OpenDiscover()
 	})
 	discover.Icon.Avatar.SetIconName("earth-symbolic")
-	discover.AddCSSClass("frame")
-	discover.AddCSSClass("border-2")
 
 	sep1 := gtk.NewSeparator(gtk.OrientationVertical)
 	sep1.AddCSSClass("spacer")
@@ -112,22 +110,18 @@ func NewSidebar(ctx context.Context) *Sidebar {
 
 	s.selectGroup = func(gad nip29.GroupAddress) {
 		if gad.IsValid() {
-			discover.RemoveCSSClass("frame")
-			discover.RemoveCSSClass("border-2")
+			discover.RemoveCSSClass("bg-amber-400")
 		} else {
-			discover.AddCSSClass("frame")
-			discover.AddCSSClass("border-2")
+			discover.AddCSSClass("bg-amber-400")
 		}
 
 		eachChild(groupsList, func(lbr *gtk.ListBoxRow) bool {
 			// iterate through all buttons, removing classes from all and adding in the selected
 			sidebuttonWidget := lbr.Child().(*gtk.Button)
 			if lbr.Name() == gad.String() {
-				sidebuttonWidget.AddCSSClass("frame")
-				sidebuttonWidget.AddCSSClass("border-2")
+				sidebuttonWidget.AddCSSClass("bg-amber-400")
 			} else {
-				sidebuttonWidget.RemoveCSSClass("frame")
-				sidebuttonWidget.RemoveCSSClass("border-2")
+				sidebuttonWidget.RemoveCSSClass("bg-amber-400")
 			}
 
 			return false
