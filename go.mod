@@ -8,7 +8,7 @@ require (
 	github.com/diamondburned/adaptive v0.0.2-0.20221227093656-fa139be203a8
 	github.com/diamondburned/arikawa/v3 v3.3.5
 	github.com/diamondburned/chatkit v0.0.0-20240214131532-4b8acdf0f84b
-	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20240512000724-8dc7455ee58f
+	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20240604001651-1286f0db18ea
 	github.com/diamondburned/gotk4/pkg v0.2.2
 	github.com/diamondburned/gotkit v0.0.0-20240421051130-6094a5dcd206
 	github.com/diamondburned/ningen/v3 v3.0.1-0.20240215053437-0d35ff052647
@@ -77,6 +77,6 @@ require (
 
 replace fiatjaf.com/nostr-gtk => ../nostr-gtk
 
-replace github.com/diamondburned/gotk4-adwaita/pkg => ../gotk4-adwaita/pkg
+replace github.com/diamondburned/gotk4-adwaita/pkg => github.com/fiatjaf/gotk4-adwaita/pkg v0.0.0-20240604001651-1286f0db18ea
 
 replace github.com/nbd-wtf/go-nostr => ../go-nostr
