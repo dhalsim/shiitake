@@ -154,12 +154,10 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 		joinButton.SetTooltipText("Join Group")
 		joinButton.ConnectClicked(func() {
 			revert := utils.ButtonLoading(joinButton, "Joining...")
-
 			go func() {
 				if err := global.JoinGroup(ctx, group.Address); err != nil {
 					win.ErrorToast(err.Error())
 				}
-
 				revert()
 			}()
 		})
@@ -207,16 +205,14 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 		vp.SetScrollToFocus(true)
 
 		lastAppendedAuthor := ""
-		insertMessage := func(event *nostr.Event, pos int) {
+		appendMessage := func(event *nostr.Event) {
 			id := event.ID
 
 			authorIdem := false
-			if pos == -1 {
-				if event.PubKey == lastAppendedAuthor {
-					authorIdem = true
-				} else {
-					lastAppendedAuthor = event.PubKey
-				}
+			if event.PubKey == lastAppendedAuthor {
+				authorIdem = true
+			} else {
+				lastAppendedAuthor = event.PubKey
 			}
 
 			cmessage := NewMessage(v.ctx, event, event.PubKey == me.PubKey, authorIdem)
@@ -225,7 +221,7 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 			row.SetName(id)
 			row.SetChild(cmessage)
 
-			v.chat.list.Insert(row, pos)
+			v.chat.list.Insert(row, -1)
 			v.chat.list.Display().Flush()
 			v.chat.list.SetFocusChild(row)
 		}
@@ -248,9 +244,21 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 
 		// listen for new messages
 		go func() {
+			storedMessages := <-group.StoredMessages
+
+			glib.IdleAdd(func() {
+				for i := len(storedMessages) - 1; i >= 0; i-- {
+					appendMessage(storedMessages[i])
+				}
+				if v.chat.scroll.AllocatedHeight() < int(vp.VAdjustment().Upper()) {
+					showingLoadMoreAlready = true
+					loadMore.Show()
+				}
+			})
+
 			for evt := range group.NewMessage {
 				glib.IdleAdd(func() {
-					insertMessage(evt, -1)
+					appendMessage(evt)
 
 					if !showingLoadMoreAlready &&
 						v.chat.scroll.AllocatedHeight() < int(vp.VAdjustment().Upper()) {

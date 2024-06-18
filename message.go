@@ -168,10 +168,22 @@ func NewMessage(
 	user := global.GetUser(guctx, event.PubKey)
 	cancel()
 
-	markup := "<b>" + user.ShortName() + "</b>"
-	markup += ` <span alpha="75%" size="small">` +
-		locale.TimeAgo(event.CreatedAt.Time()) +
-		"</span>"
+	name := gtk.NewLabel(user.ShortName())
+	name.AddCSSClass("font-bold")
+	if fromLoggedUser || authorIsTheSameAsPrevious {
+		// hide the name
+		name.AddCSSClass("opacity-0")
+	}
+	name.SetMaxWidthChars(15)
+	name.SetEllipsize(pango.EllipsizeEnd)
+	name.SetSingleLineMode(true)
+
+	timestamp := gtk.NewLabel(locale.TimeAgo(event.CreatedAt.Time()))
+	timestamp.AddCSSClass("text-zinc-500")
+	timestamp.AddCSSClass("text-xs")
+	timestamp.AddCSSClass("ml-4")
+	timestamp.SetYAlign(1)
+	timestamp.SetSingleLineMode(true)
 
 	tooltip := fmt.Sprintf(
 		"<b>%s</b> (%s)\n%s",
@@ -179,23 +191,24 @@ func NewMessage(
 		html.EscapeString(locale.Time(event.CreatedAt.Time(), true)),
 	)
 
-	// TODO: query tooltip
-
-	topLabel := gtk.NewLabel("")
-	topLabel.SetXAlign(0)
-	topLabel.SetEllipsize(pango.EllipsizeEnd)
-	topLabel.SetSingleLineMode(true)
-	topLabel.SetMarkup(markup)
+	topLabel := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	topLabel.Append(name)
+	topLabel.Append(timestamp)
 	topLabel.SetTooltipMarkup(tooltip)
+	if fromLoggedUser {
+		topLabel.SetHAlign(gtk.AlignEnd)
+	}
 
 	rightBox := gtk.NewBox(gtk.OrientationVertical, 0)
 	rightBox.SetHExpand(true)
 	rightBox.Append(topLabel)
+
 	rightBox.Append(m.message.Content)
 
 	m.Box = gtk.NewBox(gtk.OrientationHorizontal, 0)
 
 	if !fromLoggedUser {
+		// hide the avatar if it's us
 		avatar := avatar.New(ctx, 30, event.PubKey)
 		avatar.SetVAlign(gtk.AlignCenter)
 		avatar.SetTooltipMarkup(tooltip)
@@ -204,6 +217,7 @@ func NewMessage(
 		m.Box.Append(avatar)
 
 		if authorIsTheSameAsPrevious {
+			// hide the avatar if it's the same as the previous
 			avatar.AddCSSClass("opacity-0")
 		}
 	} else {

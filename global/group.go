@@ -18,7 +18,8 @@ var groups = make(map[string]*Group)
 
 type Group struct {
 	nip29.Group
-	NewMessage chan *nostr.Event
+	NewMessage     chan *nostr.Event
+	StoredMessages chan []*nostr.Event
 
 	update struct {
 		listeners []func()
@@ -42,7 +43,8 @@ func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
 			Name:    gad.ID,
 			Members: make(map[string]*nip29.Role, 5),
 		},
-		NewMessage: make(chan *nostr.Event),
+		NewMessage:     make(chan *nostr.Event),
+		StoredMessages: make(chan []*nostr.Event),
 	}
 	groups[gad.String()] = group
 
@@ -75,6 +77,9 @@ func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
 
 	group.update.debouncer = debounce.New(700 * time.Millisecond)
 
+	storedMessagesChan := make(chan *nostr.Event)
+	chanTarget := storedMessagesChan
+
 	go func() {
 		log.Printf("opening subscription to %s", group.Address)
 		for {
@@ -96,8 +101,12 @@ func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
 					group.Group.MergeInMembersEvent(evt)
 					group.triggerUpdate()
 				case 9, 10:
-					group.NewMessage <- evt
+					chanTarget <- evt
 				}
+			case <-sub.EndOfStoredEvents:
+				chanTarget = group.NewMessage
+				close(storedMessagesChan)
+
 			case <-ctx.Done():
 				// when we leave a group or when we were just browsing it and leave, we close the subscription
 				// and remove it from our list of cached groups
@@ -107,6 +116,14 @@ func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
 				return
 			}
 		}
+	}()
+
+	go func() {
+		storedMessages := make([]*nostr.Event, 0, 500)
+		for evt := range storedMessagesChan {
+			storedMessages = append(storedMessages, evt)
+		}
+		group.StoredMessages <- storedMessages
 	}()
 
 	return group
