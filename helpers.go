@@ -6,11 +6,18 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
-func eachChild(list *gtk.ListBox, fn func(*gtk.ListBoxRow) bool) {
+func eachChild(list *gtk.ListBox, fn func(*gtk.ListBoxRow) (stop bool)) {
 	row, _ := list.LastChild().(*gtk.ListBoxRow)
-	for row != nil {
+	if row == nil {
+		return
+	}
+
+	for {
 		// this repeats until index is -1, at which the loop will break.
 		prev, _ := row.PrevSibling().(*gtk.ListBoxRow)
+		if prev == nil {
+			break
+		}
 
 		if fn(row) {
 			break
