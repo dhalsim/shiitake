@@ -93,21 +93,21 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 			case "Join":
 				button.SetLabel("Joining...")
 				button.SetSensitive(false)
-				go func() {
+				glib.IdleAddPriority(glib.PriorityLow, func() {
 					if err := global.JoinGroup(ctx, group.Address); err != nil {
 						win.ErrorToast(err.Error())
 					}
 					button.SetSensitive(true)
-				}()
+				})
 			case "Leave":
 				button.SetLabel("Leaving...")
 				button.SetSensitive(false)
-				go func() {
+				glib.IdleAddPriority(glib.PriorityLow, func() {
 					if err := global.LeaveGroup(ctx, group.Address); err != nil {
 						win.ErrorToast(err.Error())
 					}
 					button.SetSensitive(true)
-				}()
+				})
 			}
 		})
 		groupInfo.Append(button)
@@ -154,12 +154,12 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 		joinButton.SetTooltipText("Join Group")
 		joinButton.ConnectClicked(func() {
 			revert := utils.ButtonLoading(joinButton, "Joining...")
-			go func() {
+			glib.IdleAddPriority(glib.PriorityLow, func() {
 				if err := global.JoinGroup(ctx, group.Address); err != nil {
 					win.ErrorToast(err.Error())
 				}
 				revert()
-			}()
+			})
 		})
 
 		v.chat.list = gtk.NewListBox()
@@ -222,7 +222,6 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 			row.SetChild(cmessage)
 
 			v.chat.list.Insert(row, -1)
-			v.chat.list.Display().Flush()
 			v.chat.list.SetFocusChild(row)
 		}
 
@@ -246,7 +245,7 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 		go func() {
 			storedMessages := <-group.StoredMessages
 
-			glib.IdleAdd(func() {
+			glib.IdleAddPriority(glib.PriorityLow, func() {
 				for i := len(storedMessages) - 1; i >= 0; i-- {
 					appendMessage(storedMessages[i])
 				}
@@ -254,34 +253,38 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 					showingLoadMoreAlready = true
 					loadMore.Show()
 				}
-			})
 
-			for evt := range group.NewMessage {
-				glib.IdleAdd(func() {
-					appendMessage(evt)
+				go func() {
+					for evt := range group.NewMessage {
+						glib.IdleAdd(func() {
+							appendMessage(evt)
 
-					if !showingLoadMoreAlready &&
-						v.chat.scroll.AllocatedHeight() < int(vp.VAdjustment().Upper()) {
-						showingLoadMoreAlready = true
-						loadMore.Show()
+							if !showingLoadMoreAlready &&
+								v.chat.scroll.AllocatedHeight() < int(vp.VAdjustment().Upper()) {
+								showingLoadMoreAlready = true
+								loadMore.Show()
+							}
+						})
 					}
-				})
-			}
+				}()
+			})
 		}()
 
 		// display either "join" button or composer at the end depending on group membership status
 		v.me.OnListUpdated(func() {
-			if v.me.InGroup(v.group.Address) {
-				if v.chat.composer == nil {
-					// composer must be created here, not on GroupView instantiation, otherwise gtk.NewTextInput crashes
-					v.chat.composer = NewComposerView(v.ctx, v)
-					gtkutil.ForwardTyping(v.chat.list, v.chat.composer.Input)
-					v.chat.bottomStack.AddNamed(v.chat.composer, "composer")
+			glib.IdleAdd(func() {
+				if v.me.InGroup(v.group.Address) {
+					if v.chat.composer == nil {
+						// composer must be created here, not on GroupView instantiation, otherwise gtk.NewTextInput crashes
+						v.chat.composer = NewComposerView(v.ctx, v)
+						gtkutil.ForwardTyping(v.chat.list, v.chat.composer.Input)
+						v.chat.bottomStack.AddNamed(v.chat.composer, "composer")
+					}
+					v.chat.bottomStack.SetVisibleChildName("composer")
+				} else {
+					v.chat.bottomStack.SetVisibleChildName("join")
 				}
-				v.chat.bottomStack.SetVisibleChildName("composer")
-			} else {
-				v.chat.bottomStack.SetVisibleChildName("join")
-			}
+			})
 		})
 	}
 

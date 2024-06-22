@@ -97,34 +97,37 @@ func NewSidebar(ctx context.Context) *Sidebar {
 					})
 				})
 			case gad := <-me.LeftGroup:
-				eachChild(groupsList, func(lbr *gtk.ListBoxRow) bool {
-					if lbr.Name() == gad.String() {
-						groupsList.Remove(lbr)
-						return true // stop
-					}
-					return false // continue
+				glib.IdleAdd(func() {
+					eachChild(groupsList, func(lbr *gtk.ListBoxRow) bool {
+						if lbr.Name() == gad.String() {
+							groupsList.Remove(lbr)
+							return true // stop
+						}
+						return false // continue
+					})
 				})
 			}
 		}
 	}()
 
 	s.selectGroup = func(gad nip29.GroupAddress) {
-		if gad.IsValid() {
-			discover.RemoveCSSClass("bg-amber-400")
-		} else {
-			discover.AddCSSClass("bg-amber-400")
-		}
-
-		eachChild(groupsList, func(lbr *gtk.ListBoxRow) bool {
-			// iterate through all buttons, removing classes from all and adding in the selected
-			sidebuttonWidget := lbr.Child().(*gtk.Button)
-			if lbr.Name() == gad.String() {
-				sidebuttonWidget.AddCSSClass("bg-amber-400")
+		glib.IdleAddPriority(glib.PriorityLow, func() {
+			if gad.IsValid() {
+				discover.RemoveCSSClass("bg-amber-400")
 			} else {
-				sidebuttonWidget.RemoveCSSClass("bg-amber-400")
+				discover.AddCSSClass("bg-amber-400")
 			}
 
-			return false
+			eachChild(groupsList, func(lbr *gtk.ListBoxRow) bool {
+				// iterate through all buttons, removing classes from all and adding in the selected
+				sidebuttonWidget := lbr.Child().(*gtk.Button)
+				if lbr.Name() == gad.String() {
+					sidebuttonWidget.AddCSSClass("bg-amber-400")
+				} else {
+					sidebuttonWidget.RemoveCSSClass("bg-amber-400")
+				}
+				return false
+			})
 		})
 	}
 

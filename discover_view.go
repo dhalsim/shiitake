@@ -98,10 +98,10 @@ func (d *DiscoverView) loadRelay(url string) {
 					button.SetHExpand(false)
 					button.ConnectClicked(func() {
 						revert := utils.ButtonLoading(button, "Opening...")
-						go func() {
+						glib.IdleAddPriority(glib.PriorityLow, func() {
 							win.main.OpenGroup(gad)
 							revert()
-						}()
+						})
 					})
 
 					grid := gtk.NewGrid()

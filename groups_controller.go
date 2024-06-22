@@ -95,6 +95,8 @@ func (v *GroupsController) switchTo(gad nip29.GroupAddress) {
 
 		// set to update window header title
 		groupView.group.OnUpdated(func() {
+			v.switching.Lock()
+			defer v.switching.Unlock()
 			if v.current == groupView {
 				win.main.Header.SetTitleWidget(adw.NewWindowTitle(group.Name, group.Address.String()))
 			}

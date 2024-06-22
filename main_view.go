@@ -60,14 +60,6 @@ func NewMainView(ctx context.Context, w *Window) *MainView {
 	p.Box.Append(p.Header)
 	p.Box.Append(paned)
 
-	// state := gtkcord.FromContext(ctx)
-	// w.ConnectDestroy(state.AddHandler(
-	// 	func(*gateway.MessageCreateEvent) { p.updateWindowTitle() },
-	// 	func(*gateway.MessageUpdateEvent) { p.updateWindowTitle() },
-	// 	func(*gateway.MessageDeleteEvent) { p.updateWindowTitle() },
-	// 	func(*read.UpdateEvent) { p.updateWindowTitle() },
-	// ))
-
 	return &p
 }
 
@@ -79,6 +71,6 @@ func (p *MainView) OpenDiscover() {
 
 func (p *MainView) OpenGroup(gad nip29.GroupAddress) {
 	p.Stack.SetVisibleChild(p.Groups)
-	p.Groups.switchTo(gad)
 	p.Sidebar.selectGroup(gad)
+	p.Groups.switchTo(gad)
 }

@@ -16,6 +16,7 @@ func eachChild(list *gtk.ListBox, fn func(*gtk.ListBoxRow) (stop bool)) {
 		// this repeats until index is -1, at which the loop will break.
 		prev, _ := row.PrevSibling().(*gtk.ListBoxRow)
 		if prev == nil {
+			fn(row)
 			break
 		}
 

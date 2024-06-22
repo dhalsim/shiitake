@@ -59,8 +59,11 @@ func NewUserBar(ctx context.Context) *UserBar {
 
 	go func() {
 		me := global.GetMe(ctx)
-		avatar.SetText(me.PubKey)
-		avatar.SetShowInitials(true)
+
+		glib.IdleAdd(func() {
+			avatar.SetText(me.PubKey)
+			avatar.SetShowInitials(true)
+		})
 
 		resetMetadata := func() {
 			glib.IdleAdd(func() {
