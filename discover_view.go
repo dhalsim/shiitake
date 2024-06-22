@@ -84,6 +84,11 @@ func (d *DiscoverView) loadRelay(url string) {
 					name.AddCSSClass("title-3")
 					name.AddCSSClass("mb-1")
 
+					id := gtk.NewLabel(group.Address.String())
+					id.SetHAlign(gtk.AlignCenter)
+					id.AddCSSClass("text-zinc-500")
+					id.AddCSSClass("text-xs")
+
 					description := gtk.NewLabel(group.About)
 					description.SetWrap(true)
 
@@ -104,10 +109,11 @@ func (d *DiscoverView) loadRelay(url string) {
 					grid.AddCSSClass("my-4")
 					grid.SetHAlign(gtk.AlignCenter)
 					grid.SetHExpand(true)
-					grid.Attach(picture /*    */, 0, 0, 1, 4)
+					grid.Attach(picture /*    */, 0, 0, 1, 3)
 					grid.Attach(name /*       */, 1, 0, 4, 1)
-					grid.Attach(description /**/, 1, 1, 4, 3)
-					grid.Attach(button /*     */, 0, 4, 5, 1)
+					grid.Attach(id /*         */, 1, 1, 4, 1)
+					grid.Attach(description /**/, 1, 2, 4, 1)
+					grid.Attach(button /*     */, 0, 3, 5, 1)
 
 					d.Results.Append(grid)
 				}
