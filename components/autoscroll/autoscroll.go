@@ -1,7 +1,6 @@
 package autoscroll
 
 import (
-	"fmt"
 	"math"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -64,10 +63,10 @@ func NewWindow() *Window {
 			// If the upper value changes and we're still bottomed, then we need
 			// to scroll to the bottom again.
 			newValue := w.upperValue - w.vadj.PageSize()
-			fmt.Println(
-				"upper value changed while bottomed, scrolling to bottom",
-				"old_value", w.vadj.Value(),
-				"new_value", newValue)
+			// fmt.Println(
+			// 	"upper value changed while bottomed, scrolling to bottom",
+			// 	"old_value", w.vadj.Value(),
+			// 	"new_value", newValue)
 
 			w.scrollTo(newValue, true)
 		}
@@ -83,11 +82,11 @@ func NewWindow() *Window {
 		// Check if the user has scrolled anywhere.
 		bottomValue := w.upperValue - w.vadj.PageSize()
 		if bottomValue < 0 || w.vadj.Value() >= bottomValue {
-			fmt.Println(
-				"user has scrolled to the bottom",
-				"upper", w.upperValue,
-				"value", w.vadj.Value(),
-				"bottom_threshold", bottomValue)
+			// fmt.Println(
+			// 	"user has scrolled to the bottom",
+			// 	"upper", w.upperValue,
+			// 	"value", w.vadj.Value(),
+			// 	"bottom_threshold", bottomValue)
 
 			w.state = bottomed
 			w.emitBottomed()
@@ -106,11 +105,11 @@ func NewWindow() *Window {
 				return
 			}
 
-			fmt.Println(
-				"user has scrolled somewhere else, unsetting bottomed state",
-				"upper", w.upperValue,
-				"value", w.vadj.Value(),
-				"bottom_threshold", bottomValue)
+			// fmt.Println(
+			// 	"user has scrolled somewhere else, unsetting bottomed state",
+			// 	"upper", w.upperValue,
+			// 	"value", w.vadj.Value(),
+			// 	"bottom_threshold", bottomValue)
 			w.state = 0
 		})
 	})
@@ -134,21 +133,21 @@ func (w *Window) LockScroll() func() {
 	w.state = locked
 
 	old := getScrollAdjustments(w.vadj)
-	fmt.Println(
-		"scroll is now locked",
-		"old_value", old.value)
+	// fmt.Println(
+	// 	"scroll is now locked",
+	// 	"old_value", old.value)
 
 	return func() {
 		new := getScrollAdjustments(w.vadj)
 		value := new.upper - old.upper + old.value
 
-		fmt.Println(
-			"scrolling to locked value",
-			"old_upper", old.upper,
-			"old_value", old.value,
-			"new_upper", new.upper,
-			"new_value", new.value,
-			"scrolling_to_value", value)
+		// fmt.Println(
+		// 	"scrolling to locked value",
+		// 	"old_upper", old.upper,
+		// 	"old_value", old.value,
+		// 	"new_upper", new.upper,
+		// 	"new_value", new.value,
+		// 	"scrolling_to_value", value)
 
 		w.state = 0
 		w.scrollTo(value, true)
@@ -222,12 +221,12 @@ func (w *Window) scrollTo(targetScroll float64, deferFn bool) {
 			targetScroll += currentAdjs.upper - previousAdjs.upper
 		}
 
-		fmt.Println(
-			"emitting scroll event",
-			"adj_previous", previousAdjs,
-			"adj_current", currentAdjs,
-			"wanted_target", w.targetScroll,
-			"actual_target", targetScroll)
+		// fmt.Println(
+		// 	"emitting scroll event",
+		// 	"adj_previous", previousAdjs,
+		// 	"adj_current", currentAdjs,
+		// 	"wanted_target", w.targetScroll,
+		// 	"actual_target", targetScroll)
 
 		w.vadj.SetValue(targetScroll)
 	}
