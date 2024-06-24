@@ -39,6 +39,7 @@ func NewContent(ctx context.Context, event *nostr.Event) *Content {
 
 	msg := gtk.NewLabel("")
 	msg.SetText(event.Content)
+	msg.SetSelectable(true)
 	msg.SetHExpand(true)
 	msg.SetXAlign(0)
 	msg.SetWrap(true)

@@ -72,11 +72,13 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 		groupInfo.Append(picture)
 
 		name := gtk.NewLabel(group.Name)
+		name.SetSelectable(true)
 		name.AddCSSClass("title-1")
 		name.AddCSSClass("mb-2")
 		groupInfo.Append(name)
 
 		id := gtk.NewLabel(group.Address.String())
+		id.SetSelectable(true)
 		id.AddCSSClass("title-3")
 		id.AddCSSClass("mb-2")
 		groupInfo.Append(id)
