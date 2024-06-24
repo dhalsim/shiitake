@@ -337,6 +337,12 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 		})
 	}
 
+	// forum
+	{
+		forum := gtk.NewBox(gtk.OrientationVertical, 0)
+		viewStack.AddTitled(forum, "forum", "Forum")
+	}
+
 	// always default to displaying the chat
 	viewStack.SetVisibleChildName("chat")
 
