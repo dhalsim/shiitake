@@ -55,8 +55,7 @@ func NewInput(ctx context.Context, ctrl *ComposerView, gad nip29.GroupAddress) *
 
 	i.TextView = gtk.NewTextView()
 	i.TextView.AddCSSClass("mx-2")
-	i.TextView.AddCSSClass("px-4")
-	i.TextView.AddCSSClass("py-2")
+	i.TextView.AddCSSClass("p-2")
 	i.TextView.SetWrapMode(gtk.WrapWordChar)
 	i.TextView.SetAcceptsTab(true)
 	i.TextView.SetHExpand(true)
