@@ -116,10 +116,10 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 		})
 		groupInfo.Append(button)
 
-		membersBox := gtk.NewListBox()
-		membersBox.SetHAlign(gtk.AlignCenter)
+		membersBox := gtk.NewFlowBox()
 		membersBox.AddCSSClass("mt-6")
 		membersBox.AddCSSClass("background")
+		membersBox.SetDirection(gtk.TextDirection(gtk.OrientationHorizontal))
 		groupInfo.Append(membersBox)
 
 		fillingLock := sync.Mutex{}
@@ -134,13 +134,20 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 						roleName = role.Name
 					}
 					p := profile.New(ctx, global.System, pubkey, gtk.NewLabel(roleName))
-					membersBox.Append(p)
+					p.AddCSSClass("px-4")
+					p.AddCSSClass("py-2")
+					membersBox.Insert(p, -1)
 				}
 			})
 		}
 		go fillInMembers()
 
-		viewStack.AddTitled(groupInfo, "group", "Group")
+		groupInfoWrap := gtk.NewScrolledWindow()
+		groupInfoWrap.SetVExpand(true)
+		groupInfoWrap.SetHExpand(true)
+		groupInfoWrap.SetChild(groupInfo)
+
+		viewStack.AddTitled(groupInfoWrap, "group", "Group")
 
 		// update details when we get an update
 		group.OnUpdated(func() {
@@ -155,8 +162,8 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 
 			fillingLock.Lock()
 			glib.IdleAdd(func() {
-				eachChild(membersBox, func(lbr *gtk.ListBoxRow) bool {
-					membersBox.Remove(lbr)
+				eachChildFlow(membersBox, func(fbc *gtk.FlowBoxChild) bool {
+					membersBox.Remove(fbc)
 					return false
 				})
 			})
@@ -187,6 +194,7 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 		joinButton := gtk.NewButtonWithLabel("Join")
 		joinButton.SetHExpand(true)
 		joinButton.SetHAlign(gtk.AlignFill)
+		joinButton.SetVAlign(gtk.AlignCenter)
 		joinButton.AddCSSClass("p-8")
 		joinButton.AddCSSClass("mx-4")
 		joinButton.AddCSSClass("my-2")
@@ -315,7 +323,8 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 			glib.IdleAdd(func() {
 				if v.me.InGroup(v.group.Address) {
 					if v.chat.composer == nil {
-						// composer must be created here, not on GroupView instantiation, otherwise gtk.NewTextInput crashes
+						// composer must be created here, not on GroupView instantiation
+						// otherwise gtk.NewTextInput crashes
 						v.chat.composer = NewComposerView(v.ctx, v)
 						gtkutil.ForwardTyping(v.chat.list, v.chat.composer.Input)
 						v.chat.bottomStack.AddNamed(v.chat.composer, "composer")

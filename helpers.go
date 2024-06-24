@@ -41,6 +41,28 @@ func getChild(list *gtk.ListBox, fn func(*gtk.ListBoxRow) bool) *gtk.ListBoxRow 
 	return row
 }
 
+func eachChildFlow(list *gtk.FlowBox, fn func(*gtk.FlowBoxChild) (stop bool)) {
+	row, _ := list.LastChild().(*gtk.FlowBoxChild)
+	if row == nil {
+		return
+	}
+
+	for {
+		// this repeats until index is -1, at which the loop will break.
+		prev, _ := row.PrevSibling().(*gtk.FlowBoxChild)
+		if prev == nil {
+			fn(row)
+			break
+		}
+
+		if fn(row) {
+			break
+		}
+
+		row = prev
+	}
+}
+
 func trimProtocol(relay string) string {
 	relay = strings.TrimPrefix(relay, "wss://")
 	relay = strings.TrimPrefix(relay, "ws://")
