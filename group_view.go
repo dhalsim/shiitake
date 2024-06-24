@@ -275,6 +275,8 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 
 		v.chat.bottomStack = gtk.NewStack()
 		v.chat.bottomStack.AddNamed(joinButton, "join")
+		v.chat.bottomStack.AddNamed(gtk.NewBox(gtk.OrientationHorizontal, 0), "nothing")
+		v.chat.bottomStack.SetVisibleChildName("nothing")
 
 		chatView := gtk.NewBox(gtk.OrientationVertical, 0)
 		chatView.Append(v.chat.scroll)
@@ -319,7 +321,7 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 		}()
 
 		// display either "join" button or composer at the end depending on group membership status
-		v.me.OnListUpdated(func() {
+		setJoinOrCompose := func() {
 			glib.IdleAdd(func() {
 				if v.me.InGroup(v.group.Address) {
 					if v.chat.composer == nil {
@@ -334,7 +336,9 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 					v.chat.bottomStack.SetVisibleChildName("join")
 				}
 			})
-		})
+		}
+		setJoinOrCompose()
+		v.me.OnListUpdated(setJoinOrCompose)
 	}
 
 	// forum
