@@ -139,7 +139,7 @@ func NewComposerView(ctx context.Context, groupView *GroupView) *ComposerView {
 	v.resetAction()
 
 	v.Box = gtk.NewBox(gtk.OrientationHorizontal, 0)
-	v.Box.SetVAlign(gtk.AlignEnd)
+	v.Box.SetVAlign(gtk.AlignCenter)
 	v.Box.Append(v.leftBox)
 	v.Box.Append(middle)
 	v.Box.Append(v.rightBox)
