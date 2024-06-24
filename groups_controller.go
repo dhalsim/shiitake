@@ -98,7 +98,9 @@ func (v *GroupsController) switchTo(gad nip29.GroupAddress) {
 			v.switching.Lock()
 			defer v.switching.Unlock()
 			if v.current == groupView {
-				win.main.Header.SetTitleWidget(adw.NewWindowTitle(group.Name, group.Address.String()))
+				glib.IdleAdd(func() {
+					win.main.Header.SetTitleWidget(adw.NewWindowTitle(group.Name, group.Address.String()))
+				})
 			}
 		})
 	}

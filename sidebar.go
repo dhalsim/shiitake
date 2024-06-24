@@ -92,8 +92,10 @@ func NewSidebar(ctx context.Context) *Sidebar {
 					groupsList.Append(lbr)
 
 					group.OnUpdated(func() {
-						button.Label.SetText(group.Name)
-						button.Icon.SetFromURL(group.Picture)
+						glib.IdleAdd(func() {
+							button.Label.SetText(group.Name)
+							button.Icon.SetFromURL(group.Picture)
+						})
 					})
 				})
 			case gad := <-me.LeftGroup:
