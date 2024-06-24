@@ -17,7 +17,7 @@ require (
 	github.com/ianlancetaylor/cgosymbolizer v0.0.0-20220405231054-a1ae3e4bba26
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/nbd-wtf/go-nostr v0.31.4
-	github.com/nbd-wtf/nostr-sdk v0.2.2
+	github.com/nbd-wtf/nostr-sdk v0.3.1
 	github.com/pkg/errors v0.9.1
 	github.com/puzpuzpuz/xsync/v3 v3.1.0
 	github.com/sahilm/fuzzy v0.1.0
@@ -80,3 +80,5 @@ replace github.com/diamondburned/gotk4-adwaita/pkg => github.com/fiatjaf/gotk4-a
 replace fiatjaf.com/nostr-gtk => ../nostr-gtk
 
 replace github.com/nbd-wtf/go-nostr => ../go-nostr
+
+replace github.com/nbd-wtf/nostr-sdk => ../nostr-sdk

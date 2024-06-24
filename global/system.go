@@ -13,7 +13,7 @@ var (
 	path, _ = homedir.Expand("~/.local/share/shiitake/cachedb")
 	bb      = &badger.BadgerBackend{Path: path}
 	_       = bb.Init()
-	sys     = sdk.System(sdk.WithStore(bb))
+	System  = sdk.NewSystem(sdk.WithStore(bb))
 
 	initialized = make(chan struct{})
 )
@@ -22,7 +22,7 @@ func Init(ctx context.Context, keyOrBunker string, password string) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
 	defer cancel()
 
-	if err := sys.InitSigner(ctx, keyOrBunker, &sdk.SignerOptions{Password: password}); err != nil {
+	if err := System.InitSigner(ctx, keyOrBunker, &sdk.SignerOptions{Password: password}); err != nil {
 		return err
 	}
 
@@ -33,6 +33,6 @@ func Init(ctx context.Context, keyOrBunker string, password string) error {
 
 func GetUser(ctx context.Context, pubkey string) User {
 	return User{
-		ProfileMetadata: sys.FetchOrStoreProfileMetadata(ctx, pubkey),
+		ProfileMetadata: System.FetchOrStoreProfileMetadata(ctx, pubkey),
 	}
 }

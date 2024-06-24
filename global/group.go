@@ -48,7 +48,7 @@ func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
 	}
 	groups[gad.String()] = group
 
-	relay, err := sys.Pool.EnsureRelay(group.Address.Relay)
+	relay, err := System.Pool.EnsureRelay(group.Address.Relay)
 	if err != nil {
 		slog.Warn("connect error", "relay", group.Address.Relay, "err", err)
 		return group
@@ -148,10 +148,10 @@ func JoinGroup(ctx context.Context, gad nip29.GroupAddress) error {
 		CreatedAt: nostr.Now(),
 		Tags:      nostr.Tags{nostr.Tag{"h", gad.ID}},
 	}
-	if err := sys.Signer.SignEvent(&joinRequest); err != nil {
+	if err := System.Signer.SignEvent(&joinRequest); err != nil {
 		return err
 	}
-	groupRelay, err := sys.Pool.EnsureRelay(gad.Relay)
+	groupRelay, err := System.Pool.EnsureRelay(gad.Relay)
 	if err != nil {
 		return err
 	}
@@ -238,11 +238,11 @@ func (g Group) SendChatMessage(ctx context.Context, text string, replyTo string)
 		evt.Tags = append(evt.Tags, nostr.Tag{"e", replyTo})
 	}
 
-	if err := sys.Signer.SignEvent(&evt); err != nil {
+	if err := System.Signer.SignEvent(&evt); err != nil {
 		return fmt.Errorf("failed to sign: %w", err)
 	}
 
-	relay, err := sys.Pool.EnsureRelay(g.Address.Relay)
+	relay, err := System.Pool.EnsureRelay(g.Address.Relay)
 	if err != nil {
 		return fmt.Errorf("connection to '%s' failed: %w", g.Address.Relay, err)
 	}

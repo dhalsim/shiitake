@@ -60,7 +60,7 @@ func GetMe(ctx context.Context) *Me {
 		return me
 	}
 
-	pubkey := sys.Signer.GetPublicKey()
+	pubkey := System.Signer.GetPublicKey()
 
 	me = &Me{
 		User: GetUser(ctx, pubkey),
@@ -75,7 +75,7 @@ func GetMe(ctx context.Context) *Me {
 	me.listUpdate.debouncer = debounce.New(700 * time.Millisecond)
 
 	go func() {
-		for ie := range sys.Pool.SubMany(bg, sys.MetadataRelays, nostr.Filters{
+		for ie := range System.Pool.SubMany(bg, System.MetadataRelays, nostr.Filters{
 			{
 				Kinds:   []int{0},
 				Authors: []string{me.PubKey},
@@ -89,7 +89,7 @@ func GetMe(ctx context.Context) *Me {
 				continue
 			}
 			me.User.ProfileMetadata = meta
-			sys.StoreRelay.Publish(bg, *ie.Event)
+			System.StoreRelay.Publish(bg, *ie.Event)
 			me.MetadataUpdated <- struct{}{}
 		}
 	}()
@@ -157,13 +157,13 @@ func GetMe(ctx context.Context) *Me {
 			}
 		}
 
-		res, _ := sys.StoreRelay.QuerySync(bg, nostr.Filter{Kinds: []int{10009}, Authors: []string{me.PubKey}})
+		res, _ := System.StoreRelay.QuerySync(bg, nostr.Filter{Kinds: []int{10009}, Authors: []string{me.PubKey}})
 		if len(res) != 0 {
 			processIncomingGroupListEvent(res[0])
 			me.triggerListUpdate()
 		}
 
-		for ie := range sys.Pool.SubMany(bg, sys.FetchOutboxRelays(bg, me.PubKey), nostr.Filters{
+		for ie := range System.Pool.SubMany(bg, System.FetchOutboxRelays(bg, me.PubKey), nostr.Filters{
 			{
 				Kinds:   []int{10009},
 				Authors: []string{me.PubKey},
@@ -171,7 +171,7 @@ func GetMe(ctx context.Context) *Me {
 		}) {
 			processIncomingGroupListEvent(ie.Event)
 			me.triggerListUpdate()
-			sys.StoreRelay.Publish(bg, *ie.Event)
+			System.StoreRelay.Publish(bg, *ie.Event)
 		}
 	}()
 
@@ -192,12 +192,12 @@ func (me *Me) triggerListUpdate() {
 
 func (me *Me) updateAndPublishLastList(ctx context.Context) error {
 	me.lastList.CreatedAt = nostr.Now()
-	if err := sys.Signer.SignEvent(me.lastList); err != nil {
+	if err := System.Signer.SignEvent(me.lastList); err != nil {
 		return fmt.Errorf("failed to sign event: %w", err)
 	}
 
-	for _, url := range sys.FetchOutboxRelays(ctx, me.PubKey) {
-		relay, err := sys.Pool.EnsureRelay(url)
+	for _, url := range System.FetchOutboxRelays(ctx, me.PubKey) {
+		relay, err := System.Pool.EnsureRelay(url)
 		if err != nil {
 			slog.Warn("failed to connect to outbox relay in order to publish list", "relay", url, "err", err)
 			continue
@@ -209,7 +209,7 @@ func (me *Me) updateAndPublishLastList(ctx context.Context) error {
 		}
 	}
 
-	if err := sys.StoreRelay.Publish(ctx, *me.lastList); err != nil {
+	if err := System.StoreRelay.Publish(ctx, *me.lastList); err != nil {
 		return fmt.Errorf("failed to store new groups list locally: %w", err)
 	}
 

@@ -54,7 +54,7 @@ func LoadRelay(ctx context.Context, url string) (*Relay, error) {
 		relay.Name = url
 	}
 
-	r, err := sys.Pool.EnsureRelay(url)
+	r, err := System.Pool.EnsureRelay(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to '%s': %w", url, err)
 	}
