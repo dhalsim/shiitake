@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./**.go'],
+  content: ['./**.go', '../nostr-gtk/**.go'],
   theme: {
     extend: {},
   },

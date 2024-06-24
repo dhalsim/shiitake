@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"sync"
 
 	"fiatjaf.com/nostr-gtk/components/avatar"
+	"fiatjaf.com/nostr-gtk/components/profile"
 	"fiatjaf.com/shiitake/components/autoscroll"
 	"fiatjaf.com/shiitake/global"
 	"fiatjaf.com/shiitake/utils"
@@ -114,16 +116,52 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 		})
 		groupInfo.Append(button)
 
+		membersBox := gtk.NewListBox()
+		membersBox.SetHAlign(gtk.AlignCenter)
+		membersBox.AddCSSClass("mt-6")
+		membersBox.AddCSSClass("background")
+		groupInfo.Append(membersBox)
+
+		fillingLock := sync.Mutex{}
+		fillInMembers := func() {
+			fillingLock.Lock()
+			defer fillingLock.Unlock()
+
+			glib.IdleAdd(func() {
+				for pubkey, role := range group.Members {
+					roleName := ""
+					if role != nil {
+						roleName = role.Name
+					}
+					p := profile.New(ctx, global.System, pubkey, gtk.NewLabel(roleName))
+					membersBox.Append(p)
+				}
+			})
+		}
+		go fillInMembers()
+
 		viewStack.AddTitled(groupInfo, "group", "Group")
 
 		// update details when we get an update
 		group.OnUpdated(func() {
-			if group.Picture != "" {
-				picture.SetFromURL(group.Picture)
-			}
-			name.SetLabel(group.Name)
-			id.SetLabel(group.Address.String())
-			about.SetLabel(group.About)
+			glib.IdleAdd(func() {
+				if group.Picture != "" {
+					picture.SetFromURL(group.Picture)
+				}
+				name.SetLabel(group.Name)
+				id.SetLabel(group.Address.String())
+				about.SetLabel(group.About)
+			})
+
+			fillingLock.Lock()
+			glib.IdleAdd(func() {
+				eachChild(membersBox, func(lbr *gtk.ListBoxRow) bool {
+					membersBox.Remove(lbr)
+					return false
+				})
+			})
+			fillingLock.Unlock()
+			fillInMembers()
 		})
 
 		// display either "join" or "leave" at the bottom depending on group membership status
