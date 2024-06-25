@@ -22,7 +22,7 @@ import (
 )
 
 type Message struct {
-	*gtk.Box
+	*adw.Clamp
 	ctx    context.Context
 	Avatar *avatar.Avatar
 
@@ -37,14 +37,26 @@ func NewMessage(
 	authorIsTheSameAsPrevious bool,
 ) *Message {
 	m := &Message{
-		ctx: ctx,
-		Box: gtk.NewBox(gtk.OrientationHorizontal, 0),
+		ctx:   ctx,
+		Clamp: adw.NewClamp(),
 		message: message{
 			Content: NewContent(ctx, event),
 			Event:   event,
 		},
 	}
 	m.message.parent = m
+
+	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	box.AddCSSClass(fmt.Sprintf("msg-bg-%s", event.PubKey[63:64]))
+	box.AddCSSClass("p-2")
+	box.AddCSSClass("mx-2")
+	box.AddCSSClass("rounded")
+
+	m.Clamp.SetChild(box)
+	m.Clamp.SetMaximumSize(500)
+	m.Clamp.SetDirection(gtk.TextDirection(gtk.OrientationHorizontal))
+	m.Clamp.SetTighteningThreshold(300)
+	m.Clamp.SetHAlign(gtk.AlignStart)
 
 	guctx, cancel := context.WithTimeout(ctx, time.Second*2)
 	user := global.GetUser(guctx, event.PubKey)
@@ -93,19 +105,18 @@ func NewMessage(
 		avatar.SetVAlign(gtk.AlignCenter)
 		avatar.SetTooltipMarkup(tooltip)
 		avatar.SetFromURL(user.Picture)
-		avatar.AddCSSClass("mx-2")
-		m.Box.Append(avatar)
+		avatar.AddCSSClass("mr-2")
+		box.Append(avatar)
 
 		if authorIsTheSameAsPrevious {
 			// hide the avatar if it's the same as the previous
 			avatar.AddCSSClass("opacity-0")
 		}
 	} else {
-		m.Box.SetHAlign(gtk.AlignEnd)
-		m.Box.AddCSSClass("mr-2")
+		m.Clamp.SetHAlign(gtk.AlignEnd)
 	}
 
-	m.Box.Append(rightBox)
+	box.Append(rightBox)
 
 	// bind menu actions
 	if m.message.Menu != nil {
