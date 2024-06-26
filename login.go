@@ -18,7 +18,8 @@ type LoginPage struct {
 	*gtk.Box
 	ctx context.Context
 
-	driver secret.Driver
+	driver     secret.Driver
+	errorLabel *gtk.Label
 }
 
 func NewLoginPage(ctx context.Context, w *Window) *LoginPage {
@@ -72,6 +73,15 @@ func NewLoginPage(ctx context.Context, w *Window) *LoginPage {
 	body.SetHExpand(true)
 	body.Show()
 
+	p.errorLabel = gtk.NewLabel("")
+	p.errorLabel.SetHAlign(gtk.AlignStart)
+	p.errorLabel.SetMarginTop(10)
+	p.errorLabel.SetMarginBottom(10)
+	p.errorLabel.SetMarginStart(10)
+	p.errorLabel.SetMarginEnd(10)
+	p.errorLabel.Hide()
+
+	body.Append(p.errorLabel)
 	body.Append(input)
 	body.Append(password)
 	body.Append(submit)
@@ -87,6 +97,8 @@ func (p *LoginPage) login(input, password string) error {
 	err := global.Init(p.ctx, input, password)
 	if err != nil {
 		slog.Error("error initializing signer", err)
+		p.errorLabel.SetText(err.Error())
+		p.errorLabel.Show()
 		return err
 	}
 
