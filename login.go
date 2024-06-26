@@ -53,11 +53,11 @@ func NewLoginPage(ctx context.Context, w *Window) *LoginPage {
 	})
 	p.input.AddCSSClass("mb-4")
 	p.input.AddCSSClass("rounded")
-	p.input.ConnectActivate(login)
+	p.input.ConnectEntryActivated(login)
 	p.input.Show()
 
 	p.password.SetTitle("password")
-	p.password.ConnectActivate(login)
+	p.password.ConnectEntryActivated(login)
 	p.password.AddCSSClass("mb-4")
 	p.password.AddCSSClass("rounded")
 	p.password.Hide()
