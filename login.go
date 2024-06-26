@@ -128,7 +128,9 @@ func (p *LoginPage) TryLoginFromDriver(ctx context.Context) {
 
 		return func() {
 			value := string(b)
-			p.login(value, "")
+			if !strings.HasPrefix(value, "ncryptsec1") {
+				p.login(value, "")
+			}
 		}
 	})
 }
