@@ -16,10 +16,10 @@ import (
 
 type LoginPage struct {
 	*gtk.Box
-	ctx context.Context
-
+	ctx        context.Context
 	driver     secret.Driver
 	input      *adw.EntryRow
+	password   *adw.PasswordEntryRow
 	errorLabel *gtk.Label
 }
 
@@ -32,11 +32,11 @@ func NewLoginPage(ctx context.Context, w *Window) *LoginPage {
 	header.SetShowBackButton(false)
 	header.SetShowTitle(true)
 
-	password := adw.NewPasswordEntryRow()
 	p.input = adw.NewEntryRow()
+	p.password = adw.NewPasswordEntryRow()
 
 	login := func() {
-		err := p.login(p.input.Text(), password.Text())
+		err := p.login(p.input.Text(), p.password.Text())
 		if err != nil {
 			return
 		}
@@ -48,7 +48,7 @@ func NewLoginPage(ctx context.Context, w *Window) *LoginPage {
 	p.input.SetTitle("nsec, ncryptsec or bunker")
 	p.input.ConnectChanged(func() {
 		if strings.HasPrefix(p.input.Text(), "ncryptsec1") {
-			password.Show()
+			p.password.Show()
 		}
 	})
 	p.input.AddCSSClass("mb-4")
@@ -56,11 +56,11 @@ func NewLoginPage(ctx context.Context, w *Window) *LoginPage {
 	p.input.ConnectActivate(login)
 	p.input.Show()
 
-	password.SetTitle("password")
-	password.ConnectActivate(login)
-	password.AddCSSClass("mb-4")
-	password.AddCSSClass("rounded")
-	password.Hide()
+	p.password.SetTitle("password")
+	p.password.ConnectActivate(login)
+	p.password.AddCSSClass("mb-4")
+	p.password.AddCSSClass("rounded")
+	p.password.Hide()
 
 	submit := gtk.NewButtonWithLabel("Log In")
 	submit.AddCSSClass("suggested-action")
@@ -84,7 +84,7 @@ func NewLoginPage(ctx context.Context, w *Window) *LoginPage {
 
 	body.Append(p.errorLabel)
 	body.Append(p.input)
-	body.Append(password)
+	body.Append(p.password)
 	body.Append(submit)
 
 	p.Box = gtk.NewBox(gtk.OrientationVertical, 0)
@@ -124,6 +124,7 @@ func (p *LoginPage) TryLoginFromDriver(ctx context.Context) {
 				// display login form
 				win.Stack.SetVisibleChild(p)
 				win.SetTitle("Login")
+				p.input.GrabFocus()
 			}
 		}
 
@@ -132,6 +133,8 @@ func (p *LoginPage) TryLoginFromDriver(ctx context.Context) {
 			p.input.SetText(value)
 			if !strings.HasPrefix(value, "ncryptsec1") {
 				p.login(value, "")
+			} else {
+				p.password.GrabFocus()
 			}
 		}
 	})
