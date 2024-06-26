@@ -103,6 +103,11 @@ func (p *LoginPage) login(input, password string) error {
 		slog.Error("error initializing signer", err)
 		p.errorLabel.SetText(err.Error())
 		p.errorLabel.Show()
+		if !strings.HasPrefix(input, "ncryptsec1") {
+			p.input.GrabFocus()
+		} else {
+			p.password.GrabFocus()
+		}
 		return err
 	}
 
