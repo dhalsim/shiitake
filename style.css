@@ -19,6 +19,8 @@
 .msg-bg-e { background-color: hsl(315.0, 66%, 89%); }
 .msg-bg-f { background-color: hsl(337.5, 66%, 89%); }
 
+.alert { background-color: #fff5ce; color: #000; }
+
 .dark .msg-bg-0 { background-color: hsl(0.0, 50%, 21%); }
 .dark .msg-bg-1 { background-color: hsl(22.5, 50%, 21%); }
 .dark .msg-bg-2 { background-color: hsl(45.0, 50%, 21%); }
