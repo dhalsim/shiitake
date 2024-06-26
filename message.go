@@ -21,7 +21,7 @@ import (
 )
 
 type Message struct {
-	*adw.Clamp
+	*gtk.Box
 	ctx    context.Context
 	Avatar *avatar.Avatar
 
@@ -36,8 +36,8 @@ func NewMessage(
 	authorIsTheSameAsPrevious bool,
 ) *Message {
 	m := &Message{
-		ctx:   ctx,
-		Clamp: adw.NewClamp(),
+		ctx: ctx,
+		Box: gtk.NewBox(gtk.OrientationHorizontal, 0),
 		message: message{
 			Content: NewContent(ctx, event),
 			Event:   event,
@@ -45,17 +45,11 @@ func NewMessage(
 	}
 	m.message.parent = m
 
-	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	box.AddCSSClass(fmt.Sprintf("msg-bg-%s", event.PubKey[63:64]))
-	box.AddCSSClass("p-2")
-	box.AddCSSClass("mx-2")
-	box.AddCSSClass("rounded")
-
-	m.Clamp.SetChild(box)
-	m.Clamp.SetMaximumSize(500)
-	m.Clamp.SetDirection(gtk.TextDirection(gtk.OrientationHorizontal))
-	m.Clamp.SetTighteningThreshold(300)
-	m.Clamp.SetHAlign(gtk.AlignStart)
+	messageBox := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	messageBox.AddCSSClass(fmt.Sprintf("msg-bg-%s", event.PubKey[63:64]))
+	messageBox.AddCSSClass("p-2")
+	messageBox.AddCSSClass("mx-2")
+	messageBox.AddCSSClass("rounded")
 
 	guctx, cancel := context.WithTimeout(ctx, time.Second*2)
 	user := global.GetUser(guctx, event.PubKey)
@@ -98,6 +92,9 @@ func NewMessage(
 
 	rightBox.Append(m.message.Content)
 
+	emptySpace := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	emptySpace.SetSizeRequest(win.Size(gtk.OrientationHorizontal)*4/10, -1)
+
 	if !fromLoggedUser {
 		// hide the avatar if it's us
 		avatar := avatar.New(ctx, 30, event.PubKey)
@@ -105,17 +102,25 @@ func NewMessage(
 		avatar.SetTooltipMarkup(tooltip)
 		avatar.SetFromURL(user.Picture)
 		avatar.AddCSSClass("mr-2")
-		box.Append(avatar)
+		messageBox.Append(avatar)
 
 		if authorIsTheSameAsPrevious {
 			// hide the avatar if it's the same as the previous
 			avatar.AddCSSClass("opacity-0")
 		}
+
+		// first the message, then an empty space
+		m.Box.SetHAlign(gtk.AlignStart)
+		m.Box.Append(messageBox)
+		m.Box.Append(emptySpace)
 	} else {
-		m.Clamp.SetHAlign(gtk.AlignEnd)
+		// first the message, then an empty space
+		m.Box.SetHAlign(gtk.AlignEnd)
+		m.Box.Append(emptySpace)
+		m.Box.Append(messageBox)
 	}
 
-	box.Append(rightBox)
+	messageBox.Append(rightBox)
 
 	// bind menu actions
 	if m.message.Menu != nil {
