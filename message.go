@@ -14,7 +14,6 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
-	"github.com/diamondburned/gotkit/app"
 	"github.com/diamondburned/gotkit/app/locale"
 	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/textutil"
@@ -194,7 +193,6 @@ func (msg *message) ShowEmojiChooser() {
 func (msg *message) ShowSource() {
 	d := adw.NewWindow()
 	d.SetTitle(locale.Get("View Source"))
-	d.SetTransientFor(app.GTKWindowFromContext(msg.ctx))
 	d.SetModal(true)
 	d.SetDefaultSize(730, 400)
 
