@@ -19,6 +19,7 @@ type LoginPage struct {
 	ctx context.Context
 
 	driver     secret.Driver
+	input      *adw.EntryRow
 	errorLabel *gtk.Label
 }
 
@@ -31,29 +32,29 @@ func NewLoginPage(ctx context.Context, w *Window) *LoginPage {
 	header.SetShowBackButton(false)
 	header.SetShowTitle(true)
 
-	input := adw.NewEntryRow()
 	password := adw.NewPasswordEntryRow()
+	p.input = adw.NewEntryRow()
 
 	login := func() {
-		err := p.login(input.Text(), password.Text())
+		err := p.login(p.input.Text(), password.Text())
 		if err != nil {
 			return
 		}
 
 		// here we have a signer, so we can store our input value
-		p.driver.Set("key-or-bunker", []byte(input.Text()))
+		p.driver.Set("key-or-bunker", []byte(p.input.Text()))
 	}
 
-	input.SetTitle("nsec, ncryptsec or bunker")
-	input.ConnectChanged(func() {
-		if strings.HasPrefix(input.Text(), "ncryptsec1") {
+	p.input.SetTitle("nsec, ncryptsec or bunker")
+	p.input.ConnectChanged(func() {
+		if strings.HasPrefix(p.input.Text(), "ncryptsec1") {
 			password.Show()
 		}
 	})
-	input.AddCSSClass("mb-4")
-	input.AddCSSClass("rounded")
-	input.ConnectActivate(login)
-	input.Show()
+	p.input.AddCSSClass("mb-4")
+	p.input.AddCSSClass("rounded")
+	p.input.ConnectActivate(login)
+	p.input.Show()
 
 	password.SetTitle("password")
 	password.ConnectActivate(login)
@@ -82,7 +83,7 @@ func NewLoginPage(ctx context.Context, w *Window) *LoginPage {
 	p.errorLabel.Hide()
 
 	body.Append(p.errorLabel)
-	body.Append(input)
+	body.Append(p.input)
 	body.Append(password)
 	body.Append(submit)
 
@@ -128,6 +129,7 @@ func (p *LoginPage) TryLoginFromDriver(ctx context.Context) {
 
 		return func() {
 			value := string(b)
+			p.input.SetText(value)
 			if !strings.HasPrefix(value, "ncryptsec1") {
 				p.login(value, "")
 			}
