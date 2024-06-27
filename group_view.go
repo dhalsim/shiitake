@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"log/slog"
+	"strings"
 	"sync"
 
 	"fiatjaf.com/nostr-gtk/components/avatar"
+	"fiatjaf.com/nostr-gtk/components/composer"
 	"fiatjaf.com/nostr-gtk/components/profile"
 	"fiatjaf.com/shiitake/components/autoscroll"
 	"fiatjaf.com/shiitake/global"
@@ -15,6 +18,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/nbd-wtf/go-nostr"
+	"golang.org/x/exp/maps"
 )
 
 type GroupView struct {
@@ -29,7 +33,7 @@ type GroupView struct {
 		scroll      *autoscroll.Window
 		list        *gtk.ListBox
 		bottomStack *gtk.Stack
-		composer    *ComposerView
+		composer    *composer.ComposerView
 		replyingTo  *gtk.ListBoxRow
 	}
 }
@@ -327,7 +331,19 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 					if v.chat.composer == nil {
 						// composer must be created here, not on GroupView instantiation
 						// otherwise gtk.NewTextInput crashes
-						v.chat.composer = NewComposerView(v.ctx, v)
+						v.chat.composer = composer.New(v.ctx, v.group.Address.String(), composer.Options{
+							System:      global.System,
+							Placeholder: "Message " + group.Address.String(),
+							OnSend: func(ctx context.Context, text string, replyingTo string) {
+								if err := v.group.SendChatMessage(ctx, text, replyingTo); err != nil {
+									slog.Warn(err.Error())
+									win.ErrorToast(strings.Replace(err.Error(), " msg: ", " ", 1))
+									return
+								}
+							},
+							OnStopEditingOrReplying: v.stopEditingOrReplying,
+							Users:                   maps.Keys(v.group.Members),
+						})
 						gtkutil.ForwardTyping(v.chat.list, v.chat.composer.Input)
 						v.chat.bottomStack.AddNamed(v.chat.composer, "composer")
 					}

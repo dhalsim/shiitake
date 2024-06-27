@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"fiatjaf.com/nostr-gtk/components/composer"
 	"fiatjaf.com/shiitake/components/icon_placeholder"
 	"fiatjaf.com/shiitake/global"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -20,7 +21,7 @@ type GroupsController struct {
 	*gtk.Stack
 
 	LoadMore *gtk.Button
-	Composer *ComposerView
+	Composer *composer.ComposerView
 
 	placeholder gtk.Widgetter
 

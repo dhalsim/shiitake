@@ -119,7 +119,7 @@ func lastNLogLines(n int) string {
 	handler := logui.DefaultLogHandler()
 
 	logModel := handler.ListModel()
-	nLogs := logModel.NItems()
+	nLogs := int(logModel.NItems())
 
 	iter := logModel.RangeItems(max(0, nLogs-n), nLogs)
 	logs := logui.RecordsToString(iter)

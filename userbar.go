@@ -5,7 +5,7 @@ import (
 
 	"fiatjaf.com/nostr-gtk/components/avatar"
 	"fiatjaf.com/shiitake/global"
-	"github.com/diamondburned/gotk4/pkg/core/glib"
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
 	"github.com/diamondburned/gotkit/gtkutil"

@@ -17,6 +17,7 @@ import (
 	"github.com/diamondburned/gotkit/app/locale"
 	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/textutil"
+	"github.com/dustin/go-humanize"
 	"github.com/nbd-wtf/go-nostr"
 )
 
@@ -65,11 +66,14 @@ func NewMessage(
 	name.SetEllipsize(pango.EllipsizeEnd)
 	name.SetSingleLineMode(true)
 
-	timestamp := gtk.NewLabel(locale.TimeAgo(event.CreatedAt.Time()))
+	timestamp := gtk.NewLabel(humanize.Time(event.CreatedAt.Time()))
 	timestamp.AddCSSClass("text-zinc-500")
 	timestamp.AddCSSClass("text-xs")
 	timestamp.AddCSSClass("ml-4")
+	timestamp.AddCSSClass("mr-2")
 	timestamp.SetYAlign(1)
+	timestamp.SetHAlign(gtk.AlignEnd)
+	timestamp.SetHExpand(true)
 	timestamp.SetSingleLineMode(true)
 
 	tooltip := fmt.Sprintf(

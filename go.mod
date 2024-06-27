@@ -7,10 +7,10 @@ require (
 	github.com/bep/debounce v1.2.1
 	github.com/diamondburned/adaptive v0.0.2-0.20221227093656-fa139be203a8
 	github.com/diamondburned/arikawa/v3 v3.3.5
-	github.com/diamondburned/chatkit v0.0.0-20240214131532-4b8acdf0f84b
+	github.com/diamondburned/chatkit v0.0.0-20240614105536-5788b19145bc
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20240604001651-1286f0db18ea
-	github.com/diamondburned/gotk4/pkg v0.2.2
-	github.com/diamondburned/gotkit v0.0.0-20240421051130-6094a5dcd206
+	github.com/diamondburned/gotk4/pkg v0.2.3-0.20240606221803-e395a91f5db3
+	github.com/diamondburned/gotkit v0.0.0-20240614105032-cdfb37197d77
 	github.com/diamondburned/ningen/v3 v3.0.1-0.20240215053437-0d35ff052647
 	github.com/dustin/go-humanize v1.0.1
 	github.com/fiatjaf/eventstore v0.4.5
@@ -20,11 +20,10 @@ require (
 	github.com/nbd-wtf/nostr-sdk v0.3.1
 	github.com/pkg/errors v0.9.1
 	github.com/puzpuzpuz/xsync/v3 v3.1.0
-	github.com/sahilm/fuzzy v0.1.0
 	github.com/zalando/go-keyring v0.2.1
 	golang.org/x/crypto v0.23.0
 	golang.org/x/exp v0.0.0-20240531132922-fd00a4e0eefc
-	libdb.so/ctxt v0.0.0-20240216055249-07a499f07b78
+	libdb.so/ctxt v0.0.0-20240229093153-2db38a5d3c12
 )
 
 require (
@@ -59,6 +58,7 @@ require (
 	github.com/lmittmann/tint v1.0.4 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/sahilm/fuzzy v0.1.1 // indirect
 	github.com/tidwall/gjson v1.17.1 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect

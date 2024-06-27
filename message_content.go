@@ -11,8 +11,6 @@ import (
 	"github.com/diamondburned/gotkit/app/locale"
 	"github.com/diamondburned/gotkit/gtkutil"
 	"github.com/diamondburned/gotkit/gtkutil/imgutil"
-	"github.com/diamondburned/gotkit/gtkutil/textutil"
-	"github.com/diamondburned/ningen/v3/discordmd"
 	"github.com/nbd-wtf/go-nostr"
 )
 
@@ -21,7 +19,6 @@ type Content struct {
 	*gtk.Box
 	ctx   context.Context
 	menu  *gio.Menu
-	react *contentReactions
 	child []gtk.Widgetter
 
 	MessageID string
@@ -282,31 +279,6 @@ func (c *Content) Redact() {
 	red := gtk.NewLabel(locale.Get("Redacted."))
 	red.SetXAlign(0)
 	c.append(red)
-}
-
-// SetReactions sets the reactions inside the message.
-func (c *Content) SetReactions(reactions []string) {
-	if c.react == nil {
-		if len(reactions) == 0 {
-			return
-		}
-		c.react = newContentReactions(c.ctx, c)
-		c.append(c.react)
-	}
-	c.react.SetReactions(reactions)
-}
-
-var inlineEmojiTag = textutil.TextTag{
-	"rise":     -5 * pango.SCALE,
-	"rise-set": true,
-}
-
-var htmlTagMap = map[discordmd.Attribute]string{
-	discordmd.AttrBold:          "b",
-	discordmd.AttrItalics:       "i",
-	discordmd.AttrUnderline:     "u",
-	discordmd.AttrStrikethrough: "strike",
-	discordmd.AttrMonospace:     "code",
 }
 
 // rgba(111, 120, 219, 0.3)
