@@ -343,6 +343,11 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 							},
 							OnStopEditingOrReplying: v.stopEditingOrReplying,
 							Users:                   maps.Keys(v.group.Members),
+							SendIcon:                "paper-plane-symbolic",
+							EmojiIcon:               "sentiment-satisfied-symbolic",
+							StopIcon:                "edit-clear-all-symbolic",
+							ReplyIcon:               "mail-reply-sender-symbolic",
+							UploadIcon:              "list-add-symbolic",
 						})
 						gtkutil.ForwardTyping(v.chat.list, v.chat.composer.Input)
 						v.chat.bottomStack.AddNamed(v.chat.composer, "composer")
