@@ -155,9 +155,6 @@ func JoinGroup(ctx context.Context, gad nip29.GroupAddress) error {
 	if err != nil {
 		return err
 	}
-	if err := groupRelay.Publish(ctx, joinRequest); err != nil {
-		return err
-	}
 
 	// wait for an automatic response -- or nothing
 	sctx, cancel := context.WithTimeout(ctx, time.Second*5)
@@ -174,6 +171,10 @@ func JoinGroup(ctx context.Context, gad nip29.GroupAddress) error {
 		},
 	})
 	if err != nil {
+		return err
+	}
+
+	if err := groupRelay.Publish(ctx, joinRequest); err != nil {
 		return err
 	}
 
