@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"time"
 
 	"fiatjaf.com/nostr-gtk/components/avatar"
 	"fiatjaf.com/shiitake/global"
@@ -59,7 +60,12 @@ func NewDiscoverView(ctx context.Context) *DiscoverView {
 func (d *DiscoverView) loadRelay(url string) {
 	relay, err := global.LoadRelay(d.ctx, url)
 	if err != nil {
-		win.ErrorToast(err.Error())
+		go func() {
+			time.Sleep(time.Second * 3)
+			glib.IdleAdd(func() {
+				win.ErrorToast(err.Error())
+			})
+		}()
 		return
 	}
 
