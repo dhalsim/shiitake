@@ -79,7 +79,6 @@ func NewSidebar(ctx context.Context) *Sidebar {
 			select {
 			case group := <-me.JoinedGroup:
 				gad := group.Address
-
 				glib.IdleAdd(func() {
 					button := sidebutton.New(ctx, group.Name, func() {
 						win.main.OpenGroup(gad)

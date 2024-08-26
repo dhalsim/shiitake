@@ -11,17 +11,13 @@ require (
 	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20240604001651-1286f0db18ea
 	github.com/diamondburned/gotk4/pkg v0.2.3-0.20240606221803-e395a91f5db3
 	github.com/diamondburned/gotkit v0.0.0-20240614105032-cdfb37197d77
-	github.com/diamondburned/ningen/v3 v3.0.1-0.20240215053437-0d35ff052647
 	github.com/dustin/go-humanize v1.0.1
-	github.com/fiatjaf/eventstore v0.4.5
+	github.com/fiatjaf/eventstore v0.7.1
 	github.com/ianlancetaylor/cgosymbolizer v0.0.0-20220405231054-a1ae3e4bba26
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/nbd-wtf/go-nostr v0.31.4
+	github.com/nbd-wtf/go-nostr v0.34.5
 	github.com/nbd-wtf/nostr-sdk v0.3.1
-	github.com/pkg/errors v0.9.1
 	github.com/puzpuzpuz/xsync/v3 v3.1.0
-	github.com/zalando/go-keyring v0.2.1
-	golang.org/x/crypto v0.23.0
 	golang.org/x/exp v0.0.0-20240531132922-fd00a4e0eefc
 	libdb.so/ctxt v0.0.0-20240229093153-2db38a5d3c12
 )
@@ -58,15 +54,16 @@ require (
 	github.com/lmittmann/tint v1.0.4 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sahilm/fuzzy v0.1.1 // indirect
 	github.com/tidwall/gjson v1.17.1 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/yalue/merged_fs v1.2.3 // indirect
-	github.com/yuin/goldmark v1.5.6 // indirect
+	github.com/zalando/go-keyring v0.2.1 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	go4.org v0.0.0-20200411211856-f5505b9728dd // indirect
 	go4.org/unsafe/assume-no-moving-gc v0.0.0-20231121144256-b99613f794b6 // indirect
+	golang.org/x/crypto v0.23.0 // indirect
 	golang.org/x/image v0.0.0-20220902085622-e7cb96979f69 // indirect
 	golang.org/x/net v0.21.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect

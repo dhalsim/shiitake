@@ -33,6 +33,6 @@ func Init(ctx context.Context, keyOrBunker string, password string) error {
 
 func GetUser(ctx context.Context, pubkey string) User {
 	return User{
-		ProfileMetadata: System.FetchOrStoreProfileMetadata(ctx, pubkey),
+		ProfileMetadata: System.FetchProfileMetadata(ctx, pubkey),
 	}
 }

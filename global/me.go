@@ -163,7 +163,7 @@ func GetMe(ctx context.Context) *Me {
 			me.triggerListUpdate()
 		}
 
-		for ie := range System.Pool.SubMany(bg, System.FetchOutboxRelays(bg, me.PubKey, 3, true), nostr.Filters{
+		for ie := range System.Pool.SubMany(bg, System.FetchOutboxRelays(bg, me.PubKey, 3), nostr.Filters{
 			{
 				Kinds:   []int{10009},
 				Authors: []string{me.PubKey},
@@ -196,7 +196,7 @@ func (me *Me) updateAndPublishLastList(ctx context.Context) error {
 		return fmt.Errorf("failed to sign event: %w", err)
 	}
 
-	for _, url := range System.FetchOutboxRelays(ctx, me.PubKey, 3, true) {
+	for _, url := range System.FetchOutboxRelays(ctx, me.PubKey, 3) {
 		relay, err := System.Pool.EnsureRelay(url)
 		if err != nil {
 			slog.Warn("failed to connect to outbox relay in order to publish list", "relay", url, "err", err)
