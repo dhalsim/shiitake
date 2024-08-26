@@ -6,6 +6,7 @@ import (
 	"log"
 	"log/slog"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -174,7 +175,7 @@ func JoinGroup(ctx context.Context, gad nip29.GroupAddress) error {
 		return err
 	}
 
-	if err := groupRelay.Publish(ctx, joinRequest); err != nil {
+	if err := groupRelay.Publish(ctx, joinRequest); err != nil && !strings.Contains(err.Error(), "already a member") {
 		return err
 	}
 
