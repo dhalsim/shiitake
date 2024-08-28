@@ -60,7 +60,7 @@ func GetMe(ctx context.Context) *Me {
 		return me
 	}
 
-	pubkey := System.Signer.GetPublicKey()
+	pubkey := Signer.GetPublicKey()
 
 	me = &Me{
 		User: GetUser(ctx, pubkey),
@@ -192,7 +192,7 @@ func (me *Me) triggerListUpdate() {
 
 func (me *Me) updateAndPublishLastList(ctx context.Context) error {
 	me.lastList.CreatedAt = nostr.Now()
-	if err := System.Signer.SignEvent(me.lastList); err != nil {
+	if err := Signer.SignEvent(me.lastList); err != nil {
 		return fmt.Errorf("failed to sign event: %w", err)
 	}
 
