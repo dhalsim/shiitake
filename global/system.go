@@ -6,8 +6,8 @@ import (
 
 	"github.com/fiatjaf/eventstore/badger"
 	"github.com/mitchellh/go-homedir"
-	sdk "github.com/nbd-wtf/nostr-sdk"
-	"github.com/nbd-wtf/nostr-sdk/signer"
+	"github.com/nbd-wtf/go-nostr/keyer"
+	"github.com/nbd-wtf/go-nostr/sdk"
 )
 
 var (
@@ -15,7 +15,7 @@ var (
 	bb      = &badger.BadgerBackend{Path: path}
 	_       = bb.Init()
 	System  = sdk.NewSystem(sdk.WithStore(bb))
-	Signer  signer.Signer
+	K       keyer.Keyer
 
 	initialized = make(chan struct{})
 )
@@ -24,10 +24,10 @@ func Init(ctx context.Context, keyOrBunker string, password string) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
 	defer cancel()
 
-	if s, err := signer.New(ctx, System.Pool, keyOrBunker, &signer.SignerOptions{Password: password}); err != nil {
+	if k, err := keyer.New(ctx, System.Pool, keyOrBunker, &keyer.SignerOptions{Password: password}); err != nil {
 		return err
 	} else {
-		Signer = s
+		K = k
 	}
 
 	close(initialized)

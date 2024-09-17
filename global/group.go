@@ -149,7 +149,7 @@ func JoinGroup(ctx context.Context, gad nip29.GroupAddress) error {
 		CreatedAt: nostr.Now(),
 		Tags:      nostr.Tags{nostr.Tag{"h", gad.ID}},
 	}
-	if err := Signer.SignEvent(&joinRequest); err != nil {
+	if err := K.SignEvent(ctx, &joinRequest); err != nil {
 		return err
 	}
 	groupRelay, err := System.Pool.EnsureRelay(gad.Relay)
@@ -240,7 +240,7 @@ func (g Group) SendChatMessage(ctx context.Context, text string, replyTo string)
 		evt.Tags = append(evt.Tags, nostr.Tag{"e", replyTo})
 	}
 
-	if err := Signer.SignEvent(&evt); err != nil {
+	if err := K.SignEvent(ctx, &evt); err != nil {
 		return fmt.Errorf("failed to sign: %w", err)
 	}
 

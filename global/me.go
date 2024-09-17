@@ -11,7 +11,7 @@ import (
 	"github.com/bep/debounce"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip29"
-	sdk "github.com/nbd-wtf/nostr-sdk"
+	"github.com/nbd-wtf/go-nostr/sdk"
 	"golang.org/x/exp/slices"
 )
 
@@ -60,7 +60,7 @@ func GetMe(ctx context.Context) *Me {
 		return me
 	}
 
-	pubkey := Signer.GetPublicKey()
+	pubkey := K.GetPublicKey(ctx)
 
 	me = &Me{
 		User: GetUser(ctx, pubkey),
@@ -192,7 +192,7 @@ func (me *Me) triggerListUpdate() {
 
 func (me *Me) updateAndPublishLastList(ctx context.Context) error {
 	me.lastList.CreatedAt = nostr.Now()
-	if err := Signer.SignEvent(me.lastList); err != nil {
+	if err := K.SignEvent(ctx, me.lastList); err != nil {
 		return fmt.Errorf("failed to sign event: %w", err)
 	}
 
