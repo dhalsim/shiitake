@@ -1,65 +1,42 @@
 package main
 
 import (
+	"iter"
 	"strings"
 
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
-func eachChild(list *gtk.ListBox, fn func(*gtk.ListBoxRow) (stop bool)) {
-	row, _ := list.LastChild().(*gtk.ListBoxRow)
-	if row == nil {
-		return
-	}
-
-	for {
-		// this repeats until index is -1, at which the loop will break.
-		prev, _ := row.PrevSibling().(*gtk.ListBoxRow)
-		if prev == nil {
-			fn(row)
-			break
-		}
-
-		if fn(row) {
-			break
-		}
-
-		row = prev
-	}
+type gtkparent interface {
+	LastChild() gtk.Widgetter
 }
 
-func getChild(list *gtk.ListBox, fn func(*gtk.ListBoxRow) bool) *gtk.ListBoxRow {
-	var row *gtk.ListBoxRow
-	eachChild(list, func(lbr *gtk.ListBoxRow) bool {
-		if fn(lbr) {
-			// found it
-			row = lbr
-			return true
-		}
-		return false
-	})
-	return row
+type gtkchild interface {
+	PrevSibling() gtk.Widgetter
 }
 
-func eachChildFlow(list *gtk.FlowBox, fn func(*gtk.FlowBoxChild) (stop bool)) {
-	row, _ := list.LastChild().(*gtk.FlowBoxChild)
-	if row == nil {
-		return
-	}
-
-	for {
-		// this repeats until index is -1, at which the loop will break.
-		prev, _ := row.PrevSibling().(*gtk.FlowBoxChild)
-		if prev == nil {
-			fn(row)
-			break
+func children[P gtkparent, C gtkchild](list P) iter.Seq[C] {
+	return func(yield func(C) bool) {
+		row := list.LastChild()
+		if row == nil {
+			return
 		}
 
-		if fn(row) {
-			break
-		}
+		c := row.(C)
+		for {
+			// this repeats until index is -1, at which the loop will break.
+			prev := c.PrevSibling()
+			if prev == nil {
+				yield(c)
+				return
+			}
 
-		row = prev
+			if !yield(c) {
+				return
+			}
+
+			c = prev.(C)
+		}
 	}
 }
 

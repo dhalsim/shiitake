@@ -73,10 +73,9 @@ func (d *DiscoverView) loadRelay(url string) {
 		<-relay.GroupsLoaded
 
 		glib.IdleAdd(func() {
-			eachChild(d.Results, func(lbr *gtk.ListBoxRow) bool {
+			for lbr := range children[*gtk.ListBox, *gtk.ListBoxRow](d.Results) {
 				d.Results.Remove(lbr)
-				return false
-			})
+			}
 
 			if relay != nil {
 				for _, group := range relay.GroupsList {

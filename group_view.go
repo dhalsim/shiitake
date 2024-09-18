@@ -166,10 +166,9 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 
 			fillingLock.Lock()
 			glib.IdleAdd(func() {
-				eachChildFlow(membersBox, func(fbc *gtk.FlowBoxChild) bool {
+				for fbc := range children[*gtk.FlowBox, *gtk.FlowBoxChild](membersBox) {
 					membersBox.Remove(fbc)
-					return false
-				})
+				}
 			})
 			fillingLock.Unlock()
 			fillInMembers()
@@ -472,11 +471,10 @@ func (v *GroupView) MarkRead() {
 }
 
 func (v *GroupView) deleteMessage(id string) {
-	eachChild(v.chat.list, func(lbr *gtk.ListBoxRow) bool {
+	for lbr := range children[*gtk.ListBox, *gtk.ListBoxRow](v.chat.list) {
 		if lbr.Name() == id {
 			v.chat.list.Remove(lbr)
-			return true
+			return
 		}
-		return false
-	})
+	}
 }

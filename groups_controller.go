@@ -122,7 +122,7 @@ func (v *GroupsController) currentGroup() *global.Group {
 }
 
 func (v *GroupsController) updateMember(list *gtk.ListBox, pubkey string) {
-	eachChild(list, func(lbr *gtk.ListBoxRow) bool {
+	for lbr := range children[*gtk.ListBox, *gtk.ListBoxRow](list) {
 		fmt.Println("updating member", pubkey)
 
 		// fragile: this depends on the hierarchy of components: message > rightBox > topLabel
@@ -139,8 +139,7 @@ func (v *GroupsController) updateMember(list *gtk.ListBox, pubkey string) {
 			// replace toplabel
 			// TODO
 		}
-		return false
-	})
+	}
 }
 
 // IsActive returns true if GroupsController is active and visible. This implies that the

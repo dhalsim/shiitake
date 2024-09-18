@@ -99,13 +99,12 @@ func NewSidebar(ctx context.Context) *Sidebar {
 				})
 			case gad := <-me.LeftGroup:
 				glib.IdleAdd(func() {
-					eachChild(groupsList, func(lbr *gtk.ListBoxRow) bool {
+					for lbr := range children[*gtk.ListBox, *gtk.ListBoxRow](groupsList) {
 						if lbr.Name() == gad.String() {
 							groupsList.Remove(lbr)
-							return true // stop
+							break
 						}
-						return false // continue
-					})
+					}
 				})
 			}
 		}
@@ -119,7 +118,7 @@ func NewSidebar(ctx context.Context) *Sidebar {
 				discover.AddCSSClass("bg-amber-400")
 			}
 
-			eachChild(groupsList, func(lbr *gtk.ListBoxRow) bool {
+			for lbr := range children[*gtk.ListBox, *gtk.ListBoxRow](groupsList) {
 				// iterate through all buttons, removing classes from all and adding in the selected
 				sidebuttonWidget := lbr.Child().(*gtk.Button)
 				if lbr.Name() == gad.String() {
@@ -127,8 +126,7 @@ func NewSidebar(ctx context.Context) *Sidebar {
 				} else {
 					sidebuttonWidget.RemoveCSSClass("bg-amber-400")
 				}
-				return false
-			})
+			}
 		})
 	}
 
