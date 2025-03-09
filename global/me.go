@@ -60,7 +60,10 @@ func GetMe(ctx context.Context) *Me {
 		return me
 	}
 
-	pubkey := K.GetPublicKey(ctx)
+	pubkey, err := K.GetPublicKey(ctx)
+	if err != nil {
+		// TODO: handle error
+	}
 
 	me = &Me{
 		User: GetUser(ctx, pubkey),
@@ -75,11 +78,9 @@ func GetMe(ctx context.Context) *Me {
 	me.listUpdate.debouncer = debounce.New(700 * time.Millisecond)
 
 	go func() {
-		for ie := range System.Pool.SubMany(bg, System.MetadataRelays, nostr.Filters{
-			{
-				Kinds:   []int{0},
-				Authors: []string{me.PubKey},
-			},
+		for ie := range System.Pool.SubscribeMany(bg, System.MetadataRelays.URLs, nostr.Filter{
+			Kinds:   []int{0},
+			Authors: []string{me.PubKey},
 		}) {
 			if me.Event != nil && ie.Event.CreatedAt < me.Event.CreatedAt {
 				continue

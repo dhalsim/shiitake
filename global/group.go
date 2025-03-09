@@ -42,7 +42,7 @@ func GetGroup(ctx context.Context, gad nip29.GroupAddress) *Group {
 		Group: nip29.Group{
 			Address: gad,
 			Name:    gad.ID,
-			Members: make(map[string]*nip29.Role, 5),
+			Members: make(map[string][]*nip29.Role, 5),
 		},
 		NewMessage:     make(chan *nostr.Event),
 		StoredMessages: make(chan []*nostr.Event),
@@ -163,7 +163,9 @@ func JoinGroup(ctx context.Context, gad nip29.GroupAddress) error {
 
 	sub, err := groupRelay.Subscribe(sctx, nostr.Filters{
 		{
-			Kinds: []int{nostr.KindSimpleGroupAddUser},
+			// doesn't exist
+			// Kinds: []int{nostr.KindSimpleGroupAddUser},
+			Kinds: []int{9000},
 			Tags: nostr.TagMap{
 				"h": []string{gad.ID},
 				"p": []string{joinRequest.PubKey},

@@ -135,7 +135,8 @@ func NewGroupView(ctx context.Context, group *global.Group) *GroupView {
 				for pubkey, role := range group.Members {
 					roleName := ""
 					if role != nil {
-						roleName = role.Name
+						// taking the first role
+						roleName = role[0].Name
 					}
 					p := profile.New(ctx, global.System, pubkey, gtk.NewLabel(roleName))
 					p.AddCSSClass("px-4")

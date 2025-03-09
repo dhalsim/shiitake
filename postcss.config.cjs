@@ -14,8 +14,12 @@ function gtk () {
       if (decl.prop.startsWith('--')) {
         decl.parent.nodes.forEach(sibling => {
           sibling.value = sibling.value
-            .replace(`var(${decl.prop})`, decl.value)
+            .replace(new RegExp(`var\\(${decl.prop}(?:, ([^)]*))?\\)`, 'g'), (match, defaultValue) => {
+              return defaultValue ? `${decl.value || defaultValue}` : decl.value;
+            })
             .replace(/rgb\((\d+) (\d+) (\d+) \/ (\d+)\)/, 'rgba($1, $2, $3, $4)')
+            .replace(/rgb\((\d+) (\d+) (\d+) \/ var\(([^)]+)\)\)/, 'rgba($1, $2, $3, var($4))')
+            .replace(/rgb\((\d+) (\d+) (\d+)\)/, 'rgb($1, $2, $3)')
         })
         decl.remove()
         return
